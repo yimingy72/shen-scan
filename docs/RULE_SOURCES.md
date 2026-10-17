@@ -27,12 +27,12 @@ Nuclei HEAD 同步后的所有可解析模板都写入独立 source catalog，�
 
 - 原始 template ID、protocols、capabilities、info、classification 和请求数估计；
 - `Upstream{source_id,revision,path,sha256}` 来源信息；
-- `catalog_only:true`、`enabled:false` 初始状态和“原始 Nuclei 执行器未接入”的运行能力原因；
+- 目录条目使用 `catalog_only:true`、`enabled:false` 初始状态，并保留运行能力原因；需要执行时单独走 `http-basic-v1` 导入；
 - 对 DoS、破坏性、fuzz、爆破、默认口令或密码喷洒等模板的额外默认关闭原因。
 
 “上游原库”支持分页、筛选、查看完整 YAML、读取任意原始文件和下载整个 revision 的 ZIP。ZIP 包含路径、大小和 SHA-256 manifest。目录的 enabled 值是管理元数据，不代表具备运行能力；catalog-only 条目不会进入任务快照或派发给现有 Agent。
 
-本轮没有完成原始 Nuclei 执行器迁移，也没有接入由 Nuclei 模板派生的主动 HTTP 发现。相关实现请求被自动安全审核拦截后已停止，未换通道继续。因此不能把“全量原库已同步”表述成“14,075 条模板可执行”。
+全量原库已同步，但不会自动生成可执行规则；`http-basic-v1` 仅支持经过检查的静态 HTTP 子集，不能把“14,075 条模板可同步”表述成“14,075 条模板可执行”。原始目录中的 DSL、extractor、raw、payload、fuzz、race、flow、重定向和其他协议仍不在执行范围。
 
 现有 PoC 执行库保持 **907 条**：原有 896 条 discovery 加 11 条 native verification。Nuclei 原库更新不会新增、覆盖、退役或重新启用这 907 条规则；历史任务仍使用其创建时冻结的规则数据。
 
