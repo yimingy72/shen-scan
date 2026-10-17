@@ -2,70 +2,20 @@ package rulelib
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
+	"reflect"
+	"sort"
 	"strings"
 
 	"gopkg.in/yaml.v3"
 )
 
-type nucleiTemplate struct {
-	ID   string       `yaml:"id"`
-	Info nucleiInfo   `yaml:"info"`
-	HTTP []nucleiHTTP `yaml:"http"`
-}
-
-type nucleiInfo struct {
-	Name           string                 `yaml:"name"`
-	Author         stringList             `yaml:"author,omitempty"`
-	Severity       string                 `yaml:"severity"`
-	Description    string                 `yaml:"description,omitempty"`
-	Tags           stringList             `yaml:"tags,omitempty"`
-	Reference      stringList             `yaml:"reference,omitempty"`
-	Remediation    string                 `yaml:"remediation,omitempty"`
-	Metadata       map[string]interface{} `yaml:"metadata,omitempty"`
-	Classification map[string]interface{} `yaml:"classification,omitempty"`
-}
-
-type nucleiHTTP struct {
-	Method            string            `yaml:"method,omitempty"`
-	Path              []string          `yaml:"path"`
-	Headers           map[string]string `yaml:"headers,omitempty"`
-	MatchersCondition string            `yaml:"matchers-condition,omitempty"`
-	Matchers          []nucleiMatcher   `yaml:"matchers"`
-}
-
-type nucleiMatcher struct {
-	Type            string   `yaml:"type"`
-	Part            string   `yaml:"part,omitempty"`
-	Words           []string `yaml:"words,omitempty"`
-	Regex           []string `yaml:"regex,omitempty"`
-	Status          []int    `yaml:"status,omitempty"`
-	Condition       string   `yaml:"condition,omitempty"`
-	Negative        bool     `yaml:"negative,omitempty"`
-	CaseInsensitive bool     `yaml:"case-insensitive,omitempty"`
-}
-
-type stringList []string
-
-func (s *stringList) UnmarshalYAML(node *yaml.Node) error {
-	switch node.Kind {
-	case yaml.ScalarNode:
-		var value string
-		if err := node.Decode(&value); err != nil {
-			return err
-		}
-		for _, item := range strings.Split(value, ",") {
-			if item = strings.TrimSpace(item); item != "" {
-				*s = append(*s, item)
-			}
-		}
-		return nil
-	case yaml.SequenceNode:
-		return node.Decode((*[]string)(s))
-	default:
-		return fmt.Errorf("must be a string or string list")
-	}
+var nucleiProtocolKeys = map[string]string{
+	"http": "http", "requests": "http", "dns": "dns", "network": "tcp", "tcp": "tcp", "whois": "whois",
+	"ssl": "ssl", "websocket": "websocket", "headless": "headless", "code": "code",
+	"javascript": "javascript", "file": "file", "workflow": "workflow", "workflows": "workflow",
 }
 
 func ParseNuclei(content string) (Rule, error) {
@@ -82,201 +32,201 @@ func ParseNuclei(content string) (Rule, error) {
 	return rule, nil
 }
 
-func parseNucleiTemplate(content string) (Rule, error) {
-	root, normalized, err := decodeYAMLNode(content)
+// InspectNucleiTemplate reads index metadata without rewriting the YAML.
+func InspectNucleiTemplate(data []byte) (NucleiMetadata, error) {
+	if len(data) == 0 || len(data) > maxTemplateBytes {
+		return NucleiMetadata{}, fmt.Errorf("template must be 1..%d bytes", maxTemplateBytes)
+	}
+	decoder := yaml.NewDecoder(bytes.NewReader(data))
+	var document yaml.Node
+	if err := decoder.Decode(&document); err != nil {
+		return NucleiMetadata{}, fmt.Errorf("decode nuclei YAML: %w", err)
+	}
+	if len(document.Content) != 1 || document.Content[0].Kind != yaml.MappingNode {
+		return NucleiMetadata{}, fmt.Errorf("nuclei template root must be a mapping")
+	}
+	var trailing any
+	if err := decoder.Decode(&trailing); err != io.EOF {
+		return NucleiMetadata{}, fmt.Errorf("nuclei template must contain one YAML document")
+	}
+	root := document.Content[0]
+	templateID := strings.TrimSpace(scalarValue(mappingNode(root, "id")))
+	if templateID == "" || len(templateID) > 512 {
+		return NucleiMetadata{}, fmt.Errorf("nuclei template has no bounded id")
+	}
+	infoNode := mappingNode(root, "info")
+	if infoNode == nil || infoNode.Kind != yaml.MappingNode {
+		return NucleiMetadata{}, fmt.Errorf("nuclei template has no info mapping")
+	}
+	infoJSON, err := nodeJSON(infoNode)
 	if err != nil {
-		return Rule{}, err
+		return NucleiMetadata{}, fmt.Errorf("index nuclei info: %w", err)
 	}
-	if err := validateYAMLTree(root, 0); err != nil {
-		return Rule{}, err
-	}
-	decoder := yaml.NewDecoder(strings.NewReader(content))
-	decoder.KnownFields(true)
-	var template nucleiTemplate
-	if err := decoder.Decode(&template); err != nil {
-		return Rule{}, fmt.Errorf("decode template: %w", err)
-	}
-	var extra interface{}
-	if err := decoder.Decode(&extra); err != io.EOF {
-		if err == nil {
-			return Rule{}, fmt.Errorf("multiple YAML documents are not allowed")
-		}
-		return Rule{}, fmt.Errorf("decode trailing YAML: %w", err)
-	}
-	if len(template.HTTP) == 0 {
-		return Rule{}, fmt.Errorf("template must contain HTTP requests")
-	}
-	requests := make([]Request, 0, maxRequests)
-	for i, block := range template.HTTP {
-		method := strings.ToUpper(strings.TrimSpace(block.Method))
-		if method == "" {
-			method = "GET"
-		}
-		if method != "GET" && method != "HEAD" {
-			return Rule{}, fmt.Errorf("http block %d method must be GET or HEAD", i+1)
-		}
-		if len(block.Path) == 0 {
-			return Rule{}, fmt.Errorf("http block %d has no paths", i+1)
-		}
-		if err := validateImportedHeaders(block.Headers); err != nil {
-			return Rule{}, fmt.Errorf("http block %d: %w", i+1, err)
-		}
-		matchers := make([]Matcher, len(block.Matchers))
-		for j, matcher := range block.Matchers {
-			typeName := strings.ToLower(strings.TrimSpace(matcher.Type))
-			part := strings.ToLower(strings.TrimSpace(matcher.Part))
-			if part == "" {
-				part = "body"
-				if typeName == "status" {
-					part = "status"
-				}
-			}
-			condition := strings.ToLower(strings.TrimSpace(matcher.Condition))
-			if condition == "" {
-				condition = "or"
-			}
-			matchers[j] = Matcher{
-				Part: part, Type: typeName,
-				Words: matcher.Words, Regex: matcher.Regex, Status: matcher.Status,
-				Condition: condition, Negative: matcher.Negative,
-				CaseSensitive: !matcher.CaseInsensitive,
-			}
-		}
-		requestCondition := strings.ToLower(strings.TrimSpace(block.MatchersCondition))
-		if requestCondition == "" {
-			requestCondition = "and"
-		}
-		for _, rawPath := range block.Path {
-			path, err := importedPath(rawPath)
-			if err != nil {
-				return Rule{}, fmt.Errorf("http block %d: %w", i+1, err)
-			}
-			requests = append(requests, Request{Method: method, Path: path, Headers: block.Headers, Condition: requestCondition, Matchers: matchers})
-			if len(requests) > maxRequests {
-				return Rule{}, fmt.Errorf("template exceeds %d HTTP requests/paths", maxRequests)
-			}
+	classificationNode := mappingNode(infoNode, "classification")
+	var classificationJSON json.RawMessage
+	if classificationNode != nil {
+		classificationJSON, err = nodeJSON(classificationNode)
+		if err != nil {
+			return NucleiMetadata{}, fmt.Errorf("index nuclei classification: %w", err)
 		}
 	}
-	severity := strings.ToLower(strings.TrimSpace(template.Info.Severity))
-	if severity == "unknown" || severity == "" {
-		severity = "info"
+	protocols := make([]string, 0, 4)
+	seenProtocols := map[string]bool{}
+	for index := 0; index+1 < len(root.Content); index += 2 {
+		if protocol := nucleiProtocolKeys[strings.ToLower(root.Content[index].Value)]; protocol != "" && !seenProtocols[protocol] {
+			seenProtocols[protocol] = true
+			protocols = append(protocols, protocol)
+		}
 	}
-	rule := Rule{
-		ID: template.ID, Kind: "poc", Name: template.Info.Name,
-		Description: template.Info.Description, Engine: "nuclei", Severity: severity,
-		Enabled: false, Builtin: false, Revision: 1, Tags: []string(template.Info.Tags), AppliesTo: metadataProducts(template.Info.Metadata),
-		Source: "Imported read-only Nuclei HTTP template", Definition: Definition{Service: "http", Condition: "and", Requests: requests},
-		Template: normalized,
+	sort.Strings(protocols)
+	if len(protocols) == 0 {
+		return NucleiMetadata{}, fmt.Errorf("nuclei template has no recognized protocol")
 	}
-	return rule, nil
+	capabilitySet := map[string]bool{}
+	collectNucleiCapabilities(root, capabilitySet)
+	capabilities := sortedSet(capabilitySet)
+	return NucleiMetadata{
+		TemplateID: templateID, Protocols: protocols, Raw: capabilitySet["raw"], Capabilities: capabilities,
+		Info: infoJSON, Classification: classificationJSON, RequestCount: estimateNucleiRequests(root, capabilitySet),
+	}, nil
 }
 
-func metadataProducts(metadata map[string]interface{}) []string {
-	value, ok := metadata["product"]
-	if !ok {
-		return nil
+func validateNucleiMetadata(template string, metadata *NucleiMetadata) error {
+	if metadata == nil {
+		return fmt.Errorf("nuclei metadata is required")
 	}
-	var products []string
-	switch value := value.(type) {
-	case string:
-		for _, product := range strings.Split(value, ",") {
-			if product = strings.TrimSpace(product); product != "" {
-				products = append(products, product)
-			}
-		}
-	case []interface{}:
-		for _, item := range value {
-			if product, ok := item.(string); ok && strings.TrimSpace(product) != "" {
-				products = append(products, strings.TrimSpace(product))
-			}
-		}
-	case []string:
-		for _, product := range value {
-			if product = strings.TrimSpace(product); product != "" {
-				products = append(products, product)
-			}
-		}
+	indexed, err := InspectNucleiTemplate([]byte(template))
+	if err != nil {
+		return err
 	}
-	return products
+	if metadata.TemplateID != indexed.TemplateID || metadata.Raw != indexed.Raw ||
+		!equalStrings(metadata.Protocols, indexed.Protocols) || !equalStrings(metadata.Capabilities, indexed.Capabilities) ||
+		!equalOptionalInt(metadata.RequestCount, indexed.RequestCount) || !equalJSON(metadata.Info, indexed.Info) ||
+		!equalJSON(metadata.Classification, indexed.Classification) {
+		return fmt.Errorf("nuclei metadata does not match the original template")
+	}
+	if len(metadata.DefaultDisabledReason) > 1024 || len(metadata.RuntimeReason) > 1024 {
+		return fmt.Errorf("nuclei runtime/default reason is too long")
+	}
+	return nil
 }
 
-func decodeYAMLNode(content string) (*yaml.Node, string, error) {
-	decoder := yaml.NewDecoder(strings.NewReader(content))
-	var root yaml.Node
-	if err := decoder.Decode(&root); err != nil {
-		return nil, "", fmt.Errorf("decode YAML: %w", err)
-	}
-	if len(root.Content) != 1 || root.Content[0].Kind != yaml.MappingNode {
-		return nil, "", fmt.Errorf("template root must be a mapping")
-	}
-	var output bytes.Buffer
-	encoder := yaml.NewEncoder(&output)
-	encoder.SetIndent(2)
-	if err := encoder.Encode(root.Content[0]); err != nil {
-		return nil, "", fmt.Errorf("normalize YAML: %w", err)
-	}
-	_ = encoder.Close()
-	return root.Content[0], output.String(), nil
-}
-
-func validateYAMLTree(node *yaml.Node, depth int) error {
-	if depth > 16 {
-		return fmt.Errorf("YAML nesting is too deep")
-	}
-	if node.Kind == yaml.AliasNode || node.Anchor != "" {
-		return fmt.Errorf("YAML anchors and aliases are not allowed")
-	}
-	if node.Kind == yaml.ScalarNode && len(node.Value) > 8192 {
-		return fmt.Errorf("YAML scalar is too large")
+func collectNucleiCapabilities(node *yaml.Node, found map[string]bool) {
+	if node == nil {
+		return
 	}
 	if node.Kind == yaml.MappingNode {
-		seen := make(map[string]bool, len(node.Content)/2)
-		for i := 0; i < len(node.Content); i += 2 {
-			key := node.Content[i]
-			if key.Kind != yaml.ScalarNode || seen[key.Value] {
-				return fmt.Errorf("YAML mapping keys must be unique strings")
+		for index := 0; index+1 < len(node.Content); index += 2 {
+			key := strings.ToLower(node.Content[index].Value)
+			switch key {
+			case "raw", "dsl", "flow", "code", "headless", "javascript", "payloads", "fuzz", "fuzzing",
+				"extractors", "interactsh", "workflows", "workflow", "race", "attack", "redirects":
+				found[key] = true
 			}
-			seen[key.Value] = true
+			collectNucleiCapabilities(node.Content[index+1], found)
+		}
+	} else {
+		for _, child := range node.Content {
+			collectNucleiCapabilities(child, found)
 		}
 	}
-	for _, child := range node.Content {
-		if err := validateYAMLTree(child, depth+1); err != nil {
-			return err
+	if node.Kind == yaml.ScalarNode && strings.Contains(strings.ToLower(node.Value), "interactsh") {
+		found["interactsh"] = true
+	}
+}
+
+func estimateNucleiRequests(root *yaml.Node, capabilities map[string]bool) *int {
+	for _, dynamic := range []string{"flow", "payloads", "fuzz", "fuzzing", "race", "attack", "workflow", "workflows"} {
+		if capabilities[dynamic] {
+			return nil
+		}
+	}
+	total := 0
+	for index := 0; index+1 < len(root.Content); index += 2 {
+		key := strings.ToLower(root.Content[index].Value)
+		if nucleiProtocolKeys[key] == "" {
+			continue
+		}
+		section := root.Content[index+1]
+		if section.Kind != yaml.SequenceNode {
+			total++
+			continue
+		}
+		for _, request := range section.Content {
+			count := 1
+			if request.Kind == yaml.MappingNode {
+				for _, field := range []string{"path", "raw", "inputs"} {
+					if value := mappingNode(request, field); value != nil && value.Kind == yaml.SequenceNode && len(value.Content) > count {
+						count = len(value.Content)
+					}
+				}
+			}
+			total += count
+		}
+	}
+	if total == 0 {
+		return nil
+	}
+	return &total
+}
+
+func mappingNode(node *yaml.Node, key string) *yaml.Node {
+	if node == nil || node.Kind != yaml.MappingNode {
+		return nil
+	}
+	for index := 0; index+1 < len(node.Content); index += 2 {
+		if strings.EqualFold(node.Content[index].Value, key) {
+			return node.Content[index+1]
 		}
 	}
 	return nil
 }
 
-func validateImportedHeaders(headers map[string]string) error {
-	for name, value := range headers {
-		if !oneOf(strings.ToLower(name), "accept", "accept-language", "accept-encoding", "user-agent", "cache-control", "pragma") {
-			return fmt.Errorf("header %q is outside the read-only subset", name)
-		}
-		if strings.Contains(value, "{{") || strings.Contains(strings.ToLower(value), "interactsh") {
-			return fmt.Errorf("dynamic or external-callback header values are not allowed")
-		}
+func scalarValue(node *yaml.Node) string {
+	if node == nil || node.Kind != yaml.ScalarNode {
+		return ""
 	}
-	return nil
+	return node.Value
 }
 
-func importedPath(value string) (string, error) {
-	value = strings.TrimSpace(value)
-	path := ""
-	for _, prefix := range []string{"{{BaseURL}}", "{{RootURL}}"} {
-		if value == prefix {
-			path = "/"
-			break
+func nodeJSON(node *yaml.Node) (json.RawMessage, error) {
+	var value any
+	if err := node.Decode(&value); err != nil {
+		return nil, err
+	}
+	return json.Marshal(value)
+}
+
+func sortedSet(values map[string]bool) []string {
+	result := make([]string, 0, len(values))
+	for value := range values {
+		result = append(result, value)
+	}
+	sort.Strings(result)
+	return result
+}
+
+func equalStrings(left, right []string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for index := range left {
+		if left[index] != right[index] {
+			return false
 		}
-		if strings.HasPrefix(value, prefix+"/") {
-			path = strings.TrimPrefix(value, prefix)
-			break
-		}
 	}
-	if path == "" || strings.Contains(path, "{{") || strings.Contains(strings.ToLower(path), "interactsh") {
-		return "", fmt.Errorf("path must be static and rooted at {{BaseURL}} or {{RootURL}}")
+	return true
+}
+
+func equalOptionalInt(left, right *int) bool {
+	return left == nil && right == nil || left != nil && right != nil && *left == *right
+}
+
+func equalJSON(left, right json.RawMessage) bool {
+	if len(left) == 0 || len(right) == 0 {
+		return len(left) == len(right)
 	}
-	if err := validateStaticPath(path); err != nil {
-		return "", err
-	}
-	return path, nil
+	var leftValue, rightValue any
+	return json.Unmarshal(left, &leftValue) == nil && json.Unmarshal(right, &rightValue) == nil &&
+		reflect.DeepEqual(leftValue, rightValue)
 }

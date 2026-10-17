@@ -1,8 +1,8 @@
 # HTTP 与服务指纹依据
 
-当前随项目发布的 bootstrap 包含 150 条 HTTP 规则、22 条端口规则和 43 条只读 PoC；官方 source 更新会在此基础上增加规则，实际数量随上游 SHA 变化。工作台的“指纹库”展示实际规则、来源、启用状态和版本，可编辑、复制及导入导出；接口和格式见 [规则库说明](RULE_LIBRARY.md)。下面列举 bootstrap 的主要识别依据，完整执行规则以任务创建时的库快照为准。
+当前随项目发布的 bootstrap 包含 151 条 HTTP 规则、22 条端口规则和 43 条 PoC。Wapp source 更新加入 7,642 个完整 app，由 HTTPx v1.12.0 被动识别；本轮更新后已验证 HTTP 执行库为 7,793 条，后续数量随上游更新与本地修改变化。下面列举 native bootstrap 的主要依据，完整执行规则以任务创建时的冻结快照为准。
 
-HTTP 指纹只使用既有响应，不为识别 CMS、框架或版本增加请求。服务指纹优先读取连接已经返回的首段 Banner；6379 和 11211 端口分别发送一次无副作用的 `PING` 和 `version` 命令，并且只在响应符合协议时确认 Redis 或 memcached。HTTP 正文仍受现有 1 MiB 上限约束，服务响应仍受现有 4096 字节上限和单端点 5 秒总时限约束。
+HTTP 指纹只使用本次 HTTP 探测响应，不为识别 CMS、框架或版本增加请求。HTTPx 使用完整 Wapp CFF 识别后，Agent 只保留冻结快照中启用的产品，并继续用同一响应运行 native 补充规则。服务指纹优先读取连接已经返回的首段 Banner；6379 和 11211 端口分别发送一次无副作用的 `PING` 和 `version` 命令。
 
 ## HTTP 规则
 
@@ -46,11 +46,11 @@ HTTP 指纹只使用既有响应，不为识别 CMS、框架或版本增加请�
 - [Redis PING 命令](https://redis.io/docs/latest/commands/ping/) 与 [memcached 文本协议](https://github.com/memcached/memcached/blob/master/doc/protocol.txt)
 - [SSH Transport Layer Protocol](https://www.rfc-editor.org/rfc/rfc4253#section-4.2)、[SMTP](https://www.rfc-editor.org/rfc/rfc5321) 和 [FTP](https://www.rfc-editor.org/rfc/rfc959) 协议文档
 
-新增的 85 个被动信号改写自 MIT 的 `projectdiscovery/wappalyzergo` 固定版本，保留 [许可证与归属](../internal/rulelib/THIRD_PARTY_NOTICES.md)；另有 11 个产品专用强信号，未打包整个上游数据文件。未复制无明确许可证的 FingerprintHub、ChainReactor 规则，也未把不支持的 favicon、JS runtime、主动请求或复杂关联语义降级成粗糙字符串判断。Nuclei 执行引擎单独遵循 MIT 许可，随 Worker 发布包保留许可证；导入规则的版权和许可由其来源决定。
+Bootstrap 中 85 个被动信号是早期对 MIT `projectdiscovery/wappalyzergo` 的人工改写，并保留 [许可证与归属](../internal/rulelib/THIRD_PARTY_NOTICES.md)。现在 Wapp source 还保存全部原始 app JSON，并交给 HTTPx 的正式 CFF 语义处理；native 规则继续用于自定义和旧快照补充。未从无明确许可证的 FingerprintHub 或 ChainReactor 复制规则。
 
 ## 调度边界
 
-HTTP 任务内部最多并行 2 个端点；未指定 URL 时，首个协议的首字节及正文读取最多使用单端点 12 秒总预算的一半，HTTP 与 HTTPS 协议尝试共享总截止时间，给回退协议保留实际执行时间。收到有效 HTTP 状态后，即使响应体超时也保留该次响应证据，不再用另一协议覆盖；显式 URL 仍可使用完整的单端点预算。服务任务每任务最多 8 个端点并发，并受 Agent 默认 16 个全局端点槽约束。当前控制面仍会为每个开放端口派生 HTTP 候选，指纹层不改变这项调度策略。
+含 httpx-cff 的 HTTP 任务使用每任务批量 CLI，默认最多 2 个 HTTPx 进程、每进程 8 线程。每次协议尝试的请求超时不超过 12 秒；显式 URL 保持输入协议，端口派生且未指定 URL 的端点在首选协议无响应时批量尝试另一协议，整个任务仍受统一执行截止时间约束。本轮 HTTPx 不自动跟随重定向，保留响应中的 Location，跳转目标需要单独作为已授权输入。旧的纯 native 快照保留此前 2 端点并发和共享 12 秒协议回退预算。服务任务仍受 Agent 端点并发约束，控制面仍为开放端口派生 HTTP 候选。
 
 ## 匹配质量
 

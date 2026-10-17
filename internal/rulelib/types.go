@@ -1,22 +1,47 @@
 package rulelib
 
+import "encoding/json"
+
 type Rule struct {
-	ID           string        `json:"id" yaml:"id"`
-	Kind         string        `json:"kind" yaml:"kind"`
-	Purpose      string        `json:"purpose,omitempty" yaml:"purpose,omitempty"`
-	Name         string        `json:"name" yaml:"name"`
-	Description  string        `json:"description,omitempty" yaml:"description,omitempty"`
-	Engine       string        `json:"engine" yaml:"engine"`
-	Severity     string        `json:"severity" yaml:"severity"`
-	Enabled      bool          `json:"enabled" yaml:"enabled"`
-	Builtin      bool          `json:"builtin" yaml:"builtin"`
-	Revision     int           `json:"revision" yaml:"revision"`
-	Tags         []string      `json:"tags,omitempty" yaml:"tags,omitempty"`
-	AppliesTo    []string      `json:"applies_to,omitempty" yaml:"applies_to,omitempty"`
-	Verification *Verification `json:"verification,omitempty" yaml:"verification,omitempty"`
-	Source       string        `json:"source,omitempty" yaml:"source,omitempty"`
-	Definition   Definition    `json:"definition" yaml:"definition"`
-	Template     string        `json:"template,omitempty" yaml:"template,omitempty"`
+	ID           string          `json:"id" yaml:"id"`
+	Kind         string          `json:"kind" yaml:"kind"`
+	Purpose      string          `json:"purpose,omitempty" yaml:"purpose,omitempty"`
+	Name         string          `json:"name" yaml:"name"`
+	Description  string          `json:"description,omitempty" yaml:"description,omitempty"`
+	Engine       string          `json:"engine" yaml:"engine"`
+	Severity     string          `json:"severity" yaml:"severity"`
+	Enabled      bool            `json:"enabled" yaml:"enabled"`
+	Builtin      bool            `json:"builtin" yaml:"builtin"`
+	Revision     int             `json:"revision" yaml:"revision"`
+	Tags         []string        `json:"tags,omitempty" yaml:"tags,omitempty"`
+	AppliesTo    []string        `json:"applies_to,omitempty" yaml:"applies_to,omitempty"`
+	Verification *Verification   `json:"verification,omitempty" yaml:"verification,omitempty"`
+	Upstream     *Upstream       `json:"upstream,omitempty" yaml:"upstream,omitempty"`
+	Nuclei       *NucleiMetadata `json:"nuclei,omitempty" yaml:"nuclei,omitempty"`
+	Fingerprint  json.RawMessage `json:"fingerprint,omitempty" yaml:"fingerprint,omitempty"`
+	Source       string          `json:"source,omitempty" yaml:"source,omitempty"`
+	Definition   Definition      `json:"definition" yaml:"definition"`
+	Template     string          `json:"template,omitempty" yaml:"template,omitempty"`
+}
+
+type Upstream struct {
+	SourceID string `json:"source_id" yaml:"source_id"`
+	Revision string `json:"revision,omitempty" yaml:"revision,omitempty"`
+	Path     string `json:"path" yaml:"path"`
+	SHA256   string `json:"sha256" yaml:"sha256"`
+}
+
+type NucleiMetadata struct {
+	TemplateID            string          `json:"template_id" yaml:"template_id"`
+	CatalogOnly           bool            `json:"catalog_only,omitempty" yaml:"catalog_only,omitempty"`
+	Protocols             []string        `json:"protocols,omitempty" yaml:"protocols,omitempty"`
+	Raw                   bool            `json:"raw,omitempty" yaml:"raw,omitempty"`
+	Capabilities          []string        `json:"capabilities,omitempty" yaml:"capabilities,omitempty"`
+	DefaultDisabledReason string          `json:"default_disabled_reason,omitempty" yaml:"default_disabled_reason,omitempty"`
+	Info                  json.RawMessage `json:"info,omitempty" yaml:"info,omitempty"`
+	Classification        json.RawMessage `json:"classification,omitempty" yaml:"classification,omitempty"`
+	RuntimeReason         string          `json:"runtime_reason,omitempty" yaml:"runtime_reason,omitempty"`
+	RequestCount          *int            `json:"request_count" yaml:"request_count"`
 }
 
 type Definition struct {

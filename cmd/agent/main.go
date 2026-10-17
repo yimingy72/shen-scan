@@ -30,8 +30,11 @@ func main() {
 		AllowPrivateTargets: envBool("SCAN_ALLOW_PRIVATE_TARGETS"), PortExecutor: env("SCAN_PORT_EXECUTOR", "masscan"),
 		MasscanRateLimitPPS: envInt("SCAN_MASSCAN_MAX_RATE_PPS", 20000),
 		MasscanInterface:    os.Getenv("SCAN_MASSCAN_INTERFACE"), MasscanRouterMAC: os.Getenv("SCAN_MASSCAN_ROUTER_MAC"),
-		MetadataURL:  env("AGENT_METADATA_URL", "http://100.100.100.200/latest/meta-data/instance/spot/termination-time"),
-		NucleiBinary: env("NUCLEI_BINARY", "nuclei"),
+		MetadataURL:       env("AGENT_METADATA_URL", "http://100.100.100.200/latest/meta-data/instance/spot/termination-time"),
+		HTTPXBinary:       env("HTTPX_BINARY", "httpx"),
+		HTTPXMaxProcesses: envInt("HTTPX_MAX_PROCESSES", 2),
+		HTTPXThreads:      envInt("HTTPX_THREADS", 8),
+		NucleiBinary:      env("NUCLEI_BINARY", "nuclei"),
 	}
 	worker, err := agent.New(cfg)
 	if err != nil {

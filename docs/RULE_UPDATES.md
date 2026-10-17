@@ -1,102 +1,80 @@
 # 官方规则源更新
 
-SHEN 支持从两个固定官方仓库一键更新规则：
+SHEN 支持管理员从两个固定官方仓库一键跟随最新 HEAD：
 
 - `wappalyzer` → `projectdiscovery/wappalyzergo`
 - `nuclei-templates` → `projectdiscovery/nuclei-templates`
 
-不能输入任意 URL，也不会切换第三方镜像。规则源更新是管理员主动操作；控制面启动、Worker 启动和普通扫描都不会自动访问 GitHub。
+不能输入任意 URL，也不会切换第三方镜像。控制面启动、Worker 启动和普通扫描不会自动访问 GitHub。
 
-## 更新流程
+## 下载与原子发布
 
-1. 控制面从 `api.github.com` 读取官方仓库最新 commit SHA。
-2. 若 SHA 和转换器版本均未变化，直接记录本次检查为无变化，不重复下载归档。
-3. 否则从同仓库的 `codeload.github.com` 固定 SHA 地址下载归档。
-4. 校验 HTTPS 跳转范围、压缩与展开大小、文件数量、tar 路径和文件类型。
-5. 读取仓库根 `LICENSE.md`，要求为完整 MIT 许可；保存许可全文、SHA 和归档内容摘要。
-6. 转换全部候选，记录 accepted、skipped、排除原因和有限样例。
-7. 在一个 PostgreSQL 事务中发布。任何下载、许可、解析、校验或写入错误都保留上一成功版本。
+1. 控制面从 `api.github.com` 读取最新 commit。
+2. commit 与 ConverterVersion 均未变化时，只记录检查成功，不重复下载。
+3. 否则从固定仓库的 `codeload.github.com` 按该 commit 下载归档。
+4. 校验 HTTPS 跳转、压缩和展开大小、文件数、tar 路径、普通文件类型及 MIT 许可。
+5. 转换 Wapp app 或建立 Nuclei 原始目录，保存 revision、文件 SHA-256、归档摘要、完整许可证和统计。
+6. 在一个 PostgreSQL 事务中发布；任何下载、解析、校验或写入失败都保留上一成功版本。
 
-当前转换与只读策略版本为 `ConverterVersion=3`。该版本与上游 SHA 一起决定是否需要重新下载转换；v3 增加了按路径和逐文件 SHA 审核的 native verification。以后筛选或审核语义变化时必须提升版本。
+当前为 `ConverterVersion=4`。版本变化会使相同 commit 重新转换。本版本的两条发布路径不同：
 
-压缩归档上限 128 MiB，展开上限 256 MiB；更新总预算 10 分钟。GET 连接错误最多重试 3 次，拨号、TLS 和响应头等待均有界；HTTP 4xx（包括 API 限额 403）、坏许可、坏 tar 和转换错误不会盲目重试。
+- Wappalyzer 的 7,642 个原始 app 进入 HTTP 执行库，供 HTTPx v1.12.0 被动识别。
+- Nuclei 的 14,075 条可解析规则和全部原始文件进入独立 source catalog / files，不进入执行库。
 
-GitHub 匿名 API 限额不足时，可在控制面进程环境中设置 `GITHUB_TOKEN`。该 token 只作为 `api.github.com` 的 Authorization header，不发送到 codeload、Worker 或 UI，也不写入 source 状态。
+压缩归档上限 128 MiB，展开上限 256 MiB，更新总预算 10 分钟。GET 连接错误最多重试 3 次；HTTP 4xx、坏许可、坏 tar 和转换错误不盲目重试。可选 `GITHUB_TOKEN` 只发送给 `api.github.com`，不会进入 codeload、Worker、UI 或 source 状态。
 
 ## 状态与统计
 
-规则源状态为：
+状态为 `idle`、`updating`、`ready` 或 `failed`。同源重复点击不会启动第二个并发更新；两个不同 source 可以并行。进程重启会把遗留的 `updating` 标为失败，允许重试。
 
-- `idle`：尚未成功更新；
-- `updating`：后台更新进行中；同源重复点击返回当前状态，不启动第二份下载；
-- `ready`：最近检查或发布成功；
-- `failed`：最近更新失败，`error` 包含简短原因。
+`updated_at` 是最近检查时间；`revision` 和 `digest` 是最近成功发布版本。`stats` 包含：
 
-两个源互不阻塞，可并行更新。进程重启时遗留的 `updating` 会标为失败，可重新点击。`updated_at` 表示最近检查时间；`revision` 和 `digest` 表示最近成功发布的上游版本。
+| 字段 | Wapp 执行库 | Nuclei 上游原库 |
+|---|---|---|
+| `total` / `accepted` / `skipped` | app 总数、有效规则和排除项 | YAML 总数、目录规则和非模板 / 无效项 |
+| `added` / `updated` / `unchanged` | 与当前执行库来源内容比较 | 与上一 catalog revision 比较 |
+| `preserved` | 因用户编辑、删除、启停 override 或 ID 冲突保留 | 不适用；catalog 按 revision 不可变保存 |
+| `retired` | 上游移除且未本地改写的规则会在执行库停用 | 仅表示目录版本差异，不会停用任何 PoC 执行规则 |
 
-`stats` 字段含义：
+发布要求 `total = accepted + skipped` 且至少有可用规则。空目录或统计不完整会使整次更新失败。
 
-| 字段 | 含义 |
-|---|---|
-| `total` | 本次转换器看到的上游候选总数 |
-| `accepted` | 通过当前安全模型的规则数 |
-| `skipped` | 产品或模板级排除总数 |
-| `reasons` | 排除原因及数量 |
-| `added` | 本次新增 |
-| `updated` | 本次按上游更新 |
-| `unchanged` | 内容未变化 |
-| `preserved` | 因本地编辑、删除或 ID 冲突而保留 |
-| `retired` | 上游已移除或不再合规，因而停用 |
+## 两个数据面的边界
 
-Nuclei 的 `review_required` 表示某个 reviewed verification 的上游文件 SHA 已变化，不能继续沿用旧审核结论。它属于 `skipped` 原因；更新仍可发布其余有效规则，旧的未本地改写 verification 会被停用并计入 `retired`。
+### Wapp 执行库
 
-发布要求 `total = accepted + skipped`，且 accepted 不能为零。空目录、统计不完整或全部不兼容会使整次更新失败，不会清空现有规则。
+Wapp 规则遵循现有本地修改保护：用户禁用不会被重新开启，编辑和软删除不被覆盖，自定义同 ID 冲突保留本地规则。上游默认 Enabled 会应用于新规则；后续只有在用户没有设置 enabled override 时才随上游变化。规则更新只影响之后创建的任务，已有任务继续使用冻结快照。
 
-## 本地修改保护
+### Nuclei 上游原库
 
-来源规则保留稳定 `source_id` 和上游规范内容摘要。后续更新遵循：
+Nuclei 原始规则统一以 `catalog_only` 保存，初始 `enabled:false` 并带运行能力原因。原始 YAML、分类、capabilities 和默认风险提示可查看或导出；enabled 只是目录管理信息，不使规则可执行。
 
-- 用户禁用状态不被重新开启；
-- 用户编辑过的完整规则不被上游覆盖；
-- 软删除规则不复活；
-- 自定义规则占用同 ID 时保留自定义规则；
-- 上游移除且没有本地改写的规则停用，而非物理删除；
-- reviewed verification 的 source pin 变化时不自动接受新模板；未改写的旧条目停用，等待重新审核；
-- 删除项通过同 ID JSON 导入恢复后视为本地修改。
+Nuclei 更新不会写入、覆盖、退役或重新启用当前 907 条 PoC 执行规则。全量原始执行器和主动 HTTP 发现迁移尚未接入，因此一键更新成功只表示原库已同步，不表示新模板会运行。
 
-任务继续使用创建时冻结的规则快照。规则源更新不会改变正在运行或历史任务的匹配定义。
+## 原库 API 与导出
 
-## 导入、导出与许可
-
-JSON 导入一次最多 10,000 条，请求体上限 8 MiB，整批校验和写入；任一规则失败则全部不写入。导入规则默认禁用。勾选 ID 导出和批量删除仍最多 1,000 条；按筛选导出不受页面分页限制。
-
-导出的 JSON 包含适用规则、source SHA、MIT 许可全文和 bootstrap 第三方声明，因此可以作为规则与许可备份。许可证也可通过管理员接口读取：
+管理员可以读取当前或历史 revision：
 
 ```text
+GET /api/library/sources/{id}/catalog
+GET /api/library/sources/{id}/catalog/{ruleID}
+GET /api/library/sources/{id}/files
+GET /api/library/sources/{id}/files/raw?path=...
+GET /api/library/sources/{id}/export
 GET /api/library/sources/{id}/license
-→ {"license":"MIT","license_text":"...","revision":"<commit>"}
 ```
 
-## Control 与 Agent 升级顺序
+ZIP 导出是流式响应，包含该 revision 的原始模板、辅助文件、许可证和 `.shen-source-manifest.json`。现有执行库 JSON 导入仍最多 10,000 条；仅 import 端点请求体放宽到 32 MiB，以便完整 Wapp JSON 导出包可以整包恢复。其他 JSON API 仍为 8 MiB，勾选导出和批量删除仍最多 1,000 个 ID。
 
-先升级控制面，再升级 Agent。新版 Agent 在 claim 中发送 `use_rule_sets:true`；控制面返回很小的 `rules_ref`，Agent 再用当前租约身份下载对应 run / task type 的冻结执行规则。旧 Agent 不发送该标记，控制面继续内联精简规则并用 gzip 传输。reviewed verification 还要求新 Agent 按请求回传 `checks`，由新 Control 从冻结规则写入分类并重验完整证据；升级完成前不要启用这批规则。
+## Control、Agent 与 HTTPx 升级顺序
 
-引用规则集具有以下边界：
+先升级 Control，使其识别 HTTPx capability，再升级 Agent 并安装 HTTPx，最后更新 Wapp source 和创建新任务。新 Agent 在 claim 中同时提交：
 
-- ref 固定为 `run_id:http` 或 `run_id:service`；service 下载返回 port 规则；
-- 下载必须携带 Worker bearer token，并匹配当前 leased task、worker、session、attempt 和有效 lease；
-- Agent 对最近 8 份规则集做不可变 LRU 缓存，同一 ref 并发下载会合并；
-- 首次下载超时 30 秒，解压后上限 16 MiB；下载后逐条校验；
-- HTTP claim 不再传输未使用的 PoC 规则；PoC 任务自身仍携带冻结的单条规则。
+```json
+{"use_rule_sets":true,"supports_httpx_cff":true}
+```
 
-当前验证快照中，旧内联 HTTP claim 为约 2.90 MB JSON、394 KB gzip；引用 claim 最大约 463 B。12 个同 run HTTP 任务只下载一次规则集。该容量数据用于说明当前边界，不替代未来上游增长后的重新测量。
+包含 HTTPx 指纹的 run 会记录 `requires_httpx_cff`。未同时声明上述能力的旧 Agent 不会领取该 run 的 HTTP task，但仍可领取 port、service 或旧 PoC task，避免静默漏识别或把新规则交给旧执行器。
 
-本地端到端验收还确认：同 SHA 快速检查约 1.05 秒；产品已识别时可派发并命中转换后的 `nt-3cx-phone-management-panel`，未知产品不会产生 PoC 请求。这些是固定环境的功能证据，不是公网延迟或吞吐承诺。
+HTTP / service 规则仍通过 `rules_ref` 下载：Worker bearer 必须匹配当前 leased task、session、attempt 和有效 lease；Agent 对最近 8 份规则集做 LRU 缓存，同一 ref 并发下载合并。HTTP claim 不携带 PoC 库。Wapp 7,642 个 app 只在首次下载冻结规则集后重建一次启用 CFF，不在每个 task claim 中重复传输。
 
-## PoC 调度边界
-
-PoC 默认关闭，必须在任务中显式开启。产品型规则仅在同源 HTTP 端点识别到精确规范化产品后派发；匹配只处理大小写、空白、下划线 / 连字符和少量明确别名，不做模糊子串或厂商猜测。没有产品绑定的规则只在任务中手选该 ID 时执行。
-
-自动来源 PoC 分为 `discovery` 和 `verification`。常规 Nuclei discovery 仍受静态同源 GET / HEAD、无 query / traversal、安全路径、请求数和 matcher 上限约束；面板、登录页、健康接口或产品版本页命中只是产品确认或暴露信息，不应直接表述为漏洞。
-
-verification 是窄化的审核例外：只接受内置注册表中的精确定义，原模板必须匹配固定 upstream path 与文件 SHA，随后转换为 native probe / control 请求。原始 Nuclei YAML 不交给 Agent，模板中的 RCE、OAST、敏感文件读取等其他分支不会执行。source hash 变化会记录 `review_required` 并停用未本地改写的旧规则。完整边界见 [只读漏洞验证](READONLY_VERIFICATION.md)。
+HTTPx 运行参数、固定二进制和本地 fixture 结果见 [HTTPx 引擎说明](../deploy/httpx/README.md)。PoC 默认关闭和按产品指纹派发的策略保持不变。

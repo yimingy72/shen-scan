@@ -7,6 +7,7 @@ export interface Run {
   finding_count?: number
   verification_finding_count?: number
   discovery_match_count?: number
+  check_match_count?: number
   poc_checked_count?: number
   modes: ('port' | 'http')[]
   status: string
@@ -137,6 +138,18 @@ export class ApiClient {
     private readonly token: string,
   ) {}
 
+  async blob(path: string): Promise<Blob> {
+    const response = await fetch(`${this.base}${path}`, {
+      signal: AbortSignal.timeout(120000),
+      headers: { Authorization: `Bearer ${this.token}` },
+    })
+    if (!response.ok) {
+      const data = await response.json().catch(() => undefined)
+      throw new ApiError(data?.error || `下载失败（HTTP ${response.status}）`, response.status)
+    }
+    return response.blob()
+  }
+
   request<T>(path: string, options: RequestInit = {}): Promise<T> {
     return fetch(`${this.base}${path}`, {
       ...options,
@@ -176,7 +189,8 @@ export const formatTime = (value?: string) => {
 export type RuleKind = 'http' | 'port' | 'poc'
 export interface LibraryRule {
   purpose?: string; verification?: Verification
-  id: string; kind: RuleKind; name: string; description?: string; engine: 'native' | 'nuclei'
+  fingerprint?: Record<string, unknown>; execution_available?: boolean; runtime_reason?: string
+  id: string; kind: RuleKind; name: string; description?: string; engine: 'native' | 'nuclei' | 'httpx-cff'
   severity: string; enabled: boolean; builtin: boolean; revision: number; tags?: string[]; source?: string
   definition?: Record<string, unknown>; template?: string; match_summary?: string; applies_to?: string[]; source_id?: string
 }

@@ -106,6 +106,11 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/library/delete", s.admin(s.deleteLibraryRules))
 	mux.HandleFunc("GET /api/library/sources", s.admin(s.listRuleSources))
 	mux.HandleFunc("GET /api/library/sources/{id}/license", s.admin(s.getRuleSourceLicense))
+	mux.HandleFunc("GET /api/library/sources/{id}/files", s.admin(s.listRuleSourceFiles))
+	mux.HandleFunc("GET /api/library/sources/{id}/files/raw", s.admin(s.getRuleSourceFile))
+	mux.HandleFunc("GET /api/library/sources/{id}/catalog", s.admin(s.listRuleSourceCatalog))
+	mux.HandleFunc("GET /api/library/sources/{id}/catalog/{ruleID}", s.admin(s.getRuleSourceCatalogRule))
+	mux.HandleFunc("GET /api/library/sources/{id}/export", s.admin(s.exportRuleSource))
 	mux.HandleFunc("POST /api/library/sources/{id}/update", s.admin(s.updateRuleSource))
 	mux.HandleFunc("GET /api/library/{id}", s.admin(s.getLibraryRule))
 	mux.HandleFunc("PUT /api/library/{id}", s.admin(s.updateLibraryRule))
@@ -153,7 +158,7 @@ func (s *Server) Handler() http.Handler {
 
 func gzipJSON(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !acceptsGzip(r.Header.Get("Accept-Encoding")) {
+		if binaryResponsePath(r.URL.Path) || !acceptsGzip(r.Header.Get("Accept-Encoding")) {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -164,6 +169,11 @@ func gzipJSON(next http.Handler) http.Handler {
 		defer writer.Close()
 		next.ServeHTTP(&gzipResponseWriter{ResponseWriter: w, writer: writer}, r)
 	})
+}
+
+func binaryResponsePath(value string) bool {
+	return (strings.HasPrefix(value, "/api/library/sources/") &&
+		(strings.HasSuffix(value, "/files/raw") || strings.HasSuffix(value, "/export")))
 }
 
 type gzipResponseWriter struct {
@@ -396,7 +406,11 @@ func (s *Server) authenticateWorker(ctx context.Context, workerID, sessionID str
 }
 
 func decodeJSON(w http.ResponseWriter, r *http.Request, dst any) error {
-	r.Body = http.MaxBytesReader(w, r.Body, maxJSONBody)
+	return decodeJSONLimit(w, r, dst, maxJSONBody)
+}
+
+func decodeJSONLimit(w http.ResponseWriter, r *http.Request, dst any, limit int64) error {
+	r.Body = http.MaxBytesReader(w, r.Body, limit)
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(dst); err != nil {

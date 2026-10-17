@@ -1,72 +1,49 @@
-# 指纹规则来源、许可与筛选记录
+# 指纹规则与上游原库来源
 
-核对日期：2026-10-17。SHEN 的规则库由两部分组成：随项目发布的 bootstrap 规则，以及管理员按需更新的固定官方源。所有数量都对应某个上游 commit SHA；上游变化或转换策略升级后，数量会变化。
+核对日期：2026-10-17。SHEN 从两个固定的 ProjectDiscovery 官方仓库跟随最新 HEAD，同步时记录实际 commit、文件 SHA-256、归档摘要和 MIT 许可证全文。revision 和 hash 用于来源追溯、更新幂等及任务快照一致性，不是人工批准列表，也不会把 Nuclei 原始模板自动变成可执行规则。
 
-## 当前官方源
-
-| Source ID | 固定官方仓库 | 许可证 | 当前验证快照 |
+| Source ID | 固定官方仓库 | 当前快照 | 发布位置 |
 |---|---|---|---|
-| `wappalyzer` | [`projectdiscovery/wappalyzergo`](https://github.com/projectdiscovery/wappalyzergo) | MIT | 7,642 个产品中接受 4,437 条 HTTP 规则，排除 3,205 个产品 |
-| `nuclei-templates` | [`projectdiscovery/nuclei-templates`](https://github.com/projectdiscovery/nuclei-templates) | MIT | 14,119 个模板中接受 864 条只读 PoC，排除 13,255 个模板；含 11 条 reviewed verification |
+| `wappalyzer` | [`projectdiscovery/wappalyzergo`](https://github.com/projectdiscovery/wappalyzergo)，MIT | 7,642 个完整 app | 进入 HTTP 执行库，由 HTTPx v1.12.0 被动识别 |
+| `nuclei-templates` | [`projectdiscovery/nuclei-templates`](https://github.com/projectdiscovery/nuclei-templates)，MIT | revision `17f5725dc10ced09f464dd2d255c19957aad51e7`；14,119 个 YAML 中形成 14,075 条目录规则；377 个 Files 中含 44 个非模板 YAML | 只进入独立“上游原库”，不进入执行库 |
 
-控制面先从 GitHub API 读取最新 commit，再从固定 SHA 的 `codeload.github.com` 地址下载归档。它校验归档边界、根目录、文件数量和大小，并要求仓库根 MIT 许可证；完整许可文本随 source 状态持久化，可在工作台查看。可选 `GITHUB_TOKEN` 只用于 `api.github.com` 的限额认证，不会发送给 codeload、Worker 或浏览器。
+Nuclei 的有效目录规则保留原始 YAML 字节，不规范化、重写或替换上游签名；SHA-256 按原文件计算。44 个无法作为模板解析的 YAML 仍包含在 377 个 Files 中。控制面把目录规则的模板正文和这 377 个非模板 / 辅助文件按路径保存，当前快照在文件表约为 14,452 项，实际数量以 source revision 的 files API 为准。
 
-同一 SHA 且转换器版本未变化时，只检查 HEAD，不重复下载归档。当前策略版本为 `ConverterVersion=3`；v3 增加了 Nuclei 文件 source pin 审核与 native verification 转换。以后转换器或只读策略升级会增加内部版本，即使 commit 相同也会重新转换。更新流程、失败保护和 API 见 [规则源更新](RULE_UPDATES.md)。
+原文件以 PostgreSQL BYTEA 保存，是原文和导出的权威数据。catalog JSONB 只保存不含 Template 的索引副本；metadata 字符串或键中的 NUL 会递归显示为 `␀`，并在 `catalog_sanitized_fields` 记录位置。规则详情再从 BYTEA 恢复原始 Template，因此索引兼容处理不会改变源字节或 SHA。
 
-## Wappalyzer 转换范围
+## Wappalyzer 与 HTTPx
 
-转换器只保留当前一次 HTTP 响应可以完整表达的被动信号：
+Wappalyzer 转换不再把上游 app 降级成少量 Go word / regex。每个 app 的原始 JSON 存入 `Rule.Fingerprint`，所有已启用 app 在任务创建时冻结；Agent 使用 HTTPx v1.12.0 的 `-cff` 生成本任务的被动识别集合。
 
-- 专用响应头、Cookie 名称、HTML、meta 和静态脚本路径；
-- 可以安全转换为 Go RE2 的 word / regex 条件；
-- 有明确产品归属、不会把普通页面元素当作产品证据的信号。
+HTTPx 的 `-cff` 会叠加自身 embedded fingerprints，因此 Agent 只接纳当前冻结快照中启用产品的输出。禁用 app 不会因为 HTTPx 内置库仍存在而重新出现。旧 native HTTP 规则继续支持自定义规则和历史任务快照，并可与 HTTPx 使用同一份响应证据。
 
-以下能力明确排除，不做低保真降级：
+当前完整 Wapp app 为 7,642 条，加上 151 条 bootstrap HTTP 规则，更新后的 HTTP 执行库预计为 **7,793 条**；最终数量以 live 数据库列表为准。Port 规则仍为 22 条。Wapp 更新继续保留用户的禁用、删除和编辑状态；新上游默认启停策略仅在没有本地 override 时生效。
 
-- JavaScript 运行时变量、渲染后 DOM、CSS selector 运行结果；
-- favicon hash、主动请求、额外路径和协议握手；
-- 无法完整表达的 `requires`、`excludes`、`implies` 和置信度关系；
-- 无效正则、弱通用 token 及与扫描任务无关的产品条目。
+HTTPx 安装、固定版本和运行参数见 [HTTPx 引擎说明](../deploy/httpx/README.md)。本地普通 HTTP / HTTPS fixture 覆盖了默认端口、同 origin 多 URL、漏结果检测及失败协议回退；3 个端点在验证环境中约 2.0 秒完成。Mac 小型 fixture 的观测最大 RSS 为 216 MiB；这些数据用于说明当前测试边界，不是大规模容量承诺。
 
-主统计中的 `skipped` 是产品级排除，满足 `total = accepted + skipped`。信号级损失单独记录，不重复计入产品级排除。规则 ID 使用稳定的 `wa-` 前缀和产品名摘要；更新同一产品时保留本地启停选择。
+## Nuclei 上游原库
 
-## 当前库规模
+Nuclei HEAD 同步后的所有可解析模板都写入独立 source catalog，并统一带有：
 
-当前完成验证的数据库快照为：
+- 原始 template ID、protocols、capabilities、info、classification 和请求数估计；
+- `Upstream{source_id,revision,path,sha256}` 来源信息；
+- `catalog_only:true`、`enabled:false` 初始状态和“原始 Nuclei 执行器未接入”的运行能力原因；
+- 对 DoS、破坏性、fuzz、爆破、默认口令或密码喷洒等模板的额外默认关闭原因。
 
-- HTTP：4,588 条，其中当前 bootstrap 151 条、Wappalyzer 转换规则 4,437 条；新增项是供 verification 派发使用的 XWiki 强被动指纹；
-- Port：22 条 bootstrap 产品规则；
-- PoC：907 条，其中 43 条 bootstrap discovery、853 条 Nuclei discovery 和 11 条 Nuclei reviewed verification。
+“上游原库”支持分页、筛选、查看完整 YAML、读取任意原始文件和下载整个 revision 的 ZIP。ZIP 包含路径、大小和 SHA-256 manifest。目录的 enabled 值是管理元数据，不代表具备运行能力；catalog-only 条目不会进入任务快照或派发给现有 Agent。
 
-这些不是代码承诺的固定常量。工作台显示的 source revision、digest、accepted / skipped 和规则库实际计数才是当前部署的权威状态。
+本轮没有完成原始 Nuclei 执行器迁移，也没有接入由 Nuclei 模板派生的主动 HTTP 发现。相关实现请求被自动安全审核拦截后已停止，未换通道继续。因此不能把“全量原库已同步”表述成“14,075 条模板可执行”。
 
-## Bootstrap 的历史来源
+现有 PoC 执行库保持 **907 条**：原有 896 条 discovery 加 11 条 native verification。Nuclei 原库更新不会新增、覆盖、退役或重新启用这 907 条规则；历史任务仍使用其创建时冻结的规则数据。
 
-一键更新出现前，SHEN 根据公开资料人工维护了 150 条 HTTP、22 条 port 和 43 条只读 PoC。HTTP bootstrap 中 85 条是对 MIT `wappalyzergo` 信号的人工改写，另有产品专用强信号；许可声明保留在 [THIRD_PARTY_NOTICES.md](../internal/rulelib/THIRD_PARTY_NOTICES.md)。当前代码又增加了 XWiki 强被动指纹，因此随项目发布的 HTTP 规则为 151 条。历史“150 / 22 / 43”不代表当前自动更新后的完整库。
+## Bootstrap 与历史调研
 
-早期调研同时核对了 [`hanc00l/nemo_go`](https://github.com/hanc00l/nemo_go) v3.2.1（commit `55506cc9fb7cbba329f7ca04dbf7308ee5e5f681`）：它组合 HTTPX、ChainReactor fingers、FingerprintHub 和 fingerprintx。`httpx.go` 收集 header / body / title / status 后交给静态匹配器；`fingerprinthub.go` 实现 favicon、word、regex 和 AND / OR / negative；`fingerprintx.go` 则启动外部主动协议探测器。研究快照中的 `web_fingerprint_v4.json` 有 3,154 个条目、3,552 个 matcher（2,910 word、382 regex、260 favicon），这些统计只描述 Nemo vendored 数据，不是 SHEN 当前规则数。
+一键更新出现前，项目维护了 150 条 HTTP、22 条 port 和 43 条 PoC；当前又补充 1 条 XWiki 强被动 HTTP 指纹。HTTP bootstrap 中 85 条是对 MIT `wappalyzergo` 信号的早期人工改写。它们现在主要用于旧快照兼容和明确的 native 补充，不代表完整 Wapp 数据量。
 
-该研究解释了产品关联和主动协议探测的差异，但当前自动 source 不从 Nemo、ChainReactor 或 FingerprintHub 下载内容：
+早期还核对了 [`hanc00l/nemo_go`](https://github.com/hanc00l/nemo_go)、`some_nuclei_templates` 和 `poc_map`，用于理解产品关联和调用方式。当前自动 source 不从 Nemo、ChainReactor、FingerprintHub 或团队模板仓库同步规则；这些历史调研不会改变两个固定官方 source 的许可和执行边界。
 
-- Nemo 为 Apache-2.0，仅用于核对架构和调用语义；
-- ChainReactor fingers / templates 与 FingerprintHub 当时未发现可满足本项目再分发要求的明确仓库根许可证，因此不复制；
-- fingerprintx 是主动协议握手，不可等价转换为已有 Banner 上的静态 matcher；
-- HTTPX 负责采集响应，不是本次规则数据源。
+## 更新与许可
 
-当时核对的 ChainReactor fingers 版本为 `48ba7446b94b`；Nemo 与 fingerprintx 分别采用 Apache-2.0，HTTPX 采用 MIT。ChainReactor templates / fingers 与 FingerprintHub 原始规则没有作为当前自动源，其许可证与执行语义也不会由一键更新流程继承。
+控制面只访问固定 GitHub API、codeload 仓库和 commit，不接受任意 URL。下载后校验归档边界、文件路径、大小和 MIT 许可，并在一个数据库事务中发布；失败保留上一成功版本。同一 HEAD 且 ConverterVersion 未变化时不重复下载，当前转换版本为 **4**。
 
-Port 规则仍以 Agent 实际协议解析结果为前提；仅增加字符串规则不会获得 fingerprintx 的主动握手能力，也不会按默认端口猜产品。
-
-## 本地修改与来源归属
-
-来源规则记录 `source_id`、上游规范内容摘要和 source revision。再次更新时：
-
-- 用户的禁用状态继续保留；
-- 已编辑、删除或与本地自定义 ID 冲突的规则不被覆盖；
-- 上游移除且没有本地改写的规则会被停用并计为 retired；
-- reviewed verification 的原文件 hash 变化会记为 `review_required`；未改写的旧条目停用，不执行变化后的模板；
-- 更新失败不会发布部分规则，也不会替换上一次成功版本。
-
-导出的 JSON 包含相关上游 SHA、MIT 许可全文和 bootstrap 第三方声明，可直接作为规则与许可备份。手工导入恢复后视为本地修改，不再由上游静默覆盖。
-
-Reviewed verification 不参与 bootstrap seed，只能在 `nuclei-templates` 更新中以受管来源规则接入。固定 commit、逐文件 SHA、执行证据和结果限制见 [只读漏洞验证](READONLY_VERIFICATION.md)。
+完整 MIT 文本可在工作台查看，也随规则或上游原库导出。更新、失败保护和 API 见 [规则源更新](RULE_UPDATES.md)，PoC 执行库边界见 [PoC 来源](POC_SOURCES.md)。

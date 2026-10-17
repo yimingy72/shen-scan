@@ -46,12 +46,12 @@ SCAN_AGENT_PACKAGE_SHA256=填写真实的64位SHA256
 ## 构建与发布 Agent
 
 1. 在 Linux amd64 环境构建固定 Masscan，见 [构建说明](../deploy/masscan/README.md)。
-2. 运行 `deploy/nuclei/download.sh` 下载并校验固定 Nuclei v3.11.1 Linux amd64 引擎；详见 [引擎说明](../deploy/nuclei/README.md)。准备公开 CA 文件；仓库不携带任何现有部署的证书。
-3. 执行 `CONTROL_CA_FILE=/path/to/public-ca.crt deploy/build-release.sh`。
+2. 运行 `deploy/nuclei/download.sh` 下载并校验固定 Nuclei v3.11.1；运行 `deploy/httpx/download.sh` 下载并校验 HTTPx v1.12.0。详见 [Nuclei 引擎](../deploy/nuclei/README.md) 和 [HTTPx 引擎](../deploy/httpx/README.md)。
+3. 准备公开 CA 文件；仓库不携带任何现有部署证书。执行 `CONTROL_CA_FILE=/path/to/public-ca.crt deploy/build-release.sh`。
 4. 发布生成的 `bin/release/scan-agent-linux-amd64.tar.gz`，将输出 SHA-256 填入配置。
 5. 同时发布 `bin/masscan/masscan-source-1.3.2-scan-platform.tar.gz`，保留对应许可证。
 
-发布包包含 Agent、Masscan、Nuclei、公开 CA，以及第三方许可证和 Masscan 对应源码。cloud-init 下载并校验固定包，安装必要依赖并启动 Agent。包不应包含 AK/SK 或管理员令牌；Worker 只获得注册所需的引导配置。
+发布包包含 Agent、Masscan、Nuclei、HTTPx、公开 CA，以及第三方许可证和 Masscan 对应源码。cloud-init 下载并校验固定包，安装必要依赖并启动 Agent。包不应包含 AK/SK 或管理员令牌；Worker 只获得注册所需的引导配置。
 
 更新 Agent 包地址和哈希主要影响后续新建实例；当前版本没有完整的自动滚动升级流程。应在空闲或维护窗口排空旧节点后替换，避免直接杀掉仍在回传结果的进程。
 
@@ -61,6 +61,8 @@ SCAN_AGENT_PACKAGE_SHA256=填写真实的64位SHA256
 - `SCAN_PORT_SHARD_MAX`：候选片宽，支持 1–16，默认 4；平台会根据执行时间预算收缩片宽。
 - `AGENT_MAX_TASKS`：Agent 总任务数，默认 17，预留端口执行槽。
 - `AGENT_ENDPOINT_CONCURRENCY`：Agent 全局端点并发，默认 16。
+- `HTTPX_BINARY`：HTTPx 路径，默认从 PATH 查找 `httpx`。
+- `HTTPX_MAX_PROCESSES` / `HTTPX_THREADS`：HTTPx 默认最多 2 个进程、每进程 8 线程；进程上限 2，线程上限 16。
 - `SCAN_MASSCAN_MAX_RATE_PPS`：Agent 接受的最大速率，默认及绝对上限 20000。
 
 Agent 参数需要配置在 Worker 环境中，不是控制面 `.env` 的通用转发参数。调低 Agent 速率上限时，也要同步控制面的新任务速率；超过 Agent 上限的任务会明确失败。修改控制面环境变量后重启服务，只影响随后创建的任务，已创建任务保留自己的 payload。
@@ -75,11 +77,13 @@ Agent 参数需要配置在 Worker 环境中，不是控制面 `.env` 的通用�
 
 ## 指纹库与 Nuclei 升级
 
-控制面启动时迁移 `rule_library`、任务规则快照和 PoC 任务类型；内置规则按 ID 首次插入，不覆盖管理员编辑或禁用状态。升级前备份数据库及运行配置。支持 v1 规则执行器的旧 Agent 仍可接收精简内联规则，产品筛选和去重由控制面完成，因此升级不要求同时停机；要使用大规则集引用与缓存，则需继续升级 Agent。启动控制面不会自动开启处于停止状态的节点池。
+控制面启动时迁移执行库、上游 catalog / files 和任务规则快照；内置规则按 ID 首次插入，不覆盖管理员编辑或禁用状态。升级前备份数据库及运行配置。启动控制面不会自动开启处于停止状态的节点池。
 
-启用大规则库的引用协议时应先升级控制面，再升级 Agent。新版 Agent 会请求 run / task type 对应的冻结规则集；旧 Agent 继续接收 gzip 压缩的精简内联规则。反向顺序会使新版 Agent 请求旧控制面尚不存在的规则集接口。官方源更新流程、固定仓库和失败保护见 [规则源更新](RULE_UPDATES.md)。
+推荐顺序为：先升级 Control，再升级 Agent 并安装 HTTPx，最后更新 Wapp source 和创建新任务。新版 Agent 在 claim 中声明 rules_ref 与 HTTPx capability；含 Wapp CFF 的 HTTP task 不会分配给旧 Agent。旧 Agent 仍可处理不要求 HTTPx 的历史快照和其他任务类型。不要在 Control 已升级而 Agent / HTTPx 尚未就绪的间隙启动新的 Wapp HTTP 任务。
 
 手动 Worker 的 `NUCLEI_BINARY` 可指定引擎路径，默认从 PATH 查找 `nuclei`。云发布包安装到 `/usr/local/bin/nuclei`。缺失引擎或执行失败会记录“检测错误”，不会当作未命中。每 Worker 最多一个 PoC 任务；Nuclei 不使用用户 HOME、云账号、外部回连或自动模板下载。
+
+手动 Worker 的 `HTTPX_BINARY` 可指定 HTTPx 路径，云发布包安装到 `/usr/local/bin/httpx`。缺少 HTTPx 的新任务会 retryable release，不把规则记成永久失败。Nuclei 全量上游原库不会打包进任务，也不会由当前 Nuclei 二进制执行。
 
 规则修改只影响随后创建的任务；已有任务继续使用快照。旧版历史任务没有快照时保留原识别逻辑，且不会被追溯追加 PoC。
 

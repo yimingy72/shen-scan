@@ -25,4 +25,11 @@ type Catalog struct {
 	Repository    string         `json:"repository"`
 	License       string         `json:"license"`
 	LicenseText   string         `json:"license_text"`
+	Files         []SourceFile   `json:"files,omitempty"`
+}
+
+type SourceFile struct {
+	Path   string `json:"path"`
+	SHA256 string `json:"sha256"`
+	Data   []byte `json:"data"`
 }

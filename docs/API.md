@@ -17,8 +17,8 @@ API 前缀为 `/api`，请求及响应使用 JSON。除健康检查外，管理�
 | `GET /api/runs/{id}/ports?target=...` | 单目标开放端口和关联 HTTP |
 | `GET /api/runs/{id}/http?status=responded` | HTTP 端点；支持 `responded` / `no_response` / `all` |
 | `GET /api/observations/{id}` | 完整已存储的观测与报文 |
-| `GET /api/runs/{id}/findings` | PoC 结果；`status=matched/not_matched/error/all`、`purpose=discovery/verification`、`severity`、`q`、分页 |
-| `GET /api/library` | 规则列表；`kind=http/port/poc`、`purpose=discovery/verification`、`q`、`enabled`、`engine`、`source_id`、分页 |
+| `GET /api/runs/{id}/findings` | PoC 结果；`status=matched/not_matched/error/all`、`purpose=discovery/verification/check`、`severity`、`q`、分页 |
+| `GET /api/library` | 可执行规则列表；`kind=http/port/poc`、`purpose=discovery/verification/check`、`q`、`enabled`、`engine`、`source_id`、分页 |
 | `GET /api/library/{id}` | 完整规则定义 |
 | `POST /api/library` | 创建规则 |
 | `PUT /api/library/{id}` | 修改规则，必须携带 `expected_revision` |
@@ -30,6 +30,11 @@ API 前缀为 `/api`，请求及响应使用 JSON。除健康检查外，管理�
 | `GET /api/library/sources` | 固定官方源状态、版本、统计和排除样例 |
 | `POST /api/library/sources/{id}/update` | 后台检查并原子更新一个官方源 |
 | `GET /api/library/sources/{id}/license` | 来源许可证全文和成功版本 |
+| `GET /api/library/sources/{id}/catalog` | 上游原库分页；支持 `revision/kind/purpose/engine/enabled/runtime/q` |
+| `GET /api/library/sources/{id}/catalog/{ruleID}` | 上游完整 Rule、原始模板和 metadata |
+| `GET /api/library/sources/{id}/files` | revision 文件分页，返回 path / SHA-256 / size / is_template |
+| `GET /api/library/sources/{id}/files/raw?path=...` | 原始文件字节；可带 `revision` |
+| `GET /api/library/sources/{id}/export` | 流式导出 revision ZIP；可带 `revision` |
 | `GET /api/library/export?kind=http` | 导出完整规则 JSON；支持与列表相同的 `purpose` 等筛选 |
 | `GET /api/workers` | Worker、指标和当前任务 |
 | `GET /api/worker-pool` | 节点池状态及配置版本 |
@@ -57,7 +62,9 @@ API 前缀为 `/api`，请求及响应使用 JSON。除健康检查外，管理�
 
 Agent 以引导令牌调用 `POST /api/workers/register`，获得独立会话令牌。随后通过 heartbeat、claim、renew、batches、complete、release 接口工作。
 
-新版 Agent 在 claim 中提交 `use_rule_sets:true`。HTTP / service 任务返回 `rules_ref`，Agent 使用 Worker bearer token 调用 `GET /api/tasks/{id}/rules?worker_id=...&session_id=...&attempt_no=N` 下载冻结的精简规则；控制面校验当前 lease、worker、session 和 attempt。旧 Agent 不提交该字段时仍收到 gzip 内联规则。部署时必须先升级控制面，再升级使用引用协议的 Agent。
+新版 Agent 在 claim 中提交 `use_rule_sets:true`。HTTP / service 任务返回 `rules_ref`，Agent 使用 Worker bearer token 调用 `GET /api/tasks/{id}/rules?worker_id=...&session_id=...&attempt_no=N` 下载冻结规则；控制面校验当前 lease、worker、session 和 attempt。
+
+支持完整 Wapp 的 Agent 还提交 `supports_httpx_cff:true`。含 HTTPx 指纹的新 run 标记 `requires_httpx_cff`；未同时声明 rules_ref 和 HTTPx capability 的旧 Agent 不能领取该 run 的 HTTP task，但仍可领取其他任务类型。这样不会把 `httpx-cff` 规则交给不认识该 engine 的旧节点。
 
 `request_id` 保证认领重试幂等；`attempt_no` 隔离旧执行；`batch_seq` 和内容校验防止重复批次污染数据。任务在完成结果排空、批次确认和完成确认后才算完成。
 
@@ -67,14 +74,18 @@ Agent 以引导令牌调用 `POST /api/workers/register`，获得独立会话令
 
 创建任务可设置 `poc_enabled:true`（必须包含 HTTP 模式）及 `poc_rule_ids:["poc-security-txt"]`。省略或空数组表示按端点指纹自动筛选已启用的产品型 PoC；默认 `poc_enabled:false` 不创建 PoC 任务。创建时保存 HTTP / 端口 / 所选 PoC 的规则快照。
 
-规则更新采用 `expected_revision` 乐观并发控制，冲突返回 409；详情和列表都有 `revision`。列表包含精简的 `match_summary`；完整定义从详情或导出接口获取。导入提交 `{ "format": "json" | "nuclei", "content": "原始文件内容" }`，JSON 一次最多 10,000 条，请求体上限 8 MiB。JSON 采用导出的 `{ "items": [Rule] }` 格式，并可携带 `licenses` / `notices` 备份元数据。
+规则更新采用 `expected_revision` 乐观并发控制，冲突返回 409；详情和列表都有 `revision`。列表包含精简的 `match_summary`；完整定义从详情或导出接口获取。导入提交 `{ "format": "json" | "nuclei", "content": "原始文件内容" }`，JSON 一次最多 10,000 条。只有 `/api/library/import` 的请求体上限为 32 MiB，以容纳完整 Wapp 导出包经过外层 JSON 字符串转义后的膨胀；其他 JSON API 仍为 8 MiB。导出包可携带 `licenses` / `notices` 备份元数据。
 
 PoC 观测包含 `rule_id`、`rule_name`、`rule_revision`、`engine`、`severity`、`finding_status`、`evidence` 和 `purpose`；详情包含 `request_raw`、`response_raw`、`error`、`truncated`。verification 另含只读的 CVE / 类别 / 证据等级 / source pin metadata，以及按定义顺序排列的 `checks:[{request_raw,response_raw}]`。分类和 metadata 由控制面从冻结任务规则写入，不信任 Worker 自行上报。
 
-`finding_status` 为 `matched`、`not_matched` 或 `error`。`findings` 接口返回 `{items,total,summary:{matched,not_matched,error,verification_matched,discovery_matched}}`，只统计当前执行版本；`purpose` 可筛选列表。Run 的 `finding_count` 保持为全部 matched 的兼容总数，`verification_finding_count` 与 `discovery_match_count` 分别计两类命中，`poc_checked_count` 计全部检查结果。模板格式和执行边界见 [规则库说明](RULE_LIBRARY.md) 与 [只读漏洞验证](READONLY_VERIFICATION.md)。
+`finding_status` 为 `matched`、`not_matched` 或 `error`。`findings` 接口返回 `{items,total,summary:{matched,not_matched,error,verification_matched,check_matched,discovery_matched}}`，只统计当前执行版本；`purpose` 可筛选列表。Run 的 `finding_count` 保持为全部 matched 的兼容总数，另有 `verification_finding_count`、`check_match_count`、`discovery_match_count` 和 `poc_checked_count`。
 
 规则含 `applies_to:[产品名]`，多个产品为 OR 精确归一匹配；空绑定仅在任务显式选择该规则时执行。新快照持久化 `poc_policy:"fingerprint"` 及 `explicit_poc_rule_ids`，旧快照兼容历史行为。findings 列表和观测详情包含 `matched_products`、`trigger_reason`（`http_technology`、`service_product`、`explicit_unbound_rule` 或历史策略）。
 
-规则列表响应的 `purpose_counts` 分别给出 PoC discovery / verification 数量；列表摘要对 verification 额外返回 verification ID、CVE、类别和证据等级，详情仍返回完整 Rule。导出支持 `kind`、`purpose`、`q`、`enabled`、`engine`、`source_id`、`ids`（逗号分隔，最多 1000 个）组合，返回完整定义且不分页。批量删除采用相同版本条件，任一不存在或冲突都不删除；删除的规则不会进入列表、产品候选、导出或新任务快照。同 ID 导入可恢复删除项并增加版本，恢复项仍默认禁用。
+规则列表响应的 `purpose_counts` 给出 PoC discovery / verification / check 数量。HTTPx 规则的详情含单个 Wapp app 的原始 `fingerprint`；任务 rules_ref 只传执行所需字段。导出支持 `kind`、`purpose`、`q`、`enabled`、`engine`、`source_id`、`ids`（最多 1000 个）组合。
 
-规则源更新的 `stats.reasons.review_required` 表示 reviewed verification 的上游文件 SHA 已变化，未获得新的代码审核许可。此时该模板不进入 accepted；旧的、未本地改写的受管规则会停用并计入 `retired`，而不是继续执行变化后的内容。
+`catalog` 响应为 `{items,total,revision,converter_version}`。目录摘要含 `upstream`、`capabilities`、`default_disabled_reason`、`runtime_reason`、`catalog_only` 和 `execution_available`；Nuclei 原始条目的 `execution_available` 为 false。若索引 metadata 含 PostgreSQL JSONB 不能保存的 NUL，摘要和详情增加 `catalog_sanitized_fields`，并用可见的 `␀` 展示索引值。
+
+完整详情的 `template` 会按 Upstream revision / path 从 BYTEA 恢复，不取自 JSONB 索引副本。files 响应为 `{items:[{path,sha256,size,is_template}],total,revision}`；raw 响应带 `X-Content-SHA256`。raw 和 ZIP 始终返回未修改的源文件字节；ZIP 包含 `.shen-source-manifest.json`，不经过 JSON 导入端点。
+
+Wapp source 更新会发布到可执行 `rule_library`；Nuclei source 更新只发布到独立 catalog/files，不修改当前 907 条 PoC。catalog-only Rule 不能通过 CRUD 或 JSON 导入混入可执行规则库。

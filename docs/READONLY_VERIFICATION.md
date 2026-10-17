@@ -5,7 +5,7 @@ SHEN 将 PoC 规则分为两种用途：
 - `discovery`：发现检查。确认面板、版本页、健康接口或其他产品特征；旧规则未写 `purpose` 时也按 discovery 处理。
 - `verification`：漏洞验证。只允许进入代码内审阅注册表的固定 native 定义，必须包含 CVE、类别、证据等级和上游 source pin。
 
-产品面板或版本命中不会自动升级为漏洞。当前原有 **896 条 PoC 全部仍是 discovery**；新增的 11 条 reviewed verification 来自固定 Nuclei source，当前规则库快照共 **907 条 PoC**。
+产品面板或版本命中不会自动升级为漏洞。当前执行库包含 **896 条 discovery** 和 **11 条 native verification**，合计 **907 条 PoC**。
 
 ## 授权和派发
 
@@ -13,19 +13,19 @@ PoC 默认关闭，创建任务时仍须显式设置 `poc_enabled:true`，并包
 
 11 条 verification 都有非空 `applies_to`。即使用户明确选择某条规则，也必须由该同源 HTTP 端点的真实技术指纹，或同目标、同 IP、同端口的服务产品，精确规范化命中绑定产品后才能派发。匹配不做模糊子串或厂商猜测。HTTP 重定向不会自动把新域名加入 PoC 范围。
 
-## 来源、审核和更新
+## 历史来源与当前更新边界
 
-当前审核固定到官方 [`projectdiscovery/nuclei-templates`](https://github.com/projectdiscovery/nuclei-templates) 的以下版本：
+11 条 native 定义保留了当时参考的官方 [`projectdiscovery/nuclei-templates`](https://github.com/projectdiscovery/nuclei-templates) 路径、commit 和文件 SHA-256：
 
-| Source ID | 上游 commit | 许可证 | 转换策略 |
+| Source ID | 历史来源 commit | 许可证 | 当前用途 |
 |---|---|---|---|
-| `nuclei-templates` | `17f5725dc10ced09f464dd2d255c19957aad51e7` | MIT；完整文本随 source 状态持久化，可通过许可 API 和规则导出包读取 | `ConverterVersion=3` |
+| `nuclei-templates` | `17f5725dc10ced09f464dd2d255c19957aad51e7` | MIT | provenance、结果说明和任务数据一致性 |
 
-原始 Nuclei 模板只作为审核来源。`source_pin.revision` 记录审核依据的 commit；转换器按 `source_pin.path` 找到当前归档文件并计算原文件 SHA-256，只有路径和内容 SHA 与注册表完全吻合时，才输出预先审阅的 `nv-` native 定义。后续仓库 commit 中该文件内容未变时可继续接受；内容一旦变化就必须重新审核。Agent 不执行该原始 YAML，也不会执行其中的 RCE、OAST、敏感文件读取或其他分支。
+这些 source pin 是现有规则的历史来源记录，不是最新 HEAD 的人工批准机制。Agent 执行的是已经冻结的 native probe / control 定义，不执行对应原始 YAML，也不会执行 YAML 中的其他分支。
 
-这些规则不会由 bootstrap seed 写入。管理员完成 `nuclei-templates` 一键更新后，它们才以 `source_id=nuclei-templates` 的受管规则进入规则库，因而保留许可证、上游退役和本地修改保护语义。
+新的 Nuclei HEAD 同步只写入独立“上游原库”。它不会创建、更新、退役或重新启用这 11 条 verification，也不会把原始模板交给现有执行器。当前 ConverterVersion 4 只负责原库目录与文件追溯。
 
-若同一路径的上游文件 SHA 改变，转换器拒绝自动沿用审核结论，并在 source 统计中记录 `review_required`。来源更新发布时，旧的、未被用户改写的对应条目会增加版本、停用并标记为 upstream retired；本地编辑或软删除仍按来源更新规则保留。重新启用前必须审阅新内容、更新注册表 source pin，并提升转换策略版本。
+原库中的 revision / hash 随 HEAD 更新，仅表示内容来自哪个版本。上游文件变化会产生新的 catalog revision，不会修改现有 verification。原始 Nuclei 执行器迁移尚未完成。
 
 ## 执行和证据闭环
 

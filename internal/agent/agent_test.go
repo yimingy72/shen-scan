@@ -174,11 +174,14 @@ func TestAgentConcurrencyAndMasscanRateLimits(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if a.cfg.MaxTasks != 17 || a.cfg.EndpointConcurrency != 16 || a.cfg.MasscanRateLimitPPS != 20000 {
-		t.Fatalf("unexpected defaults: max_tasks=%d endpoints=%d masscan_rate=%d", a.cfg.MaxTasks, a.cfg.EndpointConcurrency, a.cfg.MasscanRateLimitPPS)
+	if a.cfg.MaxTasks != 17 || a.cfg.EndpointConcurrency != 16 || a.cfg.MasscanRateLimitPPS != 20000 || a.cfg.HTTPXMaxProcesses != 2 || a.cfg.HTTPXThreads != 8 {
+		t.Fatalf("unexpected defaults: max_tasks=%d endpoints=%d masscan_rate=%d httpx_processes=%d httpx_threads=%d", a.cfg.MaxTasks, a.cfg.EndpointConcurrency, a.cfg.MasscanRateLimitPPS, a.cfg.HTTPXMaxProcesses, a.cfg.HTTPXThreads)
 	}
 	if _, err := New(Config{ControlURL: "http://127.0.0.1:1", JoinToken: "join", InstanceID: "test", Hostname: "test", SessionID: "test", MasscanRateLimitPPS: 20001}); err == nil {
 		t.Fatal("unsafe masscan rate limit was accepted")
+	}
+	if _, err := New(Config{ControlURL: "http://127.0.0.1:1", JoinToken: "join", InstanceID: "test", Hostname: "test", SessionID: "test", HTTPXMaxProcesses: 3}); err == nil {
+		t.Fatal("unsafe httpx process limit was accepted")
 	}
 	if a.fingerprintTaskLimit() != 16 {
 		t.Fatal("default worker did not reserve one task slot for port scanning")

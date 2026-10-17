@@ -23,7 +23,7 @@ import (
 const (
 	// Bump when conversion or read-only eligibility changes so a fixed upstream
 	// commit is converted again.
-	ConverterVersion   = "3"
+	ConverterVersion   = "4"
 	maxArchiveBytes    = 128 << 20
 	maxExpandedBytes   = 256 << 20
 	maxSourceFileBytes = 16 << 20
@@ -113,7 +113,25 @@ func FetchRevision(ctx context.Context, sourceID, revision string) (Catalog, err
 	catalog.Repository = source.Repository
 	catalog.License = "MIT"
 	catalog.LicenseText = string(licenseText)
+	for index := range catalog.Rules {
+		if catalog.Rules[index].Upstream != nil {
+			catalog.Rules[index].Upstream.Revision = revision
+		}
+	}
+	if sourceID == WappalyzerID && !hasSourceFile(catalog.Files, "LICENSE.md") {
+		catalog.Files = append(catalog.Files, sourceFile("LICENSE.md", licenseText))
+	}
+	sort.Slice(catalog.Files, func(i, j int) bool { return catalog.Files[i].Path < catalog.Files[j].Path })
 	return catalog, nil
+}
+
+func hasSourceFile(files []SourceFile, wanted string) bool {
+	for _, file := range files {
+		if file.Path == wanted {
+			return true
+		}
+	}
+	return false
 }
 
 func latestRevision(ctx context.Context, source Source) (string, error) {

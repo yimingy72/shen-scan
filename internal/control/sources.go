@@ -275,7 +275,6 @@ func (s *Server) applyRuleSourceCatalog(ctx context.Context, sourceID string, ca
 	hashes := make(map[string]string, len(rules))
 	seen := make(map[string]bool, len(rules))
 	for index := range rules {
-		rules[index].Enabled = true
 		rules[index].Builtin = false
 		validPrefix := strings.HasPrefix(rules[index].ID, prefix)
 		if sourceID == rulesource.NucleiID && rules[index].Purpose == "verification" && strings.HasPrefix(rules[index].ID, "nv-") {
@@ -287,9 +286,16 @@ func (s *Server) applyRuleSourceCatalog(ctx context.Context, sourceID string, ca
 		if err := rulelib.Validate(rules[index]); err != nil {
 			return fmt.Errorf("source rule %s: %w", rules[index].ID, err)
 		}
+		if err := validateRuleRuntimeState(rules[index]); err != nil {
+			return fmt.Errorf("source rule %s: %w", rules[index].ID, err)
+		}
 		seen[rules[index].ID] = true
 		ids = append(ids, rules[index].ID)
 		hashes[rules[index].ID] = sourceRuleHash(rules[index])
+	}
+	files, err := catalogSourceFiles(sourceID, catalog)
+	if err != nil {
+		return fmt.Errorf("source files: %w", err)
 	}
 	stats := ruleSourceStats{Total: catalog.Total, Accepted: len(rules), Reasons: map[string]int{}}
 	for reason, count := range catalog.Skipped {
@@ -301,8 +307,27 @@ func (s *Server) applyRuleSourceCatalog(ctx context.Context, sourceID string, ca
 		return err
 	}
 	defer tx.Rollback(ctx)
-	var lockedID string
-	if err = tx.QueryRow(ctx, `SELECT id FROM rule_sources WHERE id=$1 FOR UPDATE`, sourceID).Scan(&lockedID); err != nil {
+	var lockedID, previousRevision, previousConverterVersion string
+	if err = tx.QueryRow(ctx, `SELECT id,revision,converter_version FROM rule_sources WHERE id=$1 FOR UPDATE`, sourceID).Scan(
+		&lockedID, &previousRevision, &previousConverterVersion); err != nil {
+		return err
+	}
+	if err = persistCatalogSourceFiles(ctx, tx, sourceID, catalog.Revision, files); err != nil {
+		return err
+	}
+	if sourceID == rulesource.NucleiID {
+		if err = persistSourceCatalog(ctx, tx, sourceID, catalog.Revision, rulesource.ConverterVersion,
+			previousRevision, previousConverterVersion, rules, hashes, &stats); err != nil {
+			return err
+		}
+		if err = publishRuleSourceStatus(ctx, tx, sourceID, catalog, stats); err != nil {
+			return err
+		}
+		return tx.Commit(ctx)
+	}
+	var catalogStats ruleSourceStats
+	if err = persistSourceCatalog(ctx, tx, sourceID, catalog.Revision, rulesource.ConverterVersion,
+		previousRevision, previousConverterVersion, rules, hashes, &catalogStats); err != nil {
 		return err
 	}
 	rows, err := tx.Query(ctx, `SELECT id,rule,source_id,upstream_hash,local_modified,enabled_override,
@@ -375,25 +400,36 @@ func (s *Server) applyRuleSourceCatalog(ctx context.Context, sourceID string, ca
 			return err
 		}
 	}
-	statsRaw, _ := json.Marshal(stats)
-	samples := catalog.Samples
-	if len(samples) > 100 {
-		samples = samples[:100]
-	}
-	samplesRaw, _ := json.Marshal(samples)
-	_, err = tx.Exec(ctx, `UPDATE rule_sources SET license=$2,license_text=$3,status='ready',revision=$4,converter_version=$5,digest=$6,
-		stats=$7,samples=$8,error='',updated_at=now() WHERE id=$1`, sourceID, catalog.License, catalog.LicenseText,
-		catalog.Revision, rulesource.ConverterVersion, catalog.Digest, statsRaw, samplesRaw)
-	if err != nil {
+	if err = publishRuleSourceStatus(ctx, tx, sourceID, catalog, stats); err != nil {
 		return err
 	}
 	return tx.Commit(ctx)
 }
 
+func publishRuleSourceStatus(ctx context.Context, tx pgx.Tx, sourceID string, catalog rulesource.Catalog, stats ruleSourceStats) error {
+	statsRaw, _ := json.Marshal(stats)
+	samples := catalog.Samples
+	if len(samples) > 100 {
+		samples = samples[:100]
+	}
+	samplesRaw, _, err := catalogIndexJSON(samples)
+	if err != nil {
+		return fmt.Errorf("encode rule source samples: %w", err)
+	}
+	_, err = tx.Exec(ctx, `UPDATE rule_sources SET license=$2,license_text=$3,status='ready',revision=$4,converter_version=$5,digest=$6,
+		stats=$7,samples=$8,error='',updated_at=now() WHERE id=$1`, sourceID, catalog.License, catalog.LicenseText,
+		catalog.Revision, rulesource.ConverterVersion, catalog.Digest, statsRaw, samplesRaw)
+	return err
+}
+
 func sourceRuleHash(rule rulelib.Rule) string {
 	rule.Revision = 1
-	rule.Enabled = true
 	rule.Builtin = false
+	if rule.Upstream != nil {
+		upstream := *rule.Upstream
+		upstream.Revision = ""
+		rule.Upstream = &upstream
+	}
 	raw, _ := json.Marshal(rule)
 	hash := sha256.Sum256(raw)
 	return "sha256:" + hex.EncodeToString(hash[:])

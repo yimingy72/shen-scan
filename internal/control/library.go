@@ -21,30 +21,38 @@ import (
 
 const (
 	maxImportedRuleCount   = 10_000
+	maxLibraryImportBody   = 32 << 20
 	maxRuleBatchCount      = 1000
 	currentRuleSeedVersion = 1
 )
 
 type ruleSummary struct {
-	MatchSummary         string   `json:"match_summary"`
-	ID                   string   `json:"id"`
-	Kind                 string   `json:"kind"`
-	Name                 string   `json:"name"`
-	Description          string   `json:"description,omitempty"`
-	Engine               string   `json:"engine"`
-	Severity             string   `json:"severity"`
-	Enabled              bool     `json:"enabled"`
-	Builtin              bool     `json:"builtin"`
-	Revision             int      `json:"revision"`
-	Tags                 []string `json:"tags,omitempty"`
-	Source               string   `json:"source,omitempty"`
-	AppliesTo            []string `json:"applies_to,omitempty"`
-	SourceID             string   `json:"source_id,omitempty"`
-	Purpose              string   `json:"purpose"`
-	VerificationID       string   `json:"verification_id,omitempty"`
-	CVEs                 []string `json:"cves,omitempty"`
-	VerificationCategory string   `json:"verification_category,omitempty"`
-	EvidenceLevel        string   `json:"evidence_level,omitempty"`
+	MatchSummary           string            `json:"match_summary"`
+	ID                     string            `json:"id"`
+	Kind                   string            `json:"kind"`
+	Name                   string            `json:"name"`
+	Description            string            `json:"description,omitempty"`
+	Engine                 string            `json:"engine"`
+	Severity               string            `json:"severity"`
+	Enabled                bool              `json:"enabled"`
+	Builtin                bool              `json:"builtin"`
+	Revision               int               `json:"revision"`
+	Tags                   []string          `json:"tags,omitempty"`
+	Source                 string            `json:"source,omitempty"`
+	AppliesTo              []string          `json:"applies_to,omitempty"`
+	SourceID               string            `json:"source_id,omitempty"`
+	Purpose                string            `json:"purpose"`
+	VerificationID         string            `json:"verification_id,omitempty"`
+	CVEs                   []string          `json:"cves,omitempty"`
+	VerificationCategory   string            `json:"verification_category,omitempty"`
+	EvidenceLevel          string            `json:"evidence_level,omitempty"`
+	Capabilities           []string          `json:"capabilities,omitempty"`
+	DefaultDisabledReason  string            `json:"default_disabled_reason,omitempty"`
+	RuntimeReason          string            `json:"runtime_reason,omitempty"`
+	CatalogOnly            bool              `json:"catalog_only,omitempty"`
+	ExecutionAvailable     bool              `json:"execution_available"`
+	CatalogSanitizedFields []string          `json:"catalog_sanitized_fields,omitempty"`
+	Upstream               *rulelib.Upstream `json:"upstream,omitempty"`
 }
 
 type ruleExportLicense struct {
@@ -75,21 +83,23 @@ type ruleSnapshot struct {
 }
 
 type executionRule struct {
-	ID         string             `json:"id"`
-	Kind       string             `json:"kind"`
-	Name       string             `json:"name"`
-	Engine     string             `json:"engine"`
-	Severity   string             `json:"severity"`
-	Enabled    bool               `json:"enabled"`
-	Revision   int                `json:"revision"`
-	Definition rulelib.Definition `json:"definition"`
+	ID          string             `json:"id"`
+	Kind        string             `json:"kind"`
+	Name        string             `json:"name"`
+	Engine      string             `json:"engine"`
+	Severity    string             `json:"severity"`
+	Enabled     bool               `json:"enabled"`
+	Revision    int                `json:"revision"`
+	Definition  rulelib.Definition `json:"definition"`
+	Fingerprint json.RawMessage    `json:"fingerprint,omitempty"`
 }
 
 func executionRules(rules []rulelib.Rule) []executionRule {
 	result := make([]executionRule, 0, len(rules))
 	for _, rule := range rules {
 		result = append(result, executionRule{ID: rule.ID, Kind: rule.Kind, Name: rule.Name, Engine: rule.Engine,
-			Severity: rule.Severity, Enabled: rule.Enabled, Revision: rule.Revision, Definition: rule.Definition})
+			Severity: rule.Severity, Enabled: rule.Enabled, Revision: rule.Revision, Definition: rule.Definition,
+			Fingerprint: rule.Fingerprint})
 	}
 	return result
 }
@@ -119,9 +129,14 @@ func loadRuleSnapshot(ctx context.Context, tx pgx.Tx, pocEnabled bool, selected 
 		if err = rows.Scan(&raw); err != nil || json.Unmarshal(raw, &rule) != nil {
 			return ruleSnapshot{}, errors.New("invalid stored rule")
 		}
+		if rule.Nuclei != nil && (rule.Nuclei.CatalogOnly || rule.Nuclei.RuntimeReason != "") {
+			continue
+		}
 		switch rule.Kind {
 		case "http":
-			snapshot.HTTP = append(snapshot.HTTP, rule)
+			if rule.Engine != "nuclei" {
+				snapshot.HTTP = append(snapshot.HTTP, rule)
+			}
 		case "port":
 			snapshot.Port = append(snapshot.Port, rule)
 		case "poc":
@@ -207,6 +222,20 @@ func summarizeRule(rule rulelib.Rule, sourceID string) ruleSummary {
 			parts = append(parts, prefix+strings.Join(values, " | "))
 		}
 	}
+	if len(parts) == 0 && len(rule.Fingerprint) != 0 {
+		var fingerprint map[string]json.RawMessage
+		if json.Unmarshal(rule.Fingerprint, &fingerprint) == nil {
+			keys := make([]string, 0, len(fingerprint))
+			for key := range fingerprint {
+				keys = append(keys, key)
+			}
+			sort.Strings(keys)
+			parts = append(parts, "Wappalyzer app JSON · "+strings.Join(keys, ", "))
+		}
+	}
+	if len(parts) == 0 && rule.Nuclei != nil {
+		parts = append(parts, "Nuclei · "+strings.Join(rule.Nuclei.Protocols, ", "))
+	}
 	summary := []rune(strings.Join(parts, "; "))
 	if len(summary) > 180 {
 		summary = append(summary[:180], '…')
@@ -214,12 +243,43 @@ func summarizeRule(rule rulelib.Rule, sourceID string) ruleSummary {
 	item := ruleSummary{MatchSummary: string(summary), ID: rule.ID, Kind: rule.Kind, Name: rule.Name, Description: rule.Description,
 		Engine: rule.Engine, Severity: rule.Severity, Enabled: rule.Enabled, Builtin: rule.Builtin,
 		Revision: rule.Revision, Tags: rule.Tags, Source: rule.Source, AppliesTo: rule.AppliesTo, SourceID: sourceID,
-		Purpose: rulelib.VerificationPurpose(rule)}
+		Purpose: rulelib.VerificationPurpose(rule), ExecutionAvailable: true}
 	if rule.Verification != nil {
 		item.VerificationID = rule.Verification.ID
 		item.CVEs = rule.Verification.CVEs
 		item.VerificationCategory = rule.Verification.Category
 		item.EvidenceLevel = rule.Verification.EvidenceLevel
+	}
+	item.Upstream = rule.Upstream
+	if rule.Nuclei != nil {
+		item.Capabilities = rule.Nuclei.Capabilities
+		item.DefaultDisabledReason = rule.Nuclei.DefaultDisabledReason
+		item.RuntimeReason = rule.Nuclei.RuntimeReason
+		item.CatalogOnly = rule.Nuclei.CatalogOnly
+		item.ExecutionAvailable = !rule.Nuclei.CatalogOnly && rule.Nuclei.RuntimeReason == ""
+		// Discovery templates have no execution binding; display their upstream
+		// product metadata in the isolated catalog without changing stored rules.
+		if item.CatalogOnly && len(item.AppliesTo) == 0 {
+			var info struct {
+				Metadata struct {
+					Product json.RawMessage `json:"product"`
+				} `json:"metadata"`
+			}
+			if json.Unmarshal(rule.Nuclei.Info, &info) == nil {
+				var product string
+				var products []string
+				if json.Unmarshal(info.Metadata.Product, &product) == nil {
+					products = strings.Split(product, ",")
+				} else {
+					_ = json.Unmarshal(info.Metadata.Product, &products)
+				}
+				for _, value := range products {
+					if value = strings.TrimSpace(value); value != "" {
+						item.AppliesTo = append(item.AppliesTo, value)
+					}
+				}
+			}
+		}
 	}
 	return item
 }
@@ -328,14 +388,14 @@ func (s *Server) listLibrary(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	purpose, err := libraryFilter(r.URL.Query().Get("purpose"), "purpose", "discovery", "verification")
+	purpose, err := libraryFilter(r.URL.Query().Get("purpose"), "purpose", "discovery", "verification", "check")
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	const filtered = ` FROM rule_library WHERE deleted_at IS NULL AND ($1='' OR rule->>'kind'=$1) AND ($2='' OR rule->>'engine'=$2)
 	 AND ($3='' OR rule->>'enabled'=$3) AND ($4='' OR rule::text ILIKE '%'||$4||'%') AND ($5='' OR source_id=$5)
-	 AND ($6='' OR CASE WHEN rule->>'purpose'='verification' THEN 'verification' ELSE 'discovery' END=$6)`
+	 AND ($6='' OR CASE WHEN rule->>'purpose' IN ('verification','check') THEN rule->>'purpose' ELSE 'discovery' END=$6)`
 	var total int64
 	if err = s.db.QueryRow(r.Context(), `SELECT count(*)`+filtered, kind, engine, enabled, query, sourceID, purpose).Scan(&total); err != nil {
 		writeError(w, http.StatusInternalServerError, "load rule library failed")
@@ -383,8 +443,8 @@ func (s *Server) listLibrary(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "load rule library failed")
 		return
 	}
-	purposeCounts := map[string]int64{"discovery": 0, "verification": 0}
-	purposeRows, err := s.db.Query(r.Context(), `SELECT CASE WHEN rule->>'purpose'='verification' THEN 'verification' ELSE 'discovery' END,count(*)
+	purposeCounts := map[string]int64{"discovery": 0, "verification": 0, "check": 0}
+	purposeRows, err := s.db.Query(r.Context(), `SELECT CASE WHEN rule->>'purpose' IN ('verification','check') THEN rule->>'purpose' ELSE 'discovery' END,count(*)
 		FROM rule_library WHERE deleted_at IS NULL AND rule->>'kind'='poc' GROUP BY 1`)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "load rule library failed")
@@ -436,11 +496,20 @@ func normalizeNewRule(rule *rulelib.Rule) error {
 	if err := normalizeNucleiDefinition(rule); err != nil {
 		return err
 	}
-	return rulelib.Validate(*rule)
+	if err := rulelib.Validate(*rule); err != nil {
+		return err
+	}
+	if err := validateRuleRuntimeState(*rule); err != nil {
+		return err
+	}
+	return validateExecutableLibraryRule(*rule)
 }
 
 func normalizeNucleiDefinition(rule *rulelib.Rule) error {
 	if rule.Engine != "nuclei" {
+		return nil
+	}
+	if rule.Nuclei != nil && (rule.Nuclei.CatalogOnly || rule.Nuclei.RuntimeReason != "") {
 		return nil
 	}
 	parsed, err := rulelib.ParseNuclei(rule.Template)
@@ -452,6 +521,20 @@ func normalizeNucleiDefinition(rule *rulelib.Rule) error {
 	}
 	rule.Definition = parsed.Definition
 	rule.Template = parsed.Template
+	return nil
+}
+
+func validateRuleRuntimeState(rule rulelib.Rule) error {
+	if rule.Enabled && rule.Nuclei != nil && (rule.Nuclei.CatalogOnly || rule.Nuclei.RuntimeReason != "") {
+		return fmt.Errorf("rule cannot be enabled: %s", rule.Nuclei.RuntimeReason)
+	}
+	return nil
+}
+
+func validateExecutableLibraryRule(rule rulelib.Rule) error {
+	if rule.Nuclei != nil && rule.Nuclei.CatalogOnly {
+		return errors.New("catalog-only source rules cannot be added to the executable library")
+	}
 	return nil
 }
 
@@ -510,6 +593,14 @@ func (s *Server) updateLibraryRule(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	if err = validateRuleRuntimeState(request.Rule); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if err = validateExecutableLibraryRule(request.Rule); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	raw, _ := json.Marshal(request.Rule)
 	result, err := s.db.Exec(r.Context(), `UPDATE rule_library SET rule=$1,
 		local_modified=CASE WHEN source_id<>'' THEN true ELSE local_modified END,updated_at=now()
@@ -537,6 +628,22 @@ func (s *Server) patchLibraryRule(w http.ResponseWriter, r *http.Request) {
 	if request.Enabled == nil || request.ExpectedRevision < 1 {
 		writeError(w, http.StatusBadRequest, "enabled and positive expected_revision are required")
 		return
+	}
+	if *request.Enabled {
+		rule, err := s.loadLibraryRule(r.Context(), r.PathValue("id"))
+		if errors.Is(err, pgx.ErrNoRows) {
+			writeError(w, http.StatusNotFound, "rule not found")
+			return
+		}
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "load rule failed")
+			return
+		}
+		rule.Enabled = true
+		if err = validateRuleRuntimeState(rule); err != nil {
+			writeError(w, http.StatusConflict, err.Error())
+			return
+		}
 	}
 	result, err := s.db.Exec(r.Context(), `UPDATE rule_library SET rule=jsonb_set(jsonb_set(rule,'{enabled}',to_jsonb($1::boolean)),'{revision}',to_jsonb($2::int)),
 	 enabled_override=CASE WHEN source_id<>'' THEN $1 ELSE enabled_override END,updated_at=now()
@@ -704,7 +811,7 @@ func (s *Server) importLibrary(w http.ResponseWriter, r *http.Request) {
 		Format  string `json:"format"`
 		Content string `json:"content"`
 	}
-	if err := decodeJSON(w, r, &request); err != nil {
+	if err := decodeJSONLimit(w, r, &request, maxLibraryImportBody); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -832,7 +939,7 @@ func (s *Server) exportLibrary(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	purpose, err := libraryFilter(r.URL.Query().Get("purpose"), "purpose", "discovery", "verification")
+	purpose, err := libraryFilter(r.URL.Query().Get("purpose"), "purpose", "discovery", "verification", "check")
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
@@ -841,7 +948,7 @@ func (s *Server) exportLibrary(w http.ResponseWriter, r *http.Request) {
 	rows, err := s.db.Query(r.Context(), `SELECT rule,source_id FROM rule_library WHERE deleted_at IS NULL
 		AND ($1='' OR rule->>'kind'=$1) AND ($2='' OR rule->>'engine'=$2) AND ($3='' OR rule->>'enabled'=$3)
 		AND ($4='' OR rule::text ILIKE '%'||$4||'%') AND ($5='' OR source_id=$5)
-		AND ($6='' OR CASE WHEN rule->>'purpose'='verification' THEN 'verification' ELSE 'discovery' END=$6)
+		AND ($6='' OR CASE WHEN rule->>'purpose' IN ('verification','check') THEN rule->>'purpose' ELSE 'discovery' END=$6)
 		AND (NOT $7 OR id=ANY($8))
 		ORDER BY rule->>'kind',lower(rule->>'name'),id`, kind, engine, enabled, query, sourceID, purpose, len(ids) != 0, ids)
 	if err != nil {

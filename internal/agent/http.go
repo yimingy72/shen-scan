@@ -56,6 +56,16 @@ func (a *Agent) runHTTP(ctx context.Context, task Task, emit func(Observation) e
 	}
 	payload.Rules = rules
 	timeout := minDuration(boundedTimeout(payload.TimeoutSeconds, 12*time.Second), 12*time.Second)
+	if hasEnabledHTTPXCFF(payload.Rules) {
+		cff, ok := a.ruleSets.cff(payload.RulesRef)
+		if !ok {
+			cff, err = buildHTTPXCFF(payload.Rules)
+			if err != nil {
+				return &TaskError{Reason: "build httpx fingerprint snapshot: " + err.Error(), Retryable: false}
+			}
+		}
+		return a.runHTTPX(ctx, payload.Endpoints, payload.Rules, cff, timeout, emit)
+	}
 	return runEndpointsWithLimit(ctx, payload.Endpoints, a.endpointSlots, 2, func(ctx context.Context, ep Endpoint) Observation {
 		release, err := a.acquireHTTPTarget(ctx, httpTargetKey(ep))
 		if err != nil {
@@ -73,11 +83,19 @@ func (a *Agent) runHTTP(ctx context.Context, task Task, emit func(Observation) e
 
 func validateTaskRules(rules []rulelib.Rule, kind string) error {
 	for i, rule := range rules {
-		if rule.Kind != kind || rule.Engine != "native" {
-			return fmt.Errorf("rule %d must be a native %s rule", i+1, kind)
+		if rule.Kind != kind {
+			return fmt.Errorf("rule %d must be a %s rule", i+1, kind)
+		}
+		if rule.Engine != "native" && !(kind == "http" && rule.Engine == "httpx-cff") {
+			return fmt.Errorf("rule %d uses unsupported %s engine %q", i+1, kind, rule.Engine)
 		}
 		if err := rulelib.Validate(rule); err != nil {
 			return fmt.Errorf("rule %q: %w", rule.ID, err)
+		}
+	}
+	if kind == "http" {
+		if _, err := buildHTTPXCFF(rules); err != nil {
+			return err
 		}
 	}
 	return nil

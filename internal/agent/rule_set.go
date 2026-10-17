@@ -12,6 +12,7 @@ import (
 type ruleSetEntry struct {
 	ref   string
 	rules []rulelib.Rule
+	cff   []byte
 }
 
 type ruleSetCache struct {
@@ -42,18 +43,30 @@ func (cache *ruleSetCache) add(ref string, rules []rulelib.Rule) {
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
 	stored := cloneRules(rules)
+	cff, _ := buildHTTPXCFF(rules)
 	if element := cache.items[ref]; element != nil {
-		element.Value = ruleSetEntry{ref: ref, rules: stored}
+		element.Value = ruleSetEntry{ref: ref, rules: stored, cff: append([]byte(nil), cff...)}
 		cache.order.MoveToFront(element)
 		return
 	}
-	element := cache.order.PushFront(ruleSetEntry{ref: ref, rules: stored})
+	element := cache.order.PushFront(ruleSetEntry{ref: ref, rules: stored, cff: append([]byte(nil), cff...)})
 	cache.items[ref] = element
 	if cache.order.Len() > cache.capacity {
 		oldest := cache.order.Back()
 		delete(cache.items, oldest.Value.(ruleSetEntry).ref)
 		cache.order.Remove(oldest)
 	}
+}
+
+func (cache *ruleSetCache) cff(ref string) ([]byte, bool) {
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+	element := cache.items[ref]
+	if element == nil || len(element.Value.(ruleSetEntry).cff) == 0 {
+		return nil, false
+	}
+	cache.order.MoveToFront(element)
+	return append([]byte(nil), element.Value.(ruleSetEntry).cff...), true
 }
 
 func (a *Agent) resolveTaskRules(ctx context.Context, task Task, ref string, inline []rulelib.Rule, kind string) ([]rulelib.Rule, error) {
@@ -91,7 +104,7 @@ func (a *Agent) resolveTaskRules(ctx context.Context, task Task, ref string, inl
 			return nil, &TaskError{Reason: "rule set response omitted rules", Retryable: true}
 		}
 		if err := validateTaskRules(response.Rules, kind); err != nil {
-			return nil, &TaskError{Reason: "invalid downloaded rule set: " + err.Error(), Retryable: true}
+			return nil, &TaskError{Reason: "invalid downloaded rule set: " + err.Error(), Retryable: false}
 		}
 		if ctx.Err() != nil {
 			return nil, context.Cause(ctx)
@@ -119,6 +132,23 @@ func cloneRules(rules []rulelib.Rule) []rulelib.Rule {
 		cloned[index] = rule
 		cloned[index].Tags = append([]string(nil), rule.Tags...)
 		cloned[index].AppliesTo = append([]string(nil), rule.AppliesTo...)
+		cloned[index].Fingerprint = append([]byte(nil), rule.Fingerprint...)
+		if rule.Upstream != nil {
+			upstream := *rule.Upstream
+			cloned[index].Upstream = &upstream
+		}
+		if rule.Nuclei != nil {
+			nuclei := *rule.Nuclei
+			nuclei.Protocols = append([]string(nil), rule.Nuclei.Protocols...)
+			nuclei.Capabilities = append([]string(nil), rule.Nuclei.Capabilities...)
+			nuclei.Info = append([]byte(nil), rule.Nuclei.Info...)
+			nuclei.Classification = append([]byte(nil), rule.Nuclei.Classification...)
+			if rule.Nuclei.RequestCount != nil {
+				requestCount := *rule.Nuclei.RequestCount
+				nuclei.RequestCount = &requestCount
+			}
+			cloned[index].Nuclei = &nuclei
+		}
 		if rule.Verification != nil {
 			verification := *rule.Verification
 			verification.CVEs = append([]string(nil), rule.Verification.CVEs...)

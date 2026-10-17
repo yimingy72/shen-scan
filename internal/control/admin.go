@@ -96,8 +96,16 @@ func (s *Server) createRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	snapshotJSON, _ := json.Marshal(snapshot)
-	_, err = tx.Exec(r.Context(), `INSERT INTO runs (id,name,targets,modes,status,poc_enabled,rules_snapshot) VALUES ($1,$2,$3,$4,'pending',$5,$6)`,
-		runID, request.Name, targetJSON, modes, request.POCEnabled, snapshotJSON)
+	requiresHTTPXCFF := false
+	for _, rule := range snapshot.HTTP {
+		if rule.Engine == "httpx-cff" && rule.Enabled {
+			requiresHTTPXCFF = true
+			break
+		}
+	}
+	_, err = tx.Exec(r.Context(), `INSERT INTO runs (id,name,targets,modes,status,poc_enabled,rules_snapshot,requires_httpx_cff)
+		VALUES ($1,$2,$3,$4,'pending',$5,$6,$7)`,
+		runID, request.Name, targetJSON, modes, request.POCEnabled, snapshotJSON, requiresHTTPXCFF)
 	if err == nil {
 		taskRows := make([][]any, 0, len(seeds))
 		targetRows := make([][]any, 0, len(seeds))
@@ -350,7 +358,7 @@ func runSelect(targets, runs string) string {
 	return `SELECT r.id,r.name,` + targets + `,r.modes,r.status,r.created_at,r.updated_at,
 	 COALESCE(ts.task_total,0),COALESCE(ts.task_done,0),COALESCE(ts.task_failed,0),COALESCE(ac.asset_count,0),r.error,
 	 COALESCE(tgs.target_count,0),COALESCE(rs.open_port_count,0),COALESCE(rs.http_count,0),COALESCE(tgs.target_done,0),jsonb_array_length(r.targets),
-	 r.poc_enabled,COALESCE(pc.finding_count,0),COALESCE(pc.verification_finding_count,0),COALESCE(pc.discovery_match_count,0),COALESCE(pc.checked_count,0)
+	 r.poc_enabled,COALESCE(pc.finding_count,0),COALESCE(pc.verification_finding_count,0),COALESCE(pc.check_match_count,0),COALESCE(pc.discovery_match_count,0),COALESCE(pc.checked_count,0)
 	 FROM ` + runs + ` r
 	 LEFT JOIN LATERAL (SELECT count(*) task_total,count(*) FILTER(WHERE state='completed') task_done,
 	  count(*) FILTER(WHERE state='failed') task_failed FROM tasks WHERE run_id=r.id) ts ON true
@@ -359,6 +367,7 @@ func runSelect(targets, runs string) string {
 	 LEFT JOIN LATERAL (SELECT count(*) asset_count FROM assets WHERE run_id=r.id) ac ON true
 	 LEFT JOIN LATERAL (SELECT count(*) FILTER(WHERE a.observation->>'finding_status'='matched') finding_count,
 	  count(*) FILTER(WHERE a.observation->>'finding_status'='matched' AND COALESCE(NULLIF(a.observation->>'purpose',''),'discovery')='verification') verification_finding_count,
+	  count(*) FILTER(WHERE a.observation->>'finding_status'='matched' AND COALESCE(NULLIF(a.observation->>'purpose',''),'discovery')='check') check_match_count,
 	  count(*) FILTER(WHERE a.observation->>'finding_status'='matched' AND COALESCE(NULLIF(a.observation->>'purpose',''),'discovery')='discovery') discovery_match_count,
 	  count(*) checked_count
 	  FROM assets a JOIN tasks t ON t.id=a.task_id AND t.attempt_no=a.attempt_no
@@ -378,7 +387,7 @@ func scanRun(row rowScanner) (Run, error) {
 	var targets []byte
 	err := row.Scan(&run.ID, &run.Name, &targets, &run.Modes, &run.Status, &run.CreatedAt, &run.UpdatedAt,
 		&run.TaskTotal, &run.TaskDone, &run.TaskFailed, &run.AssetCount, &run.Error, &run.TargetCount, &run.OpenPortCount, &run.HTTPCount, &run.TargetDone, &run.InputCount,
-		&run.POCEnabled, &run.FindingCount, &run.VerificationFindingCount, &run.DiscoveryMatchCount, &run.POCCheckedCount)
+		&run.POCEnabled, &run.FindingCount, &run.VerificationFindingCount, &run.CheckMatchCount, &run.DiscoveryMatchCount, &run.POCCheckedCount)
 	if err == nil {
 		err = json.Unmarshal(targets, &run.Targets)
 		run.CreatedAt = run.CreatedAt.UTC()

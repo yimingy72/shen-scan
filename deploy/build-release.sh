@@ -5,6 +5,7 @@ cd "$project_dir"
 release_dir=${RELEASE_DIR:-"$project_dir/bin/release"}
 target_arch=${TARGET_ARCH:-amd64}
 nuclei_binary=${NUCLEI_BINARY:-"$project_dir/bin/nuclei/nuclei"}
+httpx_binary=${HTTPX_BINARY:-"$project_dir/bin/httpx/httpx"}
 masscan_binary=${MASSCAN_BINARY:-"$project_dir/bin/masscan/masscan"}
 masscan_source=${MASSCAN_SOURCE_ARCHIVE:-"$(dirname -- "$masscan_binary")/masscan-source-1.3.2-scan-platform.tar.gz"}
 if [ ! -x "$masscan_binary" ] || [ ! -s "$masscan_source" ]; then
@@ -36,6 +37,15 @@ if [ ! -x "$nuclei_binary" ] || [ ! -s "$(dirname -- "$nuclei_binary")/LICENSE.n
   exit 1
 fi
 verify_hash "$nuclei_binary"
+if [ ! -x "$httpx_binary" ] || [ ! -s "$(dirname -- "$httpx_binary")/LICENSE.httpx" ]; then
+  printf '%s\n' 'Run deploy/httpx/download.sh before building the complete Worker package.' >&2
+  exit 1
+fi
+verify_hash "$httpx_binary"
+if ! file "$httpx_binary" | grep -Eq 'ELF 64-bit.*x86-64'; then
+  printf '%s\n' 'HTTPX_BINARY must be a Linux amd64 executable.' >&2
+  exit 1
+fi
 if ! file "$nuclei_binary" | grep -Eq 'ELF 64-bit.*x86-64'; then
   printf '%s\n' 'NUCLEI_BINARY must be a Linux amd64 executable.' >&2
   exit 1
@@ -48,15 +58,17 @@ CGO_ENABLED=0 GOOS=linux GOARCH="$target_arch" go build -trimpath -ldflags '-s -
 cp deploy/agent-bootstrap.sh deploy/cloud-fixture.sh "$staging_dir/"
 cp "$masscan_binary" "$staging_dir/masscan"
 cp "$nuclei_binary" "$staging_dir/nuclei"
+cp "$httpx_binary" "$staging_dir/httpx"
 cp "$CONTROL_CA_FILE" "$staging_dir/ca.crt"
 mkdir -p "$staging_dir/licenses"
 cp "$(dirname -- "$nuclei_binary")/LICENSE.nuclei" "$staging_dir/licenses/"
+cp "$(dirname -- "$httpx_binary")/LICENSE.httpx" "$httpx_binary.sha256" "$staging_dir/licenses/"
 cp internal/rulelib/THIRD_PARTY_NOTICES.md "$staging_dir/licenses/RULES-NOTICES.md"
 cp "$nuclei_binary.sha256" "$staging_dir/licenses/nuclei.sha256"
 cp "$masscan_source" deploy/masscan/LICENSE.masscan deploy/masscan/SOURCE.md "$staging_dir/licenses/"
 cp "$masscan_binary.sha256" "$masscan_source.sha256" "$staging_dir/licenses/"
 tar -xOf "$masscan_source" masscan-source-1.3.2-scan-platform/AGPL-3.0.txt > "$staging_dir/licenses/AGPL-3.0.txt"
-chmod 0755 "$staging_dir/"*.sh "$staging_dir/scan-agent" "$staging_dir/masscan" "$staging_dir/nuclei"
+chmod 0755 "$staging_dir/"*.sh "$staging_dir/scan-agent" "$staging_dir/masscan" "$staging_dir/nuclei" "$staging_dir/httpx"
 COPYFILE_DISABLE=1 tar -czf "$release_dir/scan-agent-linux-$target_arch.tar.gz.next" -C "$staging_dir" .
 mv "$release_dir/scan-agent-linux-$target_arch.tar.gz.next" "$release_dir/scan-agent-linux-$target_arch.tar.gz"
 shasum -a 256 "$release_dir/scan-agent-linux-$target_arch.tar.gz"

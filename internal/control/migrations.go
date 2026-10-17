@@ -15,6 +15,7 @@ ALTER TABLE runs ADD COLUMN IF NOT EXISTS poc_enabled boolean NOT NULL DEFAULT f
 ALTER TABLE runs ADD COLUMN IF NOT EXISTS rules_snapshot jsonb;
 ALTER TABLE runs ALTER COLUMN rules_snapshot DROP NOT NULL;
 ALTER TABLE runs ALTER COLUMN rules_snapshot DROP DEFAULT;
+ALTER TABLE runs ADD COLUMN IF NOT EXISTS requires_httpx_cff boolean NOT NULL DEFAULT false;
 
 CREATE TABLE IF NOT EXISTS workers (
   id text PRIMARY KEY,
@@ -195,5 +196,30 @@ INSERT INTO rule_sources(id,name,repository) VALUES
  ('wappalyzer','Wappalyzer fingerprints','https://github.com/projectdiscovery/wappalyzergo'),
  ('nuclei-templates','Nuclei templates','https://github.com/projectdiscovery/nuclei-templates')
 ON CONFLICT(id) DO UPDATE SET name=EXCLUDED.name,repository=EXCLUDED.repository;
+
+CREATE TABLE IF NOT EXISTS rule_source_files (
+  source_id text NOT NULL REFERENCES rule_sources(id) ON DELETE CASCADE,
+  revision text NOT NULL,
+  path text NOT NULL,
+  sha256 text NOT NULL,
+  data bytea NOT NULL,
+  is_template boolean NOT NULL DEFAULT false,
+  PRIMARY KEY(source_id,revision,path)
+);
+CREATE INDEX IF NOT EXISTS rule_source_files_revision_idx ON rule_source_files(source_id,revision,path);
+
+CREATE TABLE IF NOT EXISTS rule_source_catalog (
+  source_id text NOT NULL REFERENCES rule_sources(id) ON DELETE CASCADE,
+  revision text NOT NULL,
+  converter_version text NOT NULL,
+  id text NOT NULL,
+  rule jsonb NOT NULL,
+  content_hash text NOT NULL,
+  sanitized_fields text[] NOT NULL DEFAULT '{}',
+  PRIMARY KEY(source_id,revision,converter_version,id)
+);
+ALTER TABLE rule_source_catalog ADD COLUMN IF NOT EXISTS sanitized_fields text[] NOT NULL DEFAULT '{}';
+UPDATE rule_source_catalog SET rule=rule-'template' WHERE rule ? 'template';
+CREATE INDEX IF NOT EXISTS rule_source_catalog_revision_idx ON rule_source_catalog(source_id,revision,converter_version,id);
 
 `

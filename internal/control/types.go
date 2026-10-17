@@ -28,6 +28,7 @@ type Run struct {
 	POCEnabled               bool      `json:"poc_enabled"`
 	FindingCount             int64     `json:"finding_count"`
 	VerificationFindingCount int64     `json:"verification_finding_count"`
+	CheckMatchCount          int64     `json:"check_match_count"`
 	DiscoveryMatchCount      int64     `json:"discovery_match_count"`
 	POCCheckedCount          int64     `json:"poc_checked_count"`
 	Error                    string    `json:"error"`

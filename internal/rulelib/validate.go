@@ -1,6 +1,7 @@
 package rulelib
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"path"
@@ -11,7 +12,7 @@ import (
 )
 
 const (
-	maxTemplateBytes = 256 << 10
+	maxTemplateBytes = 16 << 20
 	maxMatchers      = 8
 	maxRequests      = 3
 )
@@ -34,51 +35,22 @@ func Validate(rule Rule) error {
 	if err := validateRuleEnvelope(rule); err != nil {
 		return err
 	}
-	switch VerificationPurpose(rule) {
-	case "discovery":
-		if _, protected, err := reviewedVerification(rule.ID); err != nil {
-			return fmt.Errorf("load reviewed verification registry: %w", err)
-		} else if protected {
-			return fmt.Errorf("reviewed verification id %q must retain verification purpose", rule.ID)
-		}
-		if rule.Verification != nil {
-			return fmt.Errorf("discovery rules cannot contain verification metadata")
-		}
-		if err := validateDefinition(rule, false); err != nil {
-			return err
-		}
-	case "verification":
-		reviewed, ok, err := reviewedVerification(rule.ID)
-		if err != nil {
-			return fmt.Errorf("load reviewed verification registry: %w", err)
-		}
-		if !ok {
-			return fmt.Errorf("verification rule %q is not in the reviewed registry", rule.ID)
-		}
-		if err := validateVerificationCandidate(rule, reviewed); err != nil {
-			return err
-		}
-	default:
+	purpose := VerificationPurpose(rule)
+	if !oneOf(purpose, "discovery", "verification", "check") {
 		return fmt.Errorf("invalid purpose %q", rule.Purpose)
 	}
-	if rule.Engine == "nuclei" {
-		if len(rule.Template) == 0 || len(rule.Template) > maxTemplateBytes {
-			return fmt.Errorf("nuclei template must be 1..%d bytes", maxTemplateBytes)
-		}
-		parsed, err := parseNucleiTemplate(rule.Template)
-		if err != nil {
-			return fmt.Errorf("invalid nuclei template: %w", err)
-		}
-		if parsed.ID != rule.ID {
-			return fmt.Errorf("nuclei template id does not match rule id")
-		}
-		if !reflect.DeepEqual(parsed.Definition, rule.Definition) {
-			return fmt.Errorf("nuclei definition does not match normalized template")
-		}
-	} else if rule.Template != "" {
-		return fmt.Errorf("native rules cannot contain a template")
+	if err := validateUpstream(rule.Upstream); err != nil {
+		return err
 	}
-	return nil
+	switch rule.Engine {
+	case "native":
+		return validateNativeRule(rule, purpose)
+	case "nuclei":
+		return validateRawNucleiRule(rule, purpose)
+	case "httpx-cff":
+		return validateHTTPXCFFRule(rule, purpose)
+	}
+	return fmt.Errorf("invalid engine %q", rule.Engine)
 }
 
 func validateRuleEnvelope(rule Rule) error {
@@ -100,11 +72,8 @@ func validateRuleEnvelope(rule Rule) error {
 	if rule.Kind != "http" && rule.Kind != "port" && rule.Kind != "poc" {
 		return fmt.Errorf("invalid kind %q", rule.Kind)
 	}
-	if rule.Engine != "native" && rule.Engine != "nuclei" {
+	if rule.Engine != "native" && rule.Engine != "nuclei" && rule.Engine != "httpx-cff" {
 		return fmt.Errorf("invalid engine %q", rule.Engine)
-	}
-	if rule.Kind != "poc" && rule.Engine != "native" {
-		return fmt.Errorf("fingerprint rules must use native engine")
 	}
 	if !oneOf(rule.Severity, "info", "low", "medium", "high", "critical") {
 		return fmt.Errorf("invalid severity %q", rule.Severity)
@@ -118,6 +87,116 @@ func validateRuleEnvelope(rule Rule) error {
 		}
 	}
 	return validateAppliesTo(rule)
+}
+
+func validateNativeRule(rule Rule, purpose string) error {
+	if rule.Template != "" || rule.Nuclei != nil || len(rule.Fingerprint) != 0 {
+		return fmt.Errorf("native rules cannot contain engine source data")
+	}
+	reviewed, protected, err := reviewedVerification(rule.ID)
+	if err != nil {
+		return fmt.Errorf("load reviewed verification registry: %w", err)
+	}
+	if protected {
+		return validateVerificationCandidate(rule, reviewed)
+	}
+	if purpose == "verification" {
+		return fmt.Errorf("native verification rule %q is not in the reviewed registry", rule.ID)
+	}
+	if purpose == "discovery" && rule.Verification != nil {
+		return fmt.Errorf("discovery rules cannot contain verification metadata")
+	}
+	if rule.Verification != nil {
+		if err := validateVerificationMetadata(rule.Verification); err != nil {
+			return err
+		}
+	}
+	return validateDefinition(rule, false)
+}
+
+func validateRawNucleiRule(rule Rule, purpose string) error {
+	if rule.Nuclei == nil {
+		return validateLegacyNucleiRule(rule, purpose)
+	}
+	if len(rule.Fingerprint) != 0 || rule.Verification != nil {
+		return fmt.Errorf("nuclei rules require nuclei metadata only")
+	}
+	if !rule.Nuclei.CatalogOnly || rule.Nuclei.RuntimeReason == "" {
+		return fmt.Errorf("original nuclei source rules must remain catalog-only entries")
+	}
+	if len(rule.Template) == 0 || len(rule.Template) > maxTemplateBytes {
+		return fmt.Errorf("nuclei template must be 1..%d bytes", maxTemplateBytes)
+	}
+	if purpose == "discovery" {
+		if rule.Kind != "http" {
+			return fmt.Errorf("nuclei discovery rules must use http kind")
+		}
+	} else if rule.Kind != "poc" {
+		return fmt.Errorf("nuclei verification/check rules must use poc kind")
+	}
+	if !reflect.DeepEqual(rule.Definition, Definition{}) {
+		return fmt.Errorf("raw nuclei rules cannot contain native definitions")
+	}
+	return validateNucleiMetadata(rule.Template, rule.Nuclei)
+}
+
+func validateLegacyNucleiRule(rule Rule, purpose string) error {
+	if purpose != "discovery" || rule.Kind != "poc" || rule.Verification != nil || len(rule.Fingerprint) != 0 {
+		return fmt.Errorf("legacy nuclei rules must retain poc discovery shape")
+	}
+	if len(rule.Template) == 0 || len(rule.Template) > maxTemplateBytes {
+		return fmt.Errorf("nuclei template must be 1..%d bytes", maxTemplateBytes)
+	}
+	if err := validateDefinition(rule, false); err != nil {
+		return err
+	}
+	parsed, err := parseNucleiTemplate(rule.Template)
+	if err != nil {
+		return fmt.Errorf("invalid legacy nuclei template: %w", err)
+	}
+	if parsed.ID != rule.ID || !reflect.DeepEqual(parsed.Definition, rule.Definition) {
+		return fmt.Errorf("legacy nuclei definition does not match normalized template")
+	}
+	return nil
+}
+
+func validateHTTPXCFFRule(rule Rule, purpose string) error {
+	if rule.Kind != "http" || purpose != "discovery" {
+		return fmt.Errorf("httpx-cff rules must be http discovery rules")
+	}
+	if rule.Nuclei != nil || rule.Verification != nil || rule.Template != "" || len(rule.Fingerprint) == 0 {
+		return fmt.Errorf("httpx-cff rules require only a raw fingerprint")
+	}
+	var object map[string]any
+	if err := json.Unmarshal(rule.Fingerprint, &object); err != nil || object == nil {
+		return fmt.Errorf("httpx-cff fingerprint must be a JSON object")
+	}
+	d := rule.Definition
+	if d.Product == "" || (d.Service != "" && d.Service != "http") || d.VersionRegex != "" || d.VersionPart != "" ||
+		d.UseDetectedVersion || d.Condition != "" || len(d.Matchers) != 0 || len(d.Requests) != 0 {
+		return fmt.Errorf("httpx-cff definition may contain only http service and product")
+	}
+	return nil
+}
+
+func validateUpstream(upstream *Upstream) error {
+	if upstream == nil {
+		return nil
+	}
+	if !metadataIDPattern.MatchString(upstream.SourceID) {
+		return fmt.Errorf("invalid upstream source id")
+	}
+	if upstream.Revision != "" && !hex40Pattern.MatchString(upstream.Revision) {
+		return fmt.Errorf("upstream revision must be an empty or lowercase 40-character commit")
+	}
+	if upstream.Path == "" || len(upstream.Path) > 1024 || strings.Contains(upstream.Path, "\\") || path.IsAbs(upstream.Path) ||
+		path.Clean(upstream.Path) != upstream.Path || upstream.Path == "." || strings.HasPrefix(upstream.Path, "../") {
+		return fmt.Errorf("invalid upstream path")
+	}
+	if !hex64Pattern.MatchString(upstream.SHA256) {
+		return fmt.Errorf("upstream sha256 must be lowercase hex")
+	}
+	return nil
 }
 
 func validateAppliesTo(rule Rule) error {

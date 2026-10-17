@@ -198,6 +198,9 @@ func TestClaimRequestsRuleSets(t *testing.T) {
 		if enabled, ok := body["use_rule_sets"].(bool); !ok || !enabled {
 			t.Fatalf("claim omitted use_rule_sets: %#v", body)
 		}
+		if supported, ok := body["supports_httpx_cff"].(bool); !ok || !supported {
+			t.Fatalf("claim omitted supports_httpx_cff: %#v", body)
+		}
 		_, _ = response.Write([]byte(`{"task":null}`))
 	}))
 	defer server.Close()

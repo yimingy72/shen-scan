@@ -82,7 +82,7 @@ func (c *Client) Claim(ctx context.Context, workerID, sessionID, requestID strin
 	}
 	sentAt, err := c.do(ctx, c.control, http.MethodPost, "/api/tasks/claim", c.workerToken, map[string]any{
 		"worker_id": workerID, "session_id": sessionID, "request_id": requestID,
-		"types": types, "use_rule_sets": true,
+		"types": types, "use_rule_sets": true, "supports_httpx_cff": true,
 	}, &out)
 	if out.Task != nil {
 		out.Task.requestSentAt = sentAt

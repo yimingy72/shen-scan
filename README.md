@@ -10,13 +10,15 @@
 
 *截图使用隔离环境中的合成数据，不代表真实软件安装或公网资产。*
 
+> Nuclei全量原库目前用于查看和导出；原始模板执行器迁移未完成。既有部署保留907条执行PoC，新安装仅有43条内置PoC，点击同步原库不会自动增加可执行PoC。
+
 ## 功能
 
 | 模块 | 当前能力 |
 |---|---|
 | 端口扫描 | IPv4 TCP **1–65535**，发现开放端口后继续执行服务指纹 |
-| HTTP 指纹 | HTTP / HTTPS 探测，页面标题、状态码、Server、CMS / 框架及识别依据 |
-| 指纹库 | 内置 bootstrap 加官方规则源一键更新；编辑、启停、复制、批量导入 / 导出 / 删除和规则版本 |
+| HTTP 指纹 | HTTP / HTTPS 探测；HTTPx v1.12.0 + 完整 Wappalyzer app 被动识别，并保留 native 补充规则 |
+| 规则数据 | Wapp 一键更新执行库；Nuclei 一键同步独立上游原库；执行规则支持编辑、启停、导入 / 导出 / 删除 |
 | PoC / Nuclei | 任务显式开启；区分发现检查与审核过的只读漏洞验证，保存命中 / 未命中 / 检测错误及逐请求证据 |
 | 输入 | 手动输入或导入 TXT / CSV；支持 IPv4、CIDR、域名与 HTTP(S) URL |
 | 结果查看 | 按任务 → IP / 域名 → 开放端口 / HTTP 端点查看；提供搜索、筛选和分页 |
@@ -52,7 +54,8 @@ flowchart LR
 - **控制面**提供 API 和前端静态文件，保存任务、租约、结果和云资源状态。
 - **PostgreSQL**是唯一权威存储；当前没有 Redis 或独立消息队列依赖。
 - **Agent**负责认领、执行、续约、批量回传和停止；管理员令牌、引导令牌、Worker 会话令牌各自独立。
-- **Nuclei**以受限独立进程运行；只执行任务固定的只读 HTTP 模板，不在 Worker 上自动下载模板或连接云服务。管理员可在控制面更新官方规则源，经转换和校验后写入规则库。
+- **HTTPx**使用任务冻结的已启用 Wappalyzer app 生成 CFF；Agent 过滤 HTTPx embedded 库中未启用产品，避免禁用规则重新出现。
+- **Nuclei**以受限独立进程运行，只执行当前执行库已经支持的旧规则。官方全量 `nuclei-templates` 同步到独立“上游原库”供查看和导出，不发送给现有执行器。
 - **Masscan**以独立进程运行。仓库包含固定版本的接收修复补丁、构建脚本和许可证，发布包携带对应源码。
 
 ## 快速启动控制面
@@ -100,6 +103,9 @@ sudo install -m 0755 bin/masscan/masscan /usr/local/bin/masscan
 # 使用 Nuclei 检查时安装固定引擎：
 deploy/nuclei/download.sh
 sudo install -m 0755 bin/nuclei/nuclei /usr/local/bin/nuclei
+# 使用完整 Wapp 被动指纹时安装固定 HTTPx：
+deploy/httpx/download.sh
+sudo install -m 0755 bin/httpx/httpx /usr/local/bin/httpx
 ```
 
 为 Agent 设置以下环境变量，再以具备原始套接字权限的账号运行 `bin/scan-agent`：
@@ -122,6 +128,7 @@ AGENT_CA_FILE=/path/to/public-ca.crt
 
    ```sh
    deploy/nuclei/download.sh
+   deploy/httpx/download.sh
    CONTROL_CA_FILE=/path/to/public-ca.crt deploy/build-release.sh
    ```
 
@@ -141,7 +148,7 @@ AGENT_CA_FILE=/path/to/public-ca.crt
 3. **扫描结果**：选择任务，展开目标查看开放端口；切换 HTTP 端点查看页面与技术指纹。
 4. **PoC 检查**：任务显式开启后，在结果页分别查看“发现检查”和“漏洞验证”的命中、未命中和检测错误。面板或版本页命中不等于漏洞；verification 记录的是固定正向请求与阴性对照共同确认的行为，超时不等于未命中。
 5. **指纹库**：按 HTTP、端口、PoC 分类管理规则。导入 JSON 或受支持的 Nuclei YAML，校验后默认禁用；支持按筛选 / 勾选导出及批量删除，内置规则删除后重启也不会恢复。
-6. **规则源**：按需从固定官方仓库检查最新 SHA，一键转换并原子更新；查看版本、许可证、纳入数量、排除原因和失败状态。
+6. **规则源**：Wapp 更新进入 HTTP 执行库；Nuclei 更新进入独立“上游原库”，只查看 / 导出，不改变当前 PoC 执行库。
 7. **详情**：查看服务 Banner、请求响应、规则版本及识别依据。失败、取消、未扫描和指纹受限分别显示。
 
 创建任务不需要填写预算、发包速率或内部执行阶段。Worker 是全平台共享容量，任务按存活节点认领执行；云节点回收后，未完成任务可由其他节点重派。
@@ -156,6 +163,7 @@ AGENT_CA_FILE=/path/to/public-ca.crt
 | Masscan 并发 | 每 Worker 最多 1 个进程，预留端口任务槽 |
 | Agent 任务槽 | 默认 17 个：1 个端口槽 + 最多 16 个指纹任务槽 |
 | 全局端点并发 | 默认 16；单服务任务最多 8，单 HTTP 任务最多 2 |
+| HTTPx | 最多 2 个进程，每进程默认 8 线程；只执行冻结快照中启用的 Wapp app |
 | PoC 并发 / 超时 | 每 Worker 最多 1 个 PoC；原生 60 秒，Nuclei 90 秒；每规则最多 3 个请求 |
 | 收包等待 / 任务上限 | 15 秒 / 180 秒，任务上限包含结果回传和完成确认 |
 | 高开放率处理 | 保留全部原始端口；单 IP 下游指纹最多选择 1024 个端口 |
@@ -170,7 +178,7 @@ PPS 是 Masscan 的发包预算，不能直接视为每秒有效 SYN 探针数�
 ## 当前边界
 
 - 当前使用单管理员令牌登录，尚无多用户、项目隔离或细粒度 RBAC。
-- TCP 全端口执行器仅支持 IPv4；指纹库不承诺识别所有产品。Nuclei discovery 只支持经校验的静态同源 GET / HEAD 子集；reviewed verification 只执行注册表中精确固定的 native 正负对照。官方模板中的写操作、动态载荷、OAST、RCE、敏感文件分支、代码、无头浏览器及其他不兼容行为不会执行。
+- TCP 全端口执行器仅支持 IPv4；指纹库不承诺识别所有产品。当前 PoC 执行器仍保持原有受限路径，11 条 native verification 使用固定正负对照。上游原库中的 DSL、raw、workflow、code、headless、OAST、RCE、DNS 等模板不会因同步成功而执行；原始 Nuclei 执行器迁移和主动 HTTP 发现尚未接入。
 - 网页截图、完整报告生成、完整 OSS 证据归档和高级灰度发布尚未实现。
 - 原始端口仍按行存储；没有完成密集位图、网段自动熔断和自动归档。
 - 临时文件用于解耦收包和回传，不是跨实例回收的持久检查点；实例丢失依靠租约与重试恢复。
@@ -206,8 +214,8 @@ PostgreSQL 集成用例需要单独设置 `CONTROL_TEST_DATABASE_URL`；未设�
 
 Masscan 及其修改使用 AGPLv3，相关许可证、固定源码与补丁说明见 [deploy/masscan](deploy/masscan/README.md)。发布脚本会将对应源码和许可证一起放入 Agent 包。其他依赖的许可见各自项目；本仓库当前尚未为平台自有代码声明单独的开源许可证。
 
-Nuclei 引擎固定为 v3.11.1（MIT），下载校验和许可见 [deploy/nuclei](deploy/nuclei/README.md)。内置 bootstrap 保留了早期从 MIT `projectdiscovery/wappalyzergo` 人工改写的 85 条 HTTP 信号及产品专用规则；[第三方声明](internal/rulelib/THIRD_PARTY_NOTICES.md) 继续保留。控制面还可从固定的 `projectdiscovery/wappalyzergo` 与 `projectdiscovery/nuclei-templates` 官方仓库按 SHA 更新，验证 MIT 全文后只保存规范化规则，不把归档交给 Worker 执行。
+Nuclei 引擎固定为 v3.11.1（MIT），下载校验和许可见 [deploy/nuclei](deploy/nuclei/README.md)。HTTPx 固定为 v1.12.0（MIT），见 [deploy/httpx](deploy/httpx/README.md)。内置 bootstrap 保留了早期从 MIT `wappalyzergo` 人工改写的 85 条 HTTP 信号及产品专用规则；[第三方声明](internal/rulelib/THIRD_PARTY_NOTICES.md) 继续保留。
 
-当前验证快照包含 **4588 HTTP、22 port、907 PoC**，其中官方源转换结果为 Wappalyzer **4437 / 7642**，Nuclei **864 / 14119**。原有 896 条 PoC 均为 discovery；新增 11 条 verification 固定到官方 Nuclei 文件 SHA，并转换为 native 正负对照。XWiki 强被动指纹补齐后 HTTP 总数增加到 4588。这些数字对应当时的上游 SHA，不是长期常量；实际版本、数量、许可证和排除原因以工作台的规则源状态为准。
+完整 Wapp 更新后，本轮已验证的 HTTP 执行库为 **7,793 条**（7,642 个 Wapp app + 151 条 bootstrap），port 为 22 条。PoC 执行库保持 **907 条**（896 discovery + 11 native verification）。Nuclei revision `17f5725dc10ced09f464dd2d255c19957aad51e7` 的独立上游原库包含 14,075 条目录规则和 377 个 Files（其中 44 个是非模板 YAML）；这些目录规则不计入 907 条 PoC，也不可执行。
 
-参考 Nemo 的历史调研与 bootstrap 取舍见 [规则来源](docs/RULE_SOURCES.md) 和 [PoC 来源](docs/POC_SOURCES.md)；审核注册表、证据闭环和结果边界见 [只读漏洞验证](docs/READONLY_VERIFICATION.md)；一键更新、失败保护、升级顺序和容量边界见 [规则源更新](docs/RULE_UPDATES.md)。
+参考 Nemo 的历史调研与 bootstrap 取舍见 [规则来源](docs/RULE_SOURCES.md) 和 [PoC 来源](docs/POC_SOURCES.md)；11 条 native verification 的证据闭环和结果边界见 [只读漏洞验证](docs/READONLY_VERIFICATION.md)；一键更新、失败保护、升级顺序和容量边界见 [规则源更新](docs/RULE_UPDATES.md)。

@@ -58,6 +58,9 @@ type Config struct {
 	MasscanInterface    string
 	MasscanRouterMAC    string
 	MetadataURL         string
+	HTTPXBinary         string
+	HTTPXMaxProcesses   int
+	HTTPXThreads        int
 	NucleiBinary        string
 	Logger              *slog.Logger
 }
@@ -69,6 +72,7 @@ type Agent struct {
 	log             *slog.Logger
 	portExecutor    string
 	endpointSlots   chan struct{}
+	httpxSlots      chan struct{}
 	httpTargetMu    sync.Mutex
 	httpTargetSlots map[string]*targetSlots
 	resources       *resourceSampler
@@ -110,6 +114,21 @@ func New(cfg Config) (*Agent, error) {
 	if cfg.NucleiBinary == "" {
 		cfg.NucleiBinary = "nuclei"
 	}
+	if cfg.HTTPXBinary == "" {
+		cfg.HTTPXBinary = "httpx"
+	}
+	if cfg.HTTPXMaxProcesses <= 0 {
+		cfg.HTTPXMaxProcesses = 2
+	}
+	if cfg.HTTPXMaxProcesses > 2 {
+		return nil, fmt.Errorf("httpx max processes must not exceed 2")
+	}
+	if cfg.HTTPXThreads <= 0 {
+		cfg.HTTPXThreads = 8
+	}
+	if cfg.HTTPXThreads > 16 {
+		return nil, fmt.Errorf("httpx threads must not exceed 16")
+	}
 	if cfg.PortExecutor != "masscan" && cfg.PortExecutor != "connect" {
 		return nil, fmt.Errorf("unknown port executor %q", cfg.PortExecutor)
 	}
@@ -133,7 +152,7 @@ func New(cfg Config) (*Agent, error) {
 	return &Agent{
 		cfg: cfg, client: client, policy: newTargetPolicy(cfg.ControlURL, cfg.AllowPrivateTargets),
 		log: cfg.Logger, portExecutor: cfg.PortExecutor,
-		endpointSlots: make(chan struct{}, cfg.EndpointConcurrency), httpTargetSlots: make(map[string]*targetSlots),
+		endpointSlots: make(chan struct{}, cfg.EndpointConcurrency), httpxSlots: make(chan struct{}, cfg.HTTPXMaxProcesses), httpTargetSlots: make(map[string]*targetSlots),
 		resources: newResourceSampler(), ruleSets: newRuleSetCache(8), active: make(map[string]activeTask), taskFinished: make(chan struct{}, 1), heartbeatEvery: 10 * time.Second,
 	}, nil
 }

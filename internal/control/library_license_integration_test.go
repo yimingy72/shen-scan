@@ -1,15 +1,53 @@
 package control
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"scanplatform/internal/rulelib"
 	"scanplatform/internal/rulesource"
 )
+
+func TestImportRequestAllowsLicensedExportOverEightMiB(t *testing.T) {
+	rule := rulelib.Rule{ID: "large-export-roundtrip", Kind: "http", Name: "Large export roundtrip",
+		Engine: "native", Severity: "info", Revision: 1,
+		Definition: rulelib.Definition{Matchers: []rulelib.Matcher{{Part: "status", Type: "status", Status: []int{200}}}}}
+	pkg, err := json.Marshal(ruleExportPackage{Items: []rulelib.Rule{rule},
+		Notices: []ruleExportNotice{{Name: "large-notice.txt", Text: strings.Repeat("a", 9<<20)}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, err := json.Marshal(map[string]string{"format": "json", "content": string(pkg)})
+	if err != nil || len(body) <= maxJSONBody || len(body) >= maxLibraryImportBody {
+		t.Fatalf("test request bytes=%d err=%v", len(body), err)
+	}
+	decode := func(limit int64) (string, error) {
+		request := httptest.NewRequest(http.MethodPost, "/api/library/import", bytes.NewReader(body))
+		response := httptest.NewRecorder()
+		var input struct {
+			Format  string `json:"format"`
+			Content string `json:"content"`
+		}
+		err := decodeJSONLimit(response, request, &input, limit)
+		return input.Content, err
+	}
+	if _, err = decode(maxJSONBody); err == nil {
+		t.Fatal("ordinary 8 MiB request limit accepted the oversized import body")
+	}
+	content, err := decode(maxLibraryImportBody)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rules, err := decodeRuleJSON(content)
+	if err != nil || len(rules) != 1 || rules[0].ID != rule.ID {
+		t.Fatalf("large import package rules=%+v err=%v", rules, err)
+	}
+}
 
 func TestDecodeRuleJSONAcceptsLicensedExportPackage(t *testing.T) {
 	if notice := rulelib.ThirdPartyNotices(); !strings.Contains(notice, "Copyright (c) 2021 ProjectDiscovery, Inc.") {

@@ -1,12 +1,14 @@
 # 指纹库与只读 PoC
 
-工作台“指纹库”分为 HTTP 指纹、端口指纹和 PoC 库。早期 bootstrap 快照为 **150 条 HTTP、22 条端口、43 条 PoC**；当前随项目发布的 HTTP bootstrap 另补 1 条 XWiki 强被动指纹。管理员还可从固定官方源一键更新，因此实际总数以当前 source SHA 和库内计数为准。HTTP 指纹利用扫描已有响应识别 CMS、框架、Web 服务器和应用；端口指纹利用协议解析和 Banner 识别服务、产品及明确版本。两者不因增补规则而改变 TCP 全端口范围。
+工作台“指纹库”分为 HTTP 指纹、端口指纹和 PoC 执行库。当前 bootstrap 为 **151 条 HTTP、22 条端口、43 条 PoC**。完整 Wapp 更新后，HTTP 执行库预计为 **7,793 条**（7,642 Wapp + 151 bootstrap）；PoC 执行库保持 **907 条**。实际数量以 live 数据库为准。
 
 ![PoC 库：规则、请求范围、引擎和启用状态](images/rule-library.png)
 
 ## 管理与执行
 
-列表支持搜索、启停、编辑、复制、JSON 导出与导入。内置及自定义规则都可以编辑、禁用和删除；删除使用持久标记，重启或补种不会复活。可以先导出备份，之后用同 ID 重新导入恢复，恢复后默认禁用且版本递增。每次修改递增版本，冲突编辑返回 409。导入为原子操作，一次最多 10,000 条（请求体上限 8 MiB），校验失败全部不写入；成功导入的规则默认禁用。导出包携带相关 source SHA、MIT 许可全文和第三方声明。
+执行库列表支持搜索、启停、编辑、复制、JSON 导出与导入。内置及自定义规则都可以编辑、禁用和删除；删除使用持久标记，重启或补种不会复活。导入为原子操作，一次最多 10,000 条；import 端点请求体上限为 32 MiB，成功项默认禁用。其他 JSON API 仍保持 8 MiB 上限。
+
+“上游原库”是独立的只读浏览与导出界面。Nuclei 原始条目带 `catalog_only` 和运行能力原因，不出现在可执行规则计数中，不能通过 CRUD / JSON 导入进入任务快照。原库 enabled 是目录管理元数据，不代表执行许可。
 
 创建任务时，平台保存当时启用的 HTTP / 端口规则及选择的 PoC 规则。修改、禁用或删除库内规则只影响之后创建的任务，已有任务继续使用其快照。界面显示的规则版本与观测记录对应。
 
@@ -17,6 +19,12 @@
 列表支持勾选跨页规则后批量导出和删除（最多 1000 条）；“导出筛选结果”导出当前条件的全部结果，不限当前页。版本冲突时整批删除失败，不会删一半。
 
 每 Worker 最多执行一个 PoC。原生检查总超时 60 秒，单请求 8 秒；Nuclei 总超时 90 秒，进程请求速率 3/秒、并发 1。每条规则最多 3 个请求、8 个匹配器。任务取消、租约失效和实例回收继续沿用 Agent 的停止及重派机制。
+
+## HTTPx 与 Wapp 被动指纹
+
+Wapp source 保留全部 7,642 个 app 的原始 JSON。创建任务时，控制面冻结已启用 app；Agent 通过 rules_ref 下载一次规则集并重建 HTTPx v1.12.0 CFF。HTTPx 对一批端点执行被动技术识别，native HTTP 规则继续使用同一响应做补充匹配。
+
+HTTPx `-cff` 会叠加 embedded fingerprints，所以 Agent 只接受冻结快照启用名单内的产品。包含 HTTPx 规则的 run 只能由同时声明 `use_rule_sets` 和 `supports_httpx_cff` 的 Agent 领取 HTTP task。固定引擎、默认 2 进程 × 8 线程和本地 fixture 结果见 [HTTPx 引擎说明](../deploy/httpx/README.md)。
 
 ## 结果语义
 
@@ -30,10 +38,11 @@
 
 ### 发现检查与漏洞验证
 
-PoC 的 `purpose` 为 `discovery` 或 `verification`；旧规则省略该字段时兼容为 discovery。工作台分别筛选和统计两类结果：
+PoC 的 `purpose` 为 `discovery`、`verification` 或 `check`；旧规则省略该字段时兼容为 discovery。工作台分别筛选和统计结果：
 
 - discovery 用于确认产品页面、面板、版本、健康状态或公开元数据。命中不会计入漏洞验证数。
 - verification 必须是注册表中审核过的精确 native 定义，包含 CVE、类别、证据等级及上游 `source_pin`。用户不能把普通规则仅靠填写 `purpose` 或 metadata 升级为 verification。
+- check 保留给不属于产品发现、也没有 verification 证据合同的安全检查；当前 Nuclei 原始 catalog 中的 check 仍不可执行。
 
 verification 使用按顺序的 `probe` / `control` 请求。Agent 回传每项完整原始请求响应，控制面再按冻结任务规则核对请求的同源、方法、URI、Header、响应 matcher 和整体差分结果；缺项、截断或阴性对照失败的 `matched` 不会入库。结果详情展示逐请求 evidence 和固定上游来源。完整规则清单与结果语义见 [只读漏洞验证](READONLY_VERIFICATION.md)。
 
@@ -89,7 +98,7 @@ PoC 顶层增加 `"applies_to": ["WordPress"]` 等绑定字段；名称经大小
 
 新增和导入规则都经过控制面校验，Agent 执行前再校验。响应失败或截断时不会根据“缺少正文标记”作负向推断。
 
-## Nuclei YAML
+## 当前可执行的 Nuclei YAML
 
 Nuclei 使用真实的 **v3.11.1 引擎**，仅开放受限 HTTP 子集；不是任意模板执行入口。导入使用“导入 → Nuclei YAML”。以下模板可用于自有测试站点：
 
@@ -115,12 +124,15 @@ http:
 
 支持静态同源 `{{BaseURL}}` / `{{RootURL}}` 路径、GET / HEAD、word / regex / status 匹配器。模板 ID 与库内规则 ID 一致。`info.metadata.product` 可为产品名或名称数组，导入时映射到 `applies_to`；缺失时保留手动选择，不从泛化 tags 猜测绑定。关联指纹也可在编辑界面单独设置。编辑模板后重新解析规范化定义，不能通过修改 metadata 绕过执行校验。
 
-常规 Nuclei discovery 不接受 POST 等写入请求、查询参数、目录穿越、编码载荷、动态变量、raw 请求、DSL、workflow、flow、code、headless、网络/DNS 模板、payload、外部回连及重定向。YAML 别名和未知执行字段会被拒绝。规则源更新可以批量读取官方 `nuclei-templates`，但只发布通过上述静态只读约束的子集，并显示排除原因。
+手工导入和当前历史执行规则仍使用这一受限格式：不接受 POST、查询参数、目录穿越、动态变量、raw、DSL、workflow、flow、code、headless、网络 / DNS、payload、外部回连及重定向。YAML 别名和未知执行字段会被拒绝。
 
-reviewed verification 不放宽任意模板导入。转换器只在官方文件路径及 SHA-256 与代码内注册表完全匹配时，生成固定 native 差分请求；原始模板不执行。当前例外只包括 9 条固定哨兵开放重定向行为验证和 2 条固定非敏感 `/etc/os-release` 越界读取验证。上游文件变化会记为 `review_required`，不会自动执行新内容。
+11 条 native verification 继续使用固定差分请求：9 条开放重定向行为验证和 2 条固定非敏感 `/etc/os-release` 越界读取验证。它们属于现有 907 条执行规则，不由新的 Nuclei 原库同步创建、更新或退役。
 
 Nuclei 使用隔离临时目录、清理过的环境变量和目标范围代理，关闭自动模板下载、云认证、Interactsh、重定向及 HTTP 探活。HTTP 代理核对方法、主机、端口及路径；HTTPS CONNECT 固定目标主机和端口，TLS 内路径由预先校验的静态模板限定。地址仍由 Agent 的受保护目标校验处理。进程异常或缺少有效匹配事件记录为检测错误。
 
-Nuclei 下载与校验见 [固定引擎部署](../deploy/nuclei/README.md)，API 见 [接口说明](API.md)。CLI 参数来源为 [ProjectDiscovery 官方运行说明](https://docs.projectdiscovery.io/opensource/nuclei/running)。
+Nuclei 下载与校验见 [固定引擎部署](../deploy/nuclei/README.md)。全量原始目录虽然保留完整 YAML、DSL 和 capabilities，但原始执行器迁移及主动 HTTP 发现尚未接入；目录只用于查看和 ZIP 导出，不交给上述受限执行器。
 
-来源、许可证与为何没有直接导入整个 Nemo 库见 [规则来源](RULE_SOURCES.md) 和 [只读 PoC 筛选](POC_SOURCES.md)；官方源一键更新见 [规则源更新](RULE_UPDATES.md)。
+来源、许可证和执行 / 目录分界见 [规则来源](RULE_SOURCES.md) 和 [PoC 来源](POC_SOURCES.md)；官方源一键更新见 [规则源更新](RULE_UPDATES.md)。
+
+
+新安装仅带内置执行规则（151 HTTP、22端口、43 PoC）；本文的907条PoC是既有部署此前已保存的执行库规模。新的Nuclei原库同步只收录原文目录，不会在新安装中自动建立旧兼容执行库。此限制与原始执行器迁移未完成有关。
