@@ -88,7 +88,10 @@ func acceptPortPositives(ctx context.Context, tx pgx.Tx, taskID, runID string, a
 	return err
 }
 
-func insertPortServiceBatch(ctx context.Context, tx pgx.Tx, runID, parentID, target, profile string, attempt int, ports []int, httpEnabled bool) error {
+// Logical endpoint work never changes. A batch that has never been claimed can
+// accept additional independently proven endpoints until its current size cap.
+func insertPortServiceBatch(ctx context.Context, tx pgx.Tx, runID, parentID, target, profile string, attempt int, ports []int, httpEnabled bool, maximum int) error {
+	maximum = max(1, min(32, maximum))
 	endpoints := make([]map[string]any, 0, len(ports))
 	for _, port := range ports {
 		endpoint := map[string]any{"ip": target, "port": port, "work_key": fmt.Sprintf("service:%s:%d:%s", target, port, profile)}
@@ -102,21 +105,48 @@ func insertPortServiceBatch(ctx context.Context, tx pgx.Tx, runID, parentID, tar
 		}
 		endpoints = append(endpoints, endpoint)
 	}
-	payload, err := json.Marshal(map[string]any{"endpoints": endpoints, "timeout_seconds": 60, "execution_timeout_seconds": 90, "source_task_id": parentID, "source_attempt_no": attempt, "source_evidence_policy": "accepted_positive_port_batch_v1", "service_profile": profile, "http_enabled": httpEnabled})
-	if err != nil {
-		return err
-	}
-	taskID := newID()
-	if _, err = tx.Exec(ctx, `INSERT INTO tasks(id,run_id,type,payload,derived_key,target_key) VALUES($1,$2,'service',$3,$4,$5)`, taskID, runID, payload, fmt.Sprintf("service:%s:%s:%d", profile, target, ports[0]), target); err != nil {
-		return err
-	}
-	if err = insertTaskTargets(ctx, tx, taskID, payload); err != nil {
-		return err
-	}
-	for _, port := range ports {
-		if _, err = tx.Exec(ctx, `INSERT INTO port_service_work(run_id,target_key,port,profile,task_id) VALUES($1,$2,$3,$4,$5)`, runID, target, port, profile, taskID); err != nil {
+	for start := 0; start < len(ports); {
+		var taskID string
+		var occupied int
+		err := tx.QueryRow(ctx, `SELECT id,jsonb_array_length(payload->'endpoints') FROM tasks
+ WHERE run_id=$1 AND target_key=$2 AND type='service' AND state='queued' AND attempt_no=0
+ AND first_started_at IS NULL AND worker_id IS NULL AND lease_until IS NULL
+ AND COALESCE(payload->>'service_profile','')=$3 AND COALESCE((payload->>'http_enabled')::boolean,false)=$4
+ AND payload->>'source_evidence_policy'='accepted_positive_port_batch_v1'
+ AND jsonb_array_length(payload->'endpoints')<$5
+ ORDER BY created_at,id LIMIT 1 FOR UPDATE`, runID, target, profile, httpEnabled, maximum).Scan(&taskID, &occupied)
+		if err != nil && err != pgx.ErrNoRows {
 			return err
 		}
+		end := min(len(ports), start+maximum-occupied)
+		if err == nil {
+			added, marshalErr := json.Marshal(endpoints[start:end])
+			if marshalErr != nil {
+				return marshalErr
+			}
+			// Preserve every existing endpoint and the first source's trace fields.
+			_, err = tx.Exec(ctx, `UPDATE tasks SET payload=jsonb_set(payload,'{endpoints}',(payload->'endpoints')||$2::jsonb),updated_at=now() WHERE id=$1`, taskID, added)
+		} else {
+			var payload []byte
+			payload, err = json.Marshal(map[string]any{"endpoints": endpoints[start:end], "timeout_seconds": 60, "execution_timeout_seconds": 90, "source_task_id": parentID, "source_attempt_no": attempt, "source_evidence_policy": "accepted_positive_port_batch_v1", "service_profile": profile, "http_enabled": httpEnabled})
+			if err != nil {
+				return err
+			}
+			taskID = newID()
+			_, err = tx.Exec(ctx, `INSERT INTO tasks(id,run_id,type,payload,derived_key,target_key) VALUES($1,$2,'service',$3,$4,$5)`, taskID, runID, payload, fmt.Sprintf("service:%s:%s:%d", profile, target, ports[start]), target)
+			if err == nil {
+				err = insertTaskTargets(ctx, tx, taskID, payload)
+			}
+		}
+		if err != nil {
+			return err
+		}
+		for _, port := range ports[start:end] {
+			if _, err = tx.Exec(ctx, `INSERT INTO port_service_work(run_id,target_key,port,profile,task_id) VALUES($1,$2,$3,$4,$5)`, runID, target, port, profile, taskID); err != nil {
+				return err
+			}
+		}
+		start = end
 	}
 	return nil
 }

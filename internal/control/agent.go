@@ -1147,11 +1147,8 @@ func derivePortTasks(ctx context.Context, tx pgx.Tx, taskID, runID string, attem
 		if err != nil {
 			return err
 		}
-		for start := 0; start < len(ports); start += tuning.Size {
-			end := min(start+tuning.Size, len(ports))
-			if err := insertPortServiceBatch(ctx, tx, runID, taskID, ip, serviceProfile, attempt, ports[start:end], config.HTTPEnabled); err != nil {
-				return err
-			}
+		if err := insertPortServiceBatch(ctx, tx, runID, taskID, ip, serviceProfile, attempt, ports, config.HTTPEnabled, tuning.Size); err != nil {
+			return err
 		}
 	}
 	return nil
