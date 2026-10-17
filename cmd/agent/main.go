@@ -44,7 +44,7 @@ func main() {
 	}
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
-	if err := worker.Run(ctx); err != nil {
+	if err := worker.Run(ctx); err != nil && ctx.Err() == nil {
 		slog.Error("agent stopped", "error", err)
 		os.Exit(1)
 	}

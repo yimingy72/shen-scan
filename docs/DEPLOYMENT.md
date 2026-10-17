@@ -86,6 +86,8 @@ Agent 参数需要配置在 Worker 环境中，不是控制面 `.env` 的通用�
 
 ## 指纹库与 Nuclei 升级
 
+fingers被动库的一键更新需要控制面checker。将发布目录的 `tools/fingerprint-worker` 安装到 `scan-server` 同级 `tools/`（可执行权限0755），或设置 `FINGERPRINT_CHECKER_BINARY`。先升级Control/checker，再维护、排空并分批升级Agent，最后更新库。外部包schema不兼容的Worker不会收到对应HTTP任务。完整步骤见[被动指纹库](FINGERPRINT_BUNDLES.md)。
+
 控制面启动时迁移执行库、上游 catalog / files 和任务规则快照；内置规则按 ID 首次插入，不覆盖管理员编辑或禁用状态。升级前备份数据库及运行配置。启动控制面不会自动开启处于停止状态的节点池。
 
 推荐顺序为：先升级 Control，再升级 Agent 并安装 HTTPx，最后更新 Wapp source 和创建新任务。新版 Agent 在 claim 中声明 rules_ref 与 HTTPx capability；含 Wapp CFF 的 HTTP task 不会分配给旧 Agent。旧 Agent 仍可处理不要求 HTTPx 的历史快照和其他任务类型。不要在 Control 已升级而 Agent / HTTPx 尚未就绪的间隙启动新的 Wapp HTTP 任务。

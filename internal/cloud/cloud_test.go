@@ -1,6 +1,7 @@
 package cloud
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -36,6 +37,28 @@ func TestBootstrapScript(t *testing.T) {
 type assertError string
 
 func (e assertError) Error() string { return string(e) }
+
+func TestInstanceIsSpot(t *testing.T) {
+	for _, tc := range []struct {
+		strategy string
+		legacy   bool
+		want     bool
+	}{
+		{"SpotAsPriceGo", false, true},
+		{"SpotWithPriceLimit", false, true},
+		{"NoSpot", true, false},
+		{"", true, true},
+		{"", false, false},
+		{"unknown", true, false},
+	} {
+		t.Run(tc.strategy+"/"+strconv.FormatBool(tc.legacy), func(t *testing.T) {
+			got := instanceIsSpot(ecs.Instance{SpotStrategy: tc.strategy, IsSpot: tc.legacy})
+			if got != tc.want {
+				t.Fatalf("instanceIsSpot() = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
 
 func TestCloudClientsRequireHTTPS(t *testing.T) {
 	e, c, v, err := newAliyunClients(config{region: "cn-hangzhou", accessKeyID: "test-id", accessKeySecret: "test-secret"})

@@ -78,14 +78,15 @@ type ruleExportPackage struct {
 }
 
 type ruleSnapshot struct {
-	ServiceProfile     string         `json:"service_profile,omitempty"`
-	FingerprintBundle  string         `json:"fingerprint_bundle,omitempty"`
-	WebProfile         string         `json:"web_profile,omitempty"`
-	HTTP               []rulelib.Rule `json:"http"`
-	Port               []rulelib.Rule `json:"port"`
-	POC                []rulelib.Rule `json:"poc"`
-	POCPolicy          string         `json:"poc_policy,omitempty"`
-	ExplicitPOCRuleIDs []string       `json:"explicit_poc_rule_ids,omitempty"`
+	FingerprintBundleSchema string         `json:"fingerprint_bundle_schema,omitempty"`
+	ServiceProfile          string         `json:"service_profile,omitempty"`
+	FingerprintBundle       string         `json:"fingerprint_bundle,omitempty"`
+	WebProfile              string         `json:"web_profile,omitempty"`
+	HTTP                    []rulelib.Rule `json:"http"`
+	Port                    []rulelib.Rule `json:"port"`
+	POC                     []rulelib.Rule `json:"poc"`
+	POCPolicy               string         `json:"poc_policy,omitempty"`
+	ExplicitPOCRuleIDs      []string       `json:"explicit_poc_rule_ids,omitempty"`
 }
 
 type executionRule struct {

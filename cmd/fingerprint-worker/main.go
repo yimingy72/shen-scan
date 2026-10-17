@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"sort"
 
@@ -19,6 +20,7 @@ import (
 	"github.com/chainreactors/fingers/common"
 	"github.com/chainreactors/fingers/resources"
 	"github.com/chainreactors/logs"
+	fb "scanplatform/internal/fingerprintbundle"
 	"scanplatform/internal/webevidence"
 )
 
@@ -42,16 +44,89 @@ func main() {
 	output := os.Stdout
 	os.Stdout = os.Stderr
 	logs.Log.SetOutput(os.Stderr)
-	engine, err := fingers.NewEngine(engines...)
+	// Per-record SDK preflight is intentionally quiet. Rejections are retained
+	// in Package.Validation; real CLI failures still use bundleFatal's stderr.
+	if (len(os.Args) == 2 && os.Args[1] == "--prepare-bundle") || (len(os.Args) == 3 && os.Args[1] == "--check-bundle") {
+		logs.Log.SetOutput(io.Discard)
+	}
+	if len(os.Args) == 2 && os.Args[1] == "--capabilities" {
+		if err := json.NewEncoder(output).Encode(fb.CurrentCapabilities()); err != nil {
+			bundleFatal(err)
+		}
+		return
+	}
+	if len(os.Args) == 2 && os.Args[1] == "--prepare-bundle" {
+		data, err := io.ReadAll(io.LimitReader(os.Stdin, fb.MaxInputBytes+1))
+		if err != nil {
+			bundleFatal(err)
+		}
+		if len(data) > fb.MaxInputBytes {
+			bundleFatal(fmt.Errorf("bundle input exceeds limit"))
+		}
+		var input fb.RawInput
+		decoder := json.NewDecoder(bytes.NewReader(data))
+		decoder.DisallowUnknownFields()
+		if err = decoder.Decode(&input); err != nil {
+			bundleFatal(err)
+		}
+		var extra any
+		if err = decoder.Decode(&extra); err != io.EOF {
+			bundleFatal(fmt.Errorf("bundle input must contain one JSON value"))
+		}
+		p, err := prepareBundle(input)
+		if err != nil {
+			bundleFatal(err)
+		}
+		if _, err = loadSnapshotEngine(p); err != nil {
+			bundleFatal(err)
+		}
+		encoded, err := fb.Encode(p)
+		if err != nil {
+			bundleFatal(err)
+		}
+		if _, err = output.Write(encoded); err != nil {
+			bundleFatal(err)
+		}
+		return
+	}
+	bundle := bundleID()
+	rootOnly := false
+	var snapshot *fb.Package
+	if len(os.Args) == 3 && (os.Args[1] == "--bundle-file" || os.Args[1] == "--check-bundle") {
+		p, data, err := readBundle(os.Args[2])
+		if err != nil {
+			bundleFatal(err)
+		}
+		snapshot = &p
+		bundle = fb.Digest(data)
+		rootOnly = true
+	} else if len(os.Args) != 1 {
+		bundleFatal(fmt.Errorf("unsupported helper arguments"))
+	}
+	var engine *fingers.Engine
+	var err error
+	if snapshot != nil {
+		engine, err = loadSnapshotEngine(*snapshot)
+	} else {
+		engine, err = fingers.NewEngine(engines...)
+	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 	engine.EnableMatchDetail()
-	bundle := bundleID()
-	if bundle != webevidence.FingerprintBundle {
+	if snapshot == nil && bundle != webevidence.FingerprintBundle {
 		fmt.Fprintln(os.Stderr, "embedded fingerprint bundle differs from protocol snapshot")
 		os.Exit(1)
+	}
+	if snapshot != nil && os.Args[1] == "--check-bundle" {
+		capabilities := fb.CurrentCapabilities()
+		capabilities.Bundle = bundle
+		capabilities.Validation = snapshot.Validation
+		if err = json.NewEncoder(output).Encode(capabilities); err != nil {
+			bundleFatal(err)
+		}
+		return
 	}
 	scanner := bufio.NewScanner(os.Stdin)
 	scanner.Buffer(make([]byte, 64<<10), webevidence.MaxMessage)
@@ -65,10 +140,10 @@ func main() {
 			result.ID = input.ID
 			if input.Protocol != webevidence.Protocol {
 				result.Error = "unsupported IPC protocol"
-			} else if input.ExpectedBundle != "" && input.ExpectedBundle != bundle {
+			} else if (rootOnly && input.ExpectedBundle != bundle) || (input.ExpectedBundle != "" && input.ExpectedBundle != bundle) {
 				result.Error = "fingerprint bundle mismatch"
 			} else {
-				result.Matches, err = match(engine, input)
+				result.Matches, err = matchSnapshot(engine, input, rootOnly)
 				if err != nil {
 					result.Error = err.Error()
 				}
@@ -84,7 +159,11 @@ func main() {
 		os.Exit(1)
 	}
 }
+func bundleFatal(err error) { fmt.Fprintln(os.Stderr, err); os.Exit(1) }
 func match(engine *fingers.Engine, input webevidence.MatchRequest) ([]webevidence.Match, error) {
+	return matchSnapshot(engine, input, false)
+}
+func matchSnapshot(engine *fingers.Engine, input webevidence.MatchRequest, rootOnly bool) ([]webevidence.Match, error) {
 	if input.Response.BodyStorage == "hash_only" || (input.Response.BodySHA256 != "" && input.Response.BodySHA256 != webevidence.SHA256(input.Response.Body)) {
 		return nil, fmt.Errorf("full matching evidence is unavailable")
 	}
@@ -114,6 +193,12 @@ func match(engine *fingers.Engine, input webevidence.MatchRequest) ([]webevidenc
 		}
 	}
 	for _, name := range engines {
+		if rootOnly && name == fingers.FingerPrintEngine {
+			u, err := url.Parse(input.Response.URL)
+			if err != nil || u.Host == "" || (u.Path != "" && u.Path != "/") || (u.RawPath != "" && u.RawPath != "/") || u.RawQuery != "" || u.ForceQuery {
+				continue
+			}
+		}
 		for _, other := range engines {
 			engine.Disable(other)
 		}

@@ -78,6 +78,10 @@ func New(ctx context.Context, databaseURL, adminToken, joinToken string) (*Serve
 		db.Close()
 		return nil, fmt.Errorf("initialize rule sources: %w", err)
 	}
+	if err = initializeFingerprintBundles(ctx, db); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("initialize fingerprint bundles: %w", err)
+	}
 	serverCtx, cancel := context.WithCancel(ctx)
 	return &Server{
 		db:            db,
@@ -98,6 +102,8 @@ func (s *Server) Close() {
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/health", s.health)
+	mux.HandleFunc("GET /api/library/fingerprint-bundles", s.admin(s.getFingerprintBundleStatus))
+	mux.HandleFunc("GET /api/library/fingerprint-bundles/{digest}", s.admin(s.getFingerprintBundle))
 	mux.HandleFunc("GET /api/library", s.admin(s.listLibrary))
 	mux.HandleFunc("POST /api/library", s.admin(s.createLibraryRule))
 	mux.HandleFunc("GET /api/library/export", s.admin(s.exportLibrary))
@@ -140,6 +146,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/workers/register", s.join(s.registerWorker))
 	mux.HandleFunc("POST /api/workers/heartbeat", s.worker(s.heartbeat))
 	mux.HandleFunc("POST /api/tasks/claim", s.worker(s.claimTask))
+	mux.HandleFunc("GET /api/tasks/{id}/fingerprint-bundle", s.worker(s.getTaskFingerprintBundle))
 	mux.HandleFunc("GET /api/tasks/{id}/rules", s.worker(s.getTaskRules))
 	mux.HandleFunc("POST /api/tasks/{id}/renew", s.worker(s.renewTask))
 	mux.HandleFunc("POST /api/tasks/{id}/batches", s.worker(s.submitBatch))

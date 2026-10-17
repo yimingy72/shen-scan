@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"scanplatform/internal/fingerprintbundle"
 	"scanplatform/internal/webevidence"
 )
 
@@ -97,7 +98,14 @@ func (s *Server) createRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	snapshot.ServiceProfile = "nmap-light-v1"
-	snapshot.FingerprintBundle = webevidence.FingerprintBundle
+	snapshot.FingerprintBundle, err = defaultFingerprintBundle(r.Context(), tx)
+	if err != nil {
+		writeError(w, 500, "load fingerprint snapshot failed")
+		return
+	}
+	if snapshot.FingerprintBundle != webevidence.FingerprintBundle {
+		snapshot.FingerprintBundleSchema = fingerprintbundle.Schema
+	}
 	snapshot.WebProfile = webevidence.Profile
 	snapshotJSON, _ := json.Marshal(snapshot)
 	requiresHTTPXCFF := false
@@ -114,6 +122,15 @@ func (s *Server) createRun(w http.ResponseWriter, r *http.Request) {
 		taskRows := make([][]any, 0, len(seeds))
 		targetRows := make([][]any, 0, len(seeds))
 		for _, seed := range seeds {
+			if seed.typeName == "http" {
+				profile, ok := seed.payload.(map[string]any)
+				if !ok {
+					err = errors.New("invalid HTTP seed payload")
+					break
+				}
+				profile["fingerprint_bundle"] = snapshot.FingerprintBundle
+				profile["fingerprint_bundle_schema"] = snapshot.FingerprintBundleSchema
+			}
 			payload, marshalErr := json.Marshal(seed.payload)
 			if marshalErr != nil {
 				err = marshalErr

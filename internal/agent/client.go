@@ -25,17 +25,18 @@ const (
 )
 
 type Client struct {
-	serviceCapabilityOnce sync.Once
-	nmapBinary            string
-	serviceProfile        string
-	webCapabilityOnce     sync.Once
-	webEvidenceProfile    string
-	fingerprintBundle     string
-	baseURL               string
-	joinToken             string
-	workerToken           string
-	control               *http.Client
-	upload                *http.Client
+	serviceCapabilityOnce   sync.Once
+	nmapBinary              string
+	serviceProfile          string
+	webCapabilityOnce       sync.Once
+	webEvidenceProfile      string
+	fingerprintBundle       string
+	fingerprintBundleSchema string
+	baseURL                 string
+	joinToken               string
+	workerToken             string
+	control                 *http.Client
+	upload                  *http.Client
 }
 
 func NewClient(baseURL, joinToken, caFile string) (*Client, error) {
@@ -103,7 +104,9 @@ func (c *Client) Claim(ctx context.Context, workerID, sessionID, requestID strin
 			c.serviceProfile = "nmap-light-v1"
 		}
 	})
-	c.webCapabilityOnce.Do(func() { c.webEvidenceProfile, c.fingerprintBundle = discoverWebCapabilities() })
+	c.webCapabilityOnce.Do(func() {
+		c.webEvidenceProfile, c.fingerprintBundle, c.fingerprintBundleSchema = discoverWebCapabilities()
+	})
 	sentAt, err := c.do(ctx, c.control, http.MethodPost, "/api/tasks/claim", c.workerToken, map[string]any{
 		"worker_id": workerID, "session_id": sessionID, "request_id": requestID,
 		"types": types, "use_rule_sets": true, "supports_httpx_cff": true,
@@ -112,6 +115,7 @@ func (c *Client) Claim(ctx context.Context, workerID, sessionID, requestID strin
 		"service_profile":               c.serviceProfile,
 		"supports_port_ranges":          true, "port_start_reserved": reserved,
 		"web_evidence_profile": c.webEvidenceProfile, "fingerprint_bundle": c.fingerprintBundle,
+		"fingerprint_bundle_schema": c.fingerprintBundleSchema,
 	}, &out)
 	if out.Task != nil {
 		out.Task.requestSentAt = sentAt

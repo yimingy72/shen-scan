@@ -328,6 +328,13 @@ func (c *controller) syncInstances(ctx context.Context, generation int64, instan
 	return rows.Err()
 }
 
+func instanceIsSpot(instance ecs.Instance) bool {
+	if instance.SpotStrategy == "" {
+		return instance.IsSpot
+	}
+	return instance.SpotStrategy == "SpotAsPriceGo" || instance.SpotStrategy == "SpotWithPriceLimit"
+}
+
 func (c *controller) upsertVisibleInstance(ctx context.Context, generation int64, instance *managedInstance) error {
 	cores := instance.CPU
 	if cores == 0 {
@@ -339,7 +346,8 @@ func (c *controller) upsertVisibleInstance(ctx context.Context, generation int64
 		"memory_mib":    instance.Memory,
 		"zone_id":       instance.ZoneId,
 		"creation_time": instance.CreationTime,
-		"is_spot":       instance.IsSpot,
+		"is_spot":       instanceIsSpot(instance.Instance),
+		"spot_strategy": instance.SpotStrategy,
 	})
 	_, err := c.db.Exec(ctx, `INSERT INTO cloud_instances
 		(instance_id,provider,pool_id,state,generation,operation_key,missing_confirmations,release_confirmed,details)

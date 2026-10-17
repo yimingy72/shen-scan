@@ -13,6 +13,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"scanplatform/internal/fingerprintbundle"
 	"scanplatform/internal/rulelib"
 	"scanplatform/internal/rulesource"
 )
@@ -20,15 +21,18 @@ import (
 const sourceUpdateTimeout = 10 * time.Minute
 
 type ruleSourceStats struct {
-	Total     int            `json:"total"`
-	Accepted  int            `json:"accepted"`
-	Skipped   int            `json:"skipped"`
-	Reasons   map[string]int `json:"reasons"`
-	Added     int            `json:"added"`
-	Updated   int            `json:"updated"`
-	Unchanged int            `json:"unchanged"`
-	Preserved int            `json:"preserved"`
-	Retired   int            `json:"retired"`
+	Total          int                                `json:"total"`
+	Accepted       int                                `json:"accepted"`
+	Skipped        int                                `json:"skipped"`
+	Reasons        map[string]int                     `json:"reasons"`
+	Added          int                                `json:"added"`
+	Updated        int                                `json:"updated"`
+	Unchanged      int                                `json:"unchanged"`
+	Preserved      int                                `json:"preserved"`
+	Retired        int                                `json:"retired"`
+	Bundle         string                             `json:"bundle,omitempty"`
+	EngineRevision string                             `json:"engine_revision,omitempty"`
+	Validation     map[string]fingerprintbundle.Stats `json:"validation,omitempty"`
 }
 
 type ruleSourceStatus struct {
@@ -137,6 +141,12 @@ func (s *Server) runRuleSourceUpdate(id string) {
 	defer s.finishSourceRun(id)
 	ctx, cancel := context.WithTimeout(s.ctx, sourceUpdateTimeout)
 	defer cancel()
+	if id == rulesource.FingersID {
+		if err := s.updateFingerprintBundle(ctx); err != nil {
+			s.failRuleSourceUpdate(id, err)
+		}
+		return
+	}
 	revision, err := rulesource.LatestRevision(ctx, id)
 	if err == nil {
 		var currentRevision, converterVersion string
@@ -156,14 +166,18 @@ func (s *Server) runRuleSourceUpdate(id string) {
 		err = s.applyRuleSourceCatalog(ctx, id, catalog)
 	}
 	if err != nil {
-		failureCtx, failureCancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer failureCancel()
-		message := err.Error()
-		if len(message) > 2000 {
-			message = message[:2000]
-		}
-		_, _ = s.db.Exec(failureCtx, `UPDATE rule_sources SET status='failed',error=$2,updated_at=now() WHERE id=$1`, id, message)
+		s.failRuleSourceUpdate(id, err)
 	}
+}
+
+func (s *Server) failRuleSourceUpdate(id string, err error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	message := err.Error()
+	if len(message) > 2000 {
+		message = message[:2000]
+	}
+	_, _ = s.db.Exec(ctx, `UPDATE rule_sources SET status='failed',error=$2,updated_at=now() WHERE id=$1`, id, message)
 }
 
 func (s *Server) markRuleSourceUnchanged(ctx context.Context, id string) error {

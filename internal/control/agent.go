@@ -226,6 +226,7 @@ func (s *Server) claimTask(w http.ResponseWriter, r *http.Request) {
 		PortStartReserved          bool     `json:"port_start_reserved"`
 		ServiceProfile             string   `json:"service_profile"`
 		WebEvidenceProfile         string   `json:"web_evidence_profile"`
+		FingerprintBundleSchema    string   `json:"fingerprint_bundle_schema"`
 		FingerprintBundle          string   `json:"fingerprint_bundle"`
 	}
 	if err := decodeJSON(w, r, &request); err != nil {
@@ -336,7 +337,7 @@ func (s *Server) claimTask(w http.ResponseWriter, r *http.Request) {
 			if !expired {
 				var incompatible bool
 				checkErr := tx.QueryRow(r.Context(), `SELECT type='http' AND COALESCE(payload->>'web_profile','')<>'' AND
-                    (payload->>'web_profile'<>$2 OR payload->>'fingerprint_bundle'<>$3) FROM tasks WHERE id=$1`, *previousTaskID, request.WebEvidenceProfile, request.FingerprintBundle).Scan(&incompatible)
+                    (payload->>'web_profile'<>$2 OR CASE WHEN COALESCE(payload->>'fingerprint_bundle_schema','')='' THEN payload->>'fingerprint_bundle'<>$3 ELSE payload->>'fingerprint_bundle_schema'<>$4 OR $4='' END) FROM tasks WHERE id=$1`, *previousTaskID, request.WebEvidenceProfile, request.FingerprintBundle, request.FingerprintBundleSchema).Scan(&incompatible)
 				if checkErr != nil {
 					writeError(w, 500, "load claim compatibility failed")
 					return
@@ -405,7 +406,7 @@ func (s *Server) claimTask(w http.ResponseWriter, r *http.Request) {
             AND NOT EXISTS(SELECT 1 FROM target_quotas q WHERE q.task_id=t.id AND q.attempt_no=t.attempt_no AND q.state IN('active','suspect','revoking'))
 			AND (t.type<>'service' OR COALESCE(t.payload->>'service_profile','')='' OR t.payload->>'service_profile'=$9)
             AND (t.type<>'http' OR NOT r.requires_httpx_cff OR $4)
-            AND (t.type<>'http' OR COALESCE(t.payload->>'web_profile','')='' OR (t.payload->>'web_profile'=$7 AND t.payload->>'fingerprint_bundle'=$8))
+            AND (t.type<>'http' OR COALESCE(t.payload->>'web_profile','')='' OR (t.payload->>'web_profile'=$7 AND CASE WHEN COALESCE(t.payload->>'fingerprint_bundle_schema','')='' THEN t.payload->>'fingerprint_bundle'=$8 ELSE $10<>'' AND t.payload->>'fingerprint_bundle_schema'=$10 END))
 			AND (t.type<>'poc' OR COALESCE(t.payload->'rules'->0->'nuclei'->>'execution_profile','') <> 'http-basic-v1' OR $5)
 			AND ((t.type='port' AND NOT EXISTS (SELECT 1 FROM tasks active_port
 				WHERE active_port.worker_id=$2 AND active_port.session_id=$3 AND active_port.type='port'
@@ -417,7 +418,7 @@ func (s *Server) claimTask(w http.ResponseWriter, r *http.Request) {
                     ((active_target.payload->'endpoints'->0) - 'work_key') = ((t.payload->'endpoints'->0) - 'work_key'))
 				AND active_target.state='leased' AND active_target.lease_until > now()))))
 		ORDER BY r.last_claim_at,r.created_at,r.id FOR UPDATE OF r SKIP LOCKED LIMIT 1`,
-			types, request.WorkerID, request.SessionID, httpxCapable, originalNucleiCapable, request.SupportsPortRanges, request.WebEvidenceProfile, request.FingerprintBundle, request.ServiceProfile).Scan(&runID, &lastTargetKey, &requiresHTTPXCFF)
+			types, request.WorkerID, request.SessionID, httpxCapable, originalNucleiCapable, request.SupportsPortRanges, request.WebEvidenceProfile, request.FingerprintBundle, request.ServiceProfile, request.FingerprintBundleSchema).Scan(&runID, &lastTargetKey, &requiresHTTPXCFF)
 	}
 	if errors.Is(err, pgx.ErrNoRows) {
 		if err := tx.Commit(r.Context()); err != nil {
@@ -449,7 +450,7 @@ func (s *Server) claimTask(w http.ResponseWriter, r *http.Request) {
             AND NOT EXISTS(SELECT 1 FROM target_quotas q WHERE q.task_id=t.id AND q.attempt_no=t.attempt_no AND q.state IN('active','suspect','revoking'))
 			AND (t.type<>'service' OR COALESCE(t.payload->>'service_profile','')='' OR t.payload->>'service_profile'=$14)
             AND (t.type<>'http' OR NOT $8 OR $9)
-            AND (t.type<>'http' OR COALESCE(t.payload->>'web_profile','')='' OR (t.payload->>'web_profile'=$12 AND t.payload->>'fingerprint_bundle'=$13))
+            AND (t.type<>'http' OR COALESCE(t.payload->>'web_profile','')='' OR (t.payload->>'web_profile'=$12 AND CASE WHEN COALESCE(t.payload->>'fingerprint_bundle_schema','')='' THEN t.payload->>'fingerprint_bundle'=$13 ELSE $15<>'' AND t.payload->>'fingerprint_bundle_schema'=$15 END))
 			AND (t.type<>'poc' OR COALESCE(t.payload->'rules'->0->'nuclei'->>'execution_profile','') <> 'http-basic-v1' OR $10)
 			AND ((t.type='port' AND NOT EXISTS (SELECT 1 FROM tasks active_port
 				WHERE active_port.worker_id=$3 AND active_port.session_id=$4 AND active_port.type='port'
@@ -462,7 +463,7 @@ func (s *Server) claimTask(w http.ResponseWriter, r *http.Request) {
 				AND active_target.state='leased' AND active_target.lease_until > now())))
 			ORDER BY (t.worker_id=$3 AND t.session_id=$4 AND t.reserved_until>now()) DESC NULLS LAST,t.target_key,t.created_at,t.id FOR UPDATE OF t SKIP LOCKED LIMIT 1`,
 			runID, types, request.WorkerID, request.SessionID, candidate.retry, candidate.afterCursor, lastTargetKey,
-			requiresHTTPXCFF, httpxCapable, originalNucleiCapable, request.SupportsPortRanges, request.WebEvidenceProfile, request.FingerprintBundle, request.ServiceProfile).Scan(
+			requiresHTTPXCFF, httpxCapable, originalNucleiCapable, request.SupportsPortRanges, request.WebEvidenceProfile, request.FingerprintBundle, request.ServiceProfile, request.FingerprintBundleSchema).Scan(
 			&taskID, &runID, &typeName, &payload, &targetKey)
 		if !errors.Is(err, pgx.ErrNoRows) {
 			break
@@ -1426,12 +1427,13 @@ func insertDerivedTask(ctx context.Context, tx pgx.Tx, runID, parentID, typeName
 		}
 	}
 	if typeName == "http" {
-		var bundle, webProfile string
-		if err := tx.QueryRow(ctx, `SELECT COALESCE(rules_snapshot->>'fingerprint_bundle',''),COALESCE(rules_snapshot->>'web_profile','') FROM runs WHERE id=$1`, runID).Scan(&bundle, &webProfile); err != nil {
+		var bundle, webProfile, bundleSchema string
+		if err := tx.QueryRow(ctx, `SELECT COALESCE(rules_snapshot->>'fingerprint_bundle',''),COALESCE(rules_snapshot->>'web_profile',''),COALESCE(rules_snapshot->>'fingerprint_bundle_schema','') FROM runs WHERE id=$1`, runID).Scan(&bundle, &webProfile, &bundleSchema); err != nil {
 			return err
 		}
 		if bundle != "" {
 			profile["fingerprint_bundle"] = bundle
+			profile["fingerprint_bundle_schema"] = bundleSchema
 			profile["web_profile"] = webProfile
 		}
 		for i := range endpoints {

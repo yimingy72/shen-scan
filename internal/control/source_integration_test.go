@@ -101,7 +101,7 @@ func TestRuleSourceAtomicSyncAndLocalPreservation(t *testing.T) {
 		Items []ruleSourceStatus `json:"items"`
 	}
 	callAPI(t, handler, http.MethodGet, "/api/library/sources", "admin-policy", nil, http.StatusOK, &sources)
-	if len(sources.Items) != 2 {
+	if len(sources.Items) != len(rulesource.Sources()) {
 		t.Fatalf("source items=%+v", sources.Items)
 	}
 	server.sourceMu.Lock()

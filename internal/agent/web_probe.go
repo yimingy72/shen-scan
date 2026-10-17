@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	fb "scanplatform/internal/fingerprintbundle"
 	"scanplatform/internal/rulelib"
 	"scanplatform/internal/webevidence"
 )
@@ -36,9 +37,18 @@ func webProbeBinary() (string, bool) {
 	return binary, true
 }
 
-func (a *Agent) runWebProbe(ctx context.Context, payload httpPayload, binary string, emit func(Observation) error) error {
+func (a *Agent) runWebProbe(ctx context.Context, task Task, payload httpPayload, binary string, emit func(Observation) error) error {
 	if payload.FingerprintBundle == "" {
+		if payload.FingerprintBundleSchema != "" {
+			return &TaskError{Reason: "external fingerprint schema requires an assigned bundle", Retryable: false}
+		}
 		payload.FingerprintBundle = webevidence.FingerprintBundle
+	}
+	if payload.FingerprintBundleSchema != "" && payload.FingerprintBundleSchema != fb.Schema {
+		return &TaskError{Reason: "unsupported fingerprint bundle schema", Retryable: false}
+	}
+	if payload.FingerprintBundleSchema == "" && payload.FingerprintBundle != fb.EmbeddedBundle {
+		return &TaskError{Reason: "external fingerprint bundle requires schema capability", Retryable: false}
 	}
 	cff, cached := a.ruleSets.cff(payload.RulesRef)
 	if !cached {
@@ -98,8 +108,16 @@ func (a *Agent) runWebProbe(ctx context.Context, payload httpPayload, binary str
 			return webFailure(ep, fmt.Errorf("web helper returned an unrelated endpoint"))
 		}
 		obs := webProbeObservation(ep, result, payload.Rules)
+		var actualMatch webevidence.MatchResult
 		if result.Response.StatusCode > 0 && result.Response.Completeness == "full" {
-			match, matchErr := sharedFingerprints.match(ctx, webevidence.MatchRequest{Protocol: webevidence.Protocol, ID: webevidence.SHA256([]byte(raw)) + "/" + result.Response.BodySHA256, ExpectedBundle: payload.FingerprintBundle, Response: result.Response, Icons: result.Icons})
+			var resolve func(context.Context) (string, error)
+			if payload.FingerprintBundleSchema == fb.Schema {
+				resolve = func(ctx context.Context) (string, error) {
+					return sharedFingerprints.cache.get(ctx, a.client, a.workerID, a.cfg.SessionID, task, payload.FingerprintBundle)
+				}
+			}
+			match, matchErr := sharedFingerprints.matchBundle(ctx, webevidence.MatchRequest{Protocol: webevidence.Protocol, ID: webevidence.SHA256([]byte(raw)) + "/" + result.Response.BodySHA256, ExpectedBundle: payload.FingerprintBundle, Response: result.Response, Icons: result.Icons}, payload.FingerprintBundleSchema, resolve)
+			actualMatch = match
 			if matchErr != nil {
 				obs.Error = joinWebError(obs.Error, "passive fingerprint: "+matchErr.Error())
 				obs.Outcome = "incomplete"
@@ -110,14 +128,17 @@ func (a *Agent) runWebProbe(ctx context.Context, payload httpPayload, binary str
 				}
 				obs.Technologies = mergeTechnologies(obs.Technologies, additional)
 			}
-			// Retain per-engine matches even when display merges a product name.
-			evidence := struct {
-				Probe       webevidence.ProbeResult `json:"probe"`
-				Fingerprint webevidence.MatchResult `json:"fingerprint"`
-			}{compactProbe(result), match}
-			encoded, _ := json.Marshal(evidence)
-			obs.Evidence = string(encoded)
 		}
+		// An assigned bundle is distinct from a matcher actually executed. Missing
+		// or partial HTTP evidence does not pretend that fingerprinting ran.
+		evidence := struct {
+			Probe          webevidence.ProbeResult `json:"probe"`
+			Fingerprint    webevidence.MatchResult `json:"fingerprint"`
+			AssignedBundle string                  `json:"assigned_fingerprint_bundle"`
+			BundleSchema   string                  `json:"fingerprint_bundle_schema,omitempty"`
+		}{compactProbe(result), actualMatch, payload.FingerprintBundle, payload.FingerprintBundleSchema}
+		encoded, _ := json.Marshal(evidence)
+		obs.Evidence = string(encoded)
 		return obs
 	}, emit)
 }
@@ -265,9 +286,16 @@ type fingerprintProcess struct {
 	stderr  *stderrTail
 	done    chan error
 	binary  string
+	bundle  string
+	schema  string
+	cache   fingerprintBundleCache
 }
 
 func (p *fingerprintProcess) match(ctx context.Context, input webevidence.MatchRequest) (webevidence.MatchResult, error) {
+	return p.matchBundle(ctx, input, "", nil)
+}
+
+func (p *fingerprintProcess) matchBundle(ctx context.Context, input webevidence.MatchRequest, schema string, resolve func(context.Context) (string, error)) (webevidence.MatchResult, error) {
 	select {
 	case p.slot <- struct{}{}:
 		defer func() { <-p.slot }()
@@ -278,17 +306,37 @@ func (p *fingerprintProcess) match(ctx context.Context, input webevidence.MatchR
 	if binary == "" {
 		binary = "fingerprint-worker"
 	}
-	if p.cmd != nil && p.binary != binary {
+	if schema != "" && (schema != fb.Schema || resolve == nil || !fingerprintDigestPattern.MatchString(input.ExpectedBundle)) {
+		return webevidence.MatchResult{}, fmt.Errorf("invalid external fingerprint matcher assignment")
+	}
+	if schema == "" && input.ExpectedBundle != "" && input.ExpectedBundle != fb.EmbeddedBundle {
+		return webevidence.MatchResult{}, fmt.Errorf("unrecognized embedded fingerprint bundle")
+	}
+	expected := input.ExpectedBundle
+	if expected == "" {
+		expected = fb.EmbeddedBundle
+	}
+	if p.cmd != nil && (p.binary != binary || p.bundle != expected || p.schema != schema) {
 		p.stop()
 	}
 	if p.cmd == nil {
+		var args []string
+		if schema != "" {
+			file, err := resolve(ctx)
+			if err != nil {
+				return webevidence.MatchResult{}, fmt.Errorf("prepare fingerprint cache: %w", err)
+			}
+			args = []string{"--bundle-file", file}
+		}
 		path, err := exec.LookPath(binary)
 		if err != nil {
 			return webevidence.MatchResult{}, err
 		}
-		p.cmd = exec.CommandContext(context.Background(), path)
+		p.cmd = exec.CommandContext(context.Background(), path, args...)
 		setProcessGroup(p.cmd)
 		p.binary = binary
+		p.bundle = expected
+		p.schema = schema
 		p.cmd.Env = []string{"NO_COLOR=1"}
 		p.stderr = &stderrTail{limit: 32 << 10}
 		p.cmd.Stderr = p.stderr
@@ -335,7 +383,7 @@ func (p *fingerprintProcess) match(ctx context.Context, input webevidence.MatchR
 		}
 		var output webevidence.MatchResult
 		err := json.Unmarshal(scanner.Bytes(), &output)
-		if err == nil && (output.Protocol != webevidence.Protocol || output.ID != input.ID) {
+		if err == nil && (output.Protocol != webevidence.Protocol || output.ID != input.ID || output.Bundle != expected) {
 			err = fmt.Errorf("fingerprint helper reply identity mismatch")
 		}
 		if err == nil && output.Error != "" {
@@ -371,10 +419,10 @@ func (p *fingerprintProcess) stop() {
 
 // Identity is checked once per Agent/client lifetime. Tools are changed during a
 // drained Worker upgrade, followed by Agent restart, never underneath a run.
-func discoverWebCapabilities() (string, string) {
+func discoverWebCapabilities() (string, string, string) {
 	binary, present := webProbeBinary()
 	if !present {
-		return "", ""
+		return "", "", ""
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -393,14 +441,14 @@ func discoverWebCapabilities() (string, string) {
 	}
 	raw, err := identity(binary, "--capabilities")
 	if err != nil {
-		return "", ""
+		return "", "", ""
 	}
 	var profile struct {
 		Protocol string `json:"protocol"`
 		Profile  string `json:"profile"`
 	}
 	if json.Unmarshal(raw, &profile) != nil || profile.Protocol != webevidence.Protocol || profile.Profile != webevidence.Profile {
-		return "", ""
+		return "", "", ""
 	}
 	matcher := os.Getenv("FINGERPRINT_WORKER_BINARY")
 	if matcher == "" {
@@ -408,7 +456,13 @@ func discoverWebCapabilities() (string, string) {
 	}
 	raw, err = identity(matcher, "--bundle")
 	if err != nil || strings.TrimSpace(string(raw)) != webevidence.FingerprintBundle {
-		return "", ""
+		return "", "", ""
 	}
-	return profile.Profile, strings.TrimSpace(string(raw))
+	embedded := strings.TrimSpace(string(raw))
+	raw, err = identity(matcher, "--capabilities")
+	var capabilities fb.Capabilities
+	if err == nil && json.Unmarshal(raw, &capabilities) == nil && capabilities.Schema == fb.Schema && capabilities.EngineRevision == fb.EngineRevision && capabilities.SelectionProfile == fb.SelectionProfile && capabilities.EmbeddedBundle == embedded {
+		return profile.Profile, embedded, capabilities.Schema
+	}
+	return profile.Profile, embedded, ""
 }

@@ -31,11 +31,12 @@ const (
 var titlePattern = regexp.MustCompile(`(?is)<title[^>]*>(.*?)</title>`)
 
 type httpPayload struct {
-	Endpoints         []Endpoint     `json:"endpoints"`
-	TimeoutSeconds    int            `json:"timeout_seconds"`
-	Rules             []rulelib.Rule `json:"rules"`
-	RulesRef          string         `json:"rules_ref,omitempty"`
-	FingerprintBundle string         `json:"fingerprint_bundle,omitempty"`
+	Endpoints               []Endpoint     `json:"endpoints"`
+	TimeoutSeconds          int            `json:"timeout_seconds"`
+	Rules                   []rulelib.Rule `json:"rules"`
+	RulesRef                string         `json:"rules_ref,omitempty"`
+	FingerprintBundle       string         `json:"fingerprint_bundle,omitempty"`
+	FingerprintBundleSchema string         `json:"fingerprint_bundle_schema,omitempty"`
 }
 
 type targetSlots struct {
@@ -57,9 +58,9 @@ func (a *Agent) runHTTP(ctx context.Context, task Task, emit func(Observation) e
 	}
 	payload.Rules = rules
 	if binary, ok := webProbeBinary(); ok {
-		return a.runWebProbe(ctx, payload, binary, emit)
+		return a.runWebProbe(ctx, task, payload, binary, emit)
 	}
-	if payload.FingerprintBundle != "" {
+	if payload.FingerprintBundle != "" || payload.FingerprintBundleSchema != "" {
 		return &TaskError{Reason: "this task requires web-probe-worker and its assigned fingerprint bundle", Retryable: false}
 	}
 	timeout := minDuration(boundedTimeout(payload.TimeoutSeconds, 12*time.Second), 12*time.Second)

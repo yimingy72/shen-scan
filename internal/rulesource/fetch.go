@@ -40,6 +40,7 @@ type Source struct {
 }
 
 var sources = []Source{
+	fingersSource,
 	{ID: WappalyzerID, Name: "Wappalyzer fingerprints", Repository: "https://github.com/projectdiscovery/wappalyzergo", Owner: "projectdiscovery", Repo: "wappalyzergo"},
 	{ID: NucleiID, Name: "Nuclei templates", Repository: "https://github.com/projectdiscovery/nuclei-templates", Owner: "projectdiscovery", Repo: "nuclei-templates"},
 }
@@ -76,6 +77,9 @@ func LatestRevision(ctx context.Context, sourceID string) (string, error) {
 }
 
 func FetchRevision(ctx context.Context, sourceID, revision string) (Catalog, error) {
+	if sourceID == FingersID {
+		return Catalog{}, errors.New("fingers data must use the immutable fingerprint package update")
+	}
 	source, ok := SourceByID(sourceID)
 	if !ok {
 		return Catalog{}, fmt.Errorf("unknown rule source %q", sourceID)

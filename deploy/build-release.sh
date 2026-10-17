@@ -57,6 +57,8 @@ trap 'rm -rf "$staging_dir"' EXIT INT TERM
 CGO_ENABLED=0 GOOS=linux GOARCH="$target_arch" go build -trimpath -ldflags '-s -w' -o "$release_dir/scan-server" ./cmd/server
 CGO_ENABLED=0 GOOS=linux GOARCH="$target_arch" go build -trimpath -ldflags '-s -w' -o "$staging_dir/scan-agent" ./cmd/agent
 WEB_HELPERS_OUTPUT_DIR="$staging_dir" TARGET_OS=linux TARGET_ARCH="$target_arch" sh deploy/build-web-helpers.sh
+mkdir -p "$release_dir/tools"
+cp "$staging_dir/fingerprint-worker" "$release_dir/tools/fingerprint-worker"
 cp deploy/agent-bootstrap.sh deploy/cloud-fixture.sh "$staging_dir/"
 cp "$masscan_binary" "$staging_dir/masscan"
 cp "$nuclei_binary" "$staging_dir/nuclei"

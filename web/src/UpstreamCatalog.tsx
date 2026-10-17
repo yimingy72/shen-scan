@@ -8,7 +8,7 @@ export interface Upstream { source_id: string; revision: string; path: string; s
 export interface OriginalRule extends Omit<LibraryRule, 'engine'> {
   engine: string; upstream?: Upstream; capabilities?: string[]; default_disabled_reason?: string; runtime_reason?: string; execution_available?: boolean
 }
-function saveBlob(filename: string, blob: Blob) {
+export function saveBlob(filename: string, blob: Blob) {
   const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = filename; link.click(); window.setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 export async function downloadSource(api: ApiClient, id: string) {

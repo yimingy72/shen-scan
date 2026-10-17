@@ -22,7 +22,7 @@ func TestRealWebProbeHelpers(t *testing.T) {
 	t.Setenv("WEB_PROBE_BINARY", binary)
 	t.Setenv("FINGERPRINT_WORKER_BINARY", fingerprint)
 	t.Cleanup(func() { sharedFingerprints.stop() })
-	if profile, bundle := discoverWebCapabilities(); profile != webevidence.Profile || bundle != webevidence.FingerprintBundle {
+	if profile, bundle, _ := discoverWebCapabilities(); profile != webevidence.Profile || bundle != webevidence.FingerprintBundle {
 		t.Fatalf("capability not verified: %s %s", profile, bundle)
 	}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -39,7 +39,7 @@ func TestRealWebProbeHelpers(t *testing.T) {
 	rules := []rulelib.Rule{httpxRule("fixture", "Fixture", true, `{"html":["fixture-marker"]}`)}
 	var results []Observation
 	payload := httpPayload{Endpoints: []Endpoint{{URL: server.URL + "/one", WorkKey: "one"}, {URL: server.URL + "/two", WorkKey: "two"}}, Rules: rules}
-	if err := a.runWebProbe(context.Background(), payload, binary, func(obs Observation) error { results = append(results, obs); return nil }); err != nil {
+	if err := a.runWebProbe(context.Background(), Task{}, payload, binary, func(obs Observation) error { results = append(results, obs); return nil }); err != nil {
 		t.Fatal(err)
 	}
 	if len(results) != 2 {
