@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"encoding/json"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +12,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"scanplatform/internal/webevidence"
 )
@@ -77,5 +79,42 @@ func TestProbeTLSIdentityAndLimits(t *testing.T) {
 	input.CFFSHA256 = "wrong"
 	if _, err = probe(context.Background(), input); err == nil {
 		t.Fatal("accepted wrong rules digest")
+	}
+}
+
+func TestAdmissionQueueAndDeliveryTiming(t *testing.T) {
+	for _, test := range []struct {
+		name            string
+		queue, delivery time.Duration
+		ttl             int64
+		waitOverride    int64
+		want            bool
+	}{
+		{name: "700ms queue fresh grant", queue: 700 * time.Millisecond, ttl: 475, want: true},
+		{name: "delivery consumes grant", delivery: 80 * time.Millisecond, ttl: 25},
+		{name: "expired grant", ttl: 0},
+		{name: "invalid waited", ttl: 475, waitOverride: 90001},
+		{name: "negative waited", ttl: 475, waitOverride: -1},
+		{name: "waited exceeds RTT", ttl: 475, waitOverride: 100},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				started := time.Now()
+				time.Sleep(test.queue)
+				waited := time.Since(started).Milliseconds()
+				if test.waitOverride != 0 {
+					waited = test.waitOverride
+				}
+				time.Sleep(test.delivery)
+				json.NewEncoder(w).Encode(map[string]int64{"valid_for_ms": test.ttl, "waited_ms": waited})
+			}))
+			defer server.Close()
+			target, _ := url.Parse("https://fixture.test/")
+			input := webevidence.ProbeRequest{ID: "fixture", AdmissionURL: server.URL, AdmissionToken: "local-token"}
+			err := admit(context.Background(), input, target)
+			if (err == nil) != test.want {
+				t.Fatalf("admission err=%v want accepted=%v", err, test.want)
+			}
+		})
 	}
 }

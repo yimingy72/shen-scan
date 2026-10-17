@@ -142,6 +142,7 @@ func startWebAdmission(ctx context.Context, inputID, fixedIP string, base *url.U
 	}
 	server := &http.Server{ReadHeaderTimeout: time.Second, BaseContext: func(net.Listener) context.Context { return ctx }}
 	server.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		started := time.Now()
 		if r.Method != http.MethodPost || r.URL.Path != "/admit" || subtle.ConstantTimeCompare([]byte(r.Header.Get("Authorization")), []byte("Bearer "+token)) != 1 {
 			http.Error(w, "unauthorized", 401)
 			return
@@ -164,7 +165,11 @@ func startWebAdmission(ctx context.Context, inputID, fixedIP string, base *url.U
 			http.Error(w, "admission failed", 503)
 			return
 		}
-		json.NewEncoder(w).Encode(map[string]int64{"valid_for_ms": max(int64(0), time.Until(deadline).Milliseconds())})
+		now := time.Now()
+		json.NewEncoder(w).Encode(map[string]int64{
+			"valid_for_ms": max(int64(0), deadline.Sub(now).Milliseconds()),
+			"waited_ms":    now.Sub(started).Milliseconds(),
+		})
 	})
 	go server.Serve(listener)
 	return "http://" + listener.Addr().String() + "/admit", token, func() { server.Close() }, nil

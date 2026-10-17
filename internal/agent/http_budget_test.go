@@ -126,3 +126,40 @@ func TestHTTPSProxyCountsInnerRequestsAndScopesBeforePermit(t *testing.T) {
 		t.Fatalf("CONNECT/request accounting: permits=%d actual=%d proxy=%d", permits.Load(), seen.Load(), proxy.RequestCount())
 	}
 }
+
+func TestWebAdmissionReportsQueueTime(t *testing.T) {
+	a := newHTTPXTestAgent(t, "unused")
+	var calls atomic.Int32
+	central := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if calls.Add(1) == 1 {
+			json.NewEncoder(w).Encode(map[string]any{"granted": false, "retry_after_ms": 700})
+			return
+		}
+		now := time.Now().UTC()
+		json.NewEncoder(w).Encode(map[string]any{"granted": true, "server_time": now, "valid_until": now.Add(500 * time.Millisecond)})
+	}))
+	defer central.Close()
+	a.client.baseURL = central.URL
+	ctx, cancel := context.WithTimeout(a.withHTTPBudget(context.Background(), Task{ID: "fixture", AttemptNo: 1}), 3*time.Second)
+	defer cancel()
+	base, _ := url.Parse("http://127.0.0.1:18080/")
+	endpoint, token, closeAdmission, err := startWebAdmission(ctx, "fixture", "127.0.0.1", base, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer closeAdmission()
+	request, _ := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, strings.NewReader(`{"id":"fixture","url":"http://127.0.0.1:18080/"}`))
+	request.Header.Set("Authorization", "Bearer "+token)
+	response, err := (&http.Client{Transport: &http.Transport{Proxy: nil}}).Do(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	var permission struct {
+		ValidFor int64 `json:"valid_for_ms"`
+		Waited   int64 `json:"waited_ms"`
+	}
+	if json.NewDecoder(response.Body).Decode(&permission) != nil || response.StatusCode != 200 || permission.Waited < 690 || permission.ValidFor <= 0 || permission.ValidFor > 500 {
+		t.Fatalf("bad queued callback permission: %+v status=%d", permission, response.StatusCode)
+	}
+}

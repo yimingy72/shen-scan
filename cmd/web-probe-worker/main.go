@@ -383,9 +383,21 @@ func admit(ctx context.Context, input webevidence.ProbeRequest, target *url.URL)
 	}
 	var permission struct {
 		ValidForMS int64 `json:"valid_for_ms"`
+		WaitedMS   int64 `json:"waited_ms"`
 	}
-	if json.NewDecoder(io.LimitReader(response.Body, 1024)).Decode(&permission) != nil || permission.ValidForMS <= 0 || permission.ValidForMS > 1000 || !time.Now().Before(sentAt.Add(time.Duration(permission.ValidForMS)*time.Millisecond)) {
+	if json.NewDecoder(io.LimitReader(response.Body, 1024)).Decode(&permission) != nil || permission.ValidForMS <= 0 || permission.ValidForMS > 1000 || permission.WaitedMS < 0 || permission.WaitedMS > 90000 {
+		return errors.New("invalid local HTTP permit")
+	}
+	elapsed := time.Since(sentAt)
+	waited := time.Duration(permission.WaitedMS) * time.Millisecond
+	// The Agent reports a fresh remaining TTL after queueing. Deduct only
+	// delivery/IPC overhead; charging its monotonic handler time twice rejects
+	// valid grants when the shared queue takes longer than the permit lifetime.
+	if waited > elapsed || max(time.Duration(0), elapsed-waited) >= time.Duration(permission.ValidForMS)*time.Millisecond {
 		return errors.New("local HTTP permit expired")
+	}
+	if ctx.Err() != nil {
+		return context.Cause(ctx)
 	}
 	return nil
 }
