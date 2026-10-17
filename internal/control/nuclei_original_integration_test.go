@@ -118,7 +118,7 @@ func TestOriginalNucleiCapabilityClaim(t *testing.T) {
 		Task *Task `json:"task"`
 	}
 	callAPI(t, handler, http.MethodPost, "/api/tasks/claim", worker.WorkerToken, map[string]any{
-		"worker_id": worker.WorkerID, "session_id": "original-session", "supports_confirmed_stop": true, "request_id": "old-agent", "types": []string{"poc"},
+		"worker_id": worker.WorkerID, "session_id": "original-session", "supports_confirmed_stop": true, "supports_http_request_budget": true, "request_id": "old-agent", "types": []string{"poc"},
 	}, http.StatusOK, &oldClaim)
 	if oldClaim.Task != nil {
 		t.Fatal("agent without original YAML capability claimed the new-format task")
@@ -127,7 +127,7 @@ func TestOriginalNucleiCapabilityClaim(t *testing.T) {
 		Task *Task `json:"task"`
 	}
 	callAPI(t, handler, http.MethodPost, "/api/tasks/claim", worker.WorkerToken, map[string]any{
-		"worker_id": worker.WorkerID, "session_id": "original-session", "supports_confirmed_stop": true, "request_id": "new-agent", "types": []string{"poc"},
+		"worker_id": worker.WorkerID, "session_id": "original-session", "supports_confirmed_stop": true, "supports_http_request_budget": true, "request_id": "new-agent", "types": []string{"poc"},
 		"supports_nuclei_http_original": true,
 	}, http.StatusOK, &newClaim)
 	if newClaim.Task == nil {

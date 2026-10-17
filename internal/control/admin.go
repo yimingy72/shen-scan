@@ -83,7 +83,11 @@ func (s *Server) createRun(w http.ResponseWriter, r *http.Request) {
 	if portSeeds <= 16 {
 		initialWidth = max(1, portSeeds)
 	}
-	seeds = shardPortSeeds(seeds, initialWidth)
+	seeds, err = s.adaptivePortSeeds(r.Context(), seeds, initialWidth)
+	if err != nil {
+		writeError(w, http.StatusServiceUnavailable, "load scheduling costs failed")
+		return
+	}
 	runID := newID()
 	targetJSON, _ := json.Marshal(request.Targets)
 	tx, err := s.db.Begin(r.Context())
@@ -407,18 +411,18 @@ func runSelect(targets, runs string) string {
 	  count(*) FILTER(WHERE state='failed') task_failed FROM tasks WHERE run_id=r.id) ts ON true
 	 LEFT JOIN LATERAL (SELECT count(*) target_count,count(*) FILTER(WHERE finished) target_done FROM (
 	  SELECT bool_and(t.state='completed') finished FROM tasks t JOIN task_targets tt ON tt.task_id=t.id WHERE t.run_id=r.id GROUP BY tt.target_key) target_states) tgs ON true
-	 LEFT JOIN LATERAL (SELECT count(*) asset_count FROM assets a JOIN tasks t ON t.id=a.task_id AND a.attempt_no=COALESCE(t.accepted_attempt_no,t.attempt_no) AND t.state='completed' WHERE a.run_id=r.id) ac ON true
+	 LEFT JOIN LATERAL (SELECT count(*) asset_count FROM assets a JOIN tasks t ON t.id=a.task_id WHERE a.run_id=r.id AND ((a.attempt_no=COALESCE(t.accepted_attempt_no,t.attempt_no) AND t.state='completed') OR EXISTS(SELECT 1 FROM port_positive_receipts p WHERE p.observation_id=a.id) OR EXISTS(SELECT 1 FROM poc_template_receipts p WHERE p.observation_id=a.id))) ac ON true
 	 LEFT JOIN LATERAL (SELECT count(*) FILTER(WHERE a.observation->>'finding_status'='matched') finding_count,
 	  count(*) FILTER(WHERE a.observation->>'finding_status'='matched' AND COALESCE(NULLIF(a.observation->>'purpose',''),'discovery')='verification') verification_finding_count,
 	  count(*) FILTER(WHERE a.observation->>'finding_status'='matched' AND COALESCE(NULLIF(a.observation->>'purpose',''),'discovery')='check') check_match_count,
 	  count(*) FILTER(WHERE a.observation->>'finding_status'='matched' AND COALESCE(NULLIF(a.observation->>'purpose',''),'discovery')='discovery') discovery_match_count,
 	  count(*) checked_count
-	  FROM assets a JOIN tasks t ON t.id=a.task_id AND COALESCE(t.accepted_attempt_no,t.attempt_no)=a.attempt_no AND t.state='completed'
-	  WHERE a.run_id=r.id AND a.observation->>'kind'='poc') pc ON true
+	  FROM assets a JOIN tasks t ON t.id=a.task_id
+	  WHERE a.run_id=r.id AND a.observation->>'kind'='poc' AND ((COALESCE(t.accepted_attempt_no,t.attempt_no)=a.attempt_no AND t.state='completed') OR EXISTS(SELECT 1 FROM poc_template_receipts p WHERE p.observation_id=a.id))) pc ON true
 	 LEFT JOIN LATERAL (SELECT count(*) FILTER(WHERE kind='port') open_port_count,count(*) FILTER(WHERE kind='http') http_count FROM (
 	  SELECT a.target_key,a.observation->>'kind' kind,CASE WHEN a.observation->>'kind'='port' THEN a.observation->>'port' ELSE a.observation->>'url' END result_key
-	  FROM assets a JOIN tasks t ON t.id=a.task_id AND COALESCE(t.accepted_attempt_no,t.attempt_no)=a.attempt_no AND t.state='completed'
-	  WHERE a.run_id=r.id AND ((a.observation->>'kind'='port' AND COALESCE(a.observation->>'error','')='')
+	  FROM assets a JOIN tasks t ON t.id=a.task_id
+	  WHERE a.run_id=r.id AND ((COALESCE(t.accepted_attempt_no,t.attempt_no)=a.attempt_no AND t.state='completed') OR EXISTS(SELECT 1 FROM port_positive_receipts p WHERE p.observation_id=a.id) OR EXISTS(SELECT 1 FROM poc_template_receipts p WHERE p.observation_id=a.id)) AND ((a.observation->>'kind'='port' AND COALESCE(a.observation->>'error','')='')
 	   OR (a.observation->>'kind'='http' AND COALESCE((a.observation->>'status_code')::int,0)>0))
 	  GROUP BY a.target_key,a.observation->>'kind',CASE WHEN a.observation->>'kind'='port' THEN a.observation->>'port' ELSE a.observation->>'url' END) grouped_results) rs ON true`
 }
@@ -555,7 +559,7 @@ func (s *Server) listAssets(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	runID, query := r.URL.Query().Get("run_id"), strings.TrimSpace(r.URL.Query().Get("q"))
-	where := ` WHERE EXISTS(SELECT 1 FROM tasks t WHERE t.id=assets.task_id AND t.state='completed' AND COALESCE(t.accepted_attempt_no,t.attempt_no)=assets.attempt_no) AND ($1='' OR run_id=$1) AND ($2='' OR observation::text ILIKE '%' || $2 || '%')`
+	where := ` WHERE (EXISTS(SELECT 1 FROM tasks t WHERE t.id=assets.task_id AND t.state='completed' AND COALESCE(t.accepted_attempt_no,t.attempt_no)=assets.attempt_no) OR EXISTS(SELECT 1 FROM port_positive_receipts p WHERE p.observation_id=assets.id) OR EXISTS(SELECT 1 FROM poc_template_receipts p WHERE p.observation_id=assets.id)) AND ($1='' OR run_id=$1) AND ($2='' OR observation::text ILIKE '%' || $2 || '%')`
 	var total int64
 	if err := s.db.QueryRow(r.Context(), `SELECT count(*) FROM assets`+where, runID, query).Scan(&total); err != nil {
 		writeError(w, http.StatusInternalServerError, "load assets failed")

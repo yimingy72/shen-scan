@@ -45,6 +45,7 @@ type targetSlots struct {
 }
 
 func (a *Agent) runHTTP(ctx context.Context, task Task, emit func(Observation) error) error {
+	ctx = a.withHTTPBudget(ctx, task)
 	var payload httpPayload
 	if err := json.Unmarshal(task.Payload, &payload); err != nil {
 		return &TaskError{Reason: "invalid http payload: " + err.Error()}
@@ -260,7 +261,7 @@ func (a *Agent) fetchHTTPOnce(ctx context.Context, ep Endpoint, timeout time.Dur
 		DisableCompression:     true,
 		MaxResponseHeaderBytes: 32 << 10,
 	}
-	client := &http.Client{Transport: transport, Timeout: timeout}
+	client := &http.Client{Transport: budgetHTTPTransport{transport}, Timeout: timeout}
 	client.CheckRedirect = func(next *http.Request, via []*http.Request) error {
 		if len(via) >= 5 {
 			return fmt.Errorf("too many redirects")

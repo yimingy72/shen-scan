@@ -388,7 +388,7 @@ func TestWappalyzerFingerprintIsFrozenInHTTPRuleSet(t *testing.T) {
 		Task *Task `json:"task"`
 	}
 	callAPI(t, handler, http.MethodPost, "/api/tasks/claim", worker.WorkerToken, map[string]any{
-		"worker_id": worker.WorkerID, "session_id": "wapp-session", "service_profile": "nmap-light-v1", "web_evidence_profile": webevidence.Profile, "fingerprint_bundle": webevidence.FingerprintBundle, "supports_confirmed_stop": true, "request_id": "old-agent", "types": []string{"http"}, "use_rule_sets": true,
+		"worker_id": worker.WorkerID, "session_id": "wapp-session", "service_profile": "nmap-light-v1", "web_evidence_profile": webevidence.Profile, "fingerprint_bundle": webevidence.FingerprintBundle, "supports_confirmed_stop": true, "supports_http_request_budget": true, "request_id": "old-agent", "types": []string{"http"}, "use_rule_sets": true,
 	}, http.StatusOK, &oldClaim)
 	if oldClaim.Task != nil {
 		t.Fatal("worker without HTTPx capability claimed a mixed HTTP snapshot")
@@ -397,7 +397,7 @@ func TestWappalyzerFingerprintIsFrozenInHTTPRuleSet(t *testing.T) {
 		Task *Task `json:"task"`
 	}
 	callAPI(t, handler, http.MethodPost, "/api/tasks/claim", worker.WorkerToken, map[string]any{
-		"worker_id": worker.WorkerID, "session_id": "wapp-session", "service_profile": "nmap-light-v1", "web_evidence_profile": webevidence.Profile, "fingerprint_bundle": webevidence.FingerprintBundle, "supports_confirmed_stop": true, "request_id": "new-agent", "types": []string{"http"},
+		"worker_id": worker.WorkerID, "session_id": "wapp-session", "service_profile": "nmap-light-v1", "web_evidence_profile": webevidence.Profile, "fingerprint_bundle": webevidence.FingerprintBundle, "supports_confirmed_stop": true, "supports_http_request_budget": true, "request_id": "new-agent", "types": []string{"http"},
 		"use_rule_sets": true, "supports_httpx_cff": true,
 	}, http.StatusOK, &newClaim)
 	if newClaim.Task == nil {

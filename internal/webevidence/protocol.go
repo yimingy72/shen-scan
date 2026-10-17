@@ -20,6 +20,9 @@ const (
 )
 
 type ProbeRequest struct {
+	ID                 string          `json:"id"`
+	AdmissionURL       string          `json:"admission_url,omitempty"`
+	AdmissionToken     string          `json:"admission_token,omitempty"`
 	Protocol           string          `json:"protocol"`
 	URL                string          `json:"url"`
 	ConnectIP          string          `json:"connect_ip"`
@@ -58,6 +61,7 @@ type Response struct {
 }
 
 type ProbeResult struct {
+	ID           string     `json:"id"`
 	Protocol     string     `json:"protocol"`
 	Engine       string     `json:"engine"`
 	Profile      string     `json:"profile"`

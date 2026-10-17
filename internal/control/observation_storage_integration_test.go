@@ -32,7 +32,7 @@ func TestBinaryObservationBatchRoundTrip(t *testing.T) {
 			Task *Task `json:"task"`
 		}
 		callAPI(t, handler, http.MethodPost, "/api/tasks/claim", worker.WorkerToken, map[string]any{
-			"worker_id": worker.WorkerID, "session_id": "binary-session", "service_profile": "nmap-light-v1", "web_evidence_profile": webevidence.Profile, "fingerprint_bundle": webevidence.FingerprintBundle, "supports_confirmed_stop": true, "request_id": kind, "types": []string{kind},
+			"worker_id": worker.WorkerID, "session_id": "binary-session", "service_profile": "nmap-light-v1", "web_evidence_profile": webevidence.Profile, "fingerprint_bundle": webevidence.FingerprintBundle, "supports_confirmed_stop": true, "supports_http_request_budget": true, "request_id": kind, "types": []string{kind},
 		}, http.StatusOK, &out)
 		if out.Task == nil {
 			t.Fatalf("no %s task", kind)

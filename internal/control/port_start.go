@@ -70,13 +70,9 @@ func choosePortPartitions(ports, slots int, rate, totalRate, wait, collect float
 // The Agent opts in only while it holds that slot until the claim returns.
 // A heartbeat is never a start reservation, and no calibration means no split.
 func (s *Server) preparePortStart(ctx context.Context, workerID, sessionID, requestID string) error {
-	profile, effective := calibratedPortProfile()
-	if profile == "" {
-		return nil
-	}
 	rate, _ := portScanSettings()
 	limit := portTargetQuota()
-	if choosePortPartitions(65535, limit/rate, effective, float64(limit)*effective/float64(rate), 15, 1) == 1 {
+	if limit/rate < 2 {
 		return nil
 	}
 	tx, err := s.db.Begin(ctx)
@@ -89,11 +85,19 @@ func (s *Server) preparePortStart(ctx context.Context, workerID, sessionID, requ
 	}
 	var actualProfile string
 	err = tx.QueryRow(ctx, `SELECT COALESCE(spec->>'port_profile','') FROM workers WHERE id=$1 AND session_id=$2 AND status IN('ready','running') AND NOT maintenance`, workerID, sessionID).Scan(&actualProfile)
-	if errors.Is(err, pgx.ErrNoRows) || actualProfile != profile {
+	if errors.Is(err, pgx.ErrNoRows) {
 		return nil
 	}
 	if err != nil {
 		return err
+	}
+	if actualProfile == "" {
+		return nil
+	}
+	if _, trustworthy, modelErr := loadPortCost(ctx, tx, workerID, sessionID, actualProfile, rate); modelErr != nil {
+		return modelErr
+	} else if !trustworthy {
+		return nil
 	}
 	if err = expireQuotas(ctx, tx); err != nil {
 		return err
@@ -139,7 +143,7 @@ func (s *Server) preparePortStart(ctx context.Context, workerID, sessionID, requ
 	}
 	expires = collectUntil.Add(3 * time.Second)
 	if _, err = tx.Exec(ctx, `INSERT INTO port_start_tickets(worker_id,session_id,request_id,root_task_id,profile,collect_until,expires_at)
- VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT DO NOTHING`, workerID, sessionID, requestID, taskID, profile, collectUntil, expires); err != nil {
+ VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT DO NOTHING`, workerID, sessionID, requestID, taskID, actualProfile, collectUntil, expires); err != nil {
 		return err
 	}
 	if _, err = tx.Exec(ctx, `INSERT INTO target_quotas(epoch,task_id,attempt_no,worker_id,instance_id,session_id,scope,dimension,amount,state,valid_until)
@@ -156,10 +160,10 @@ func (s *Server) preparePortStart(ctx context.Context, workerID, sessionID, requ
 		return ctx.Err()
 	case <-timer.C:
 	}
-	return s.sealPortStart(ctx, taskID, runID, profile, effective, rate, limit)
+	return s.sealPortStart(ctx, taskID, runID, rate, limit)
 }
 
-func (s *Server) sealPortStart(ctx context.Context, rootID, runID, profile string, effective float64, rate, limit int) error {
+func (s *Server) sealPortStart(ctx context.Context, rootID, runID string, rate, limit int) error {
 	tx, err := s.db.Begin(ctx)
 	if err != nil {
 		return err
@@ -185,18 +189,18 @@ func (s *Server) sealPortStart(ctx context.Context, rootID, runID, profile strin
 	if state != "queued" || attempt != 0 || p["range_planned"] == true {
 		return nil
 	}
-	rows, err := tx.Query(ctx, `SELECT p.worker_id,p.session_id,p.request_id FROM port_start_tickets p JOIN workers w ON w.id=p.worker_id AND w.session_id=p.session_id
- WHERE p.root_task_id=$1 AND p.profile=$2 AND p.expires_at>now() AND w.status IN('ready','running') AND NOT w.maintenance
- AND EXISTS(SELECT 1 FROM target_quotas q WHERE q.task_id=p.root_task_id AND q.worker_id=p.worker_id AND q.session_id=p.session_id AND q.state='reserved' AND q.valid_until>now())
- ORDER BY p.worker_id FOR SHARE OF w`, rootID, profile)
+	rows, err := tx.Query(ctx, `SELECT p.worker_id,p.session_id,p.request_id,p.profile FROM port_start_tickets p JOIN workers w ON w.id=p.worker_id AND w.session_id=p.session_id
+ WHERE p.root_task_id=$1 AND p.profile=COALESCE(w.spec->>'port_profile','') AND p.expires_at>now() AND w.status IN('ready','running') AND NOT w.maintenance
+ AND EXISTS(SELECT 1 FROM target_quotas q WHERE q.task_id=p.root_task_id AND q.worker_id=p.worker_id AND q.session_id=p.session_id AND q.state='reserved' AND q.dimension='discovery_pps' AND q.amount=$2 AND q.valid_until>now())
+ ORDER BY p.worker_id FOR SHARE OF w`, rootID, rate)
 	if err != nil {
 		return err
 	}
-	type ticket struct{ worker, session, request string }
+	type ticket struct{ worker, session, request, profile string }
 	tickets := []ticket{}
 	for rows.Next() {
 		var v ticket
-		if err = rows.Scan(&v.worker, &v.session, &v.request); err != nil {
+		if err = rows.Scan(&v.worker, &v.session, &v.request, &v.profile); err != nil {
 			rows.Close()
 			return err
 		}
@@ -209,11 +213,30 @@ func (s *Server) sealPortStart(ctx context.Context, rootID, runID, profile strin
 	if len(tickets) == 0 {
 		return nil
 	}
-	k := choosePortPartitions(65535, len(tickets), effective, float64(min(limit, len(tickets)*rate))*effective/float64(rate), 15, 1)
+	candidates := make([]portStartCandidate, 0, len(tickets))
+	for _, ticket := range tickets {
+		model, trustworthy, modelErr := loadPortCost(ctx, tx, ticket.worker, ticket.session, ticket.profile, rate)
+		if modelErr != nil {
+			return modelErr
+		}
+		if trustworthy {
+			candidates = append(candidates, portStartCandidate{ticket.worker, ticket.session, ticket.request, model})
+		}
+	}
+	slices := planPortStart(65535, candidates, rate, limit, 1)
+	if len(slices) == 0 {
+		return nil
+	}
+	k := len(slices)
 	// Collection is bounded. Only tickets actually acquired participate in k.
 	p["range_planned"] = true
 	p["partition_count"] = k
 	p["partition_reason"] = "calibrated_start_reservations"
+	for _, slice := range slices {
+		if slice.candidate.model.Samples > 0 {
+			p["partition_reason"] = "observed_weighted_start_reservations"
+		}
+	}
 	if _, err = tx.Exec(ctx, `DELETE FROM port_range_manifest WHERE task_id=$1`, rootID); err != nil {
 		return err
 	}
@@ -228,9 +251,11 @@ func (s *Server) sealPortStart(ctx context.Context, rootID, runID, profile strin
 		if i > 0 {
 			id = newID()
 		}
-		p["ports"] = fmt.Sprintf("%d-%d", 1+i*65535/k, (i+1)*65535/k)
+		slice := slices[i]
+		p["ports"] = fmt.Sprintf("%d-%d", slice.first, slice.last)
+		p["partition_cost"] = slice.candidate.model
+		t := slice.candidate
 		raw, _ := json.Marshal(p)
-		t := tickets[i]
 		if i == 0 {
 			_, err = tx.Exec(ctx, `UPDATE tasks SET payload=$2,worker_id=$3,session_id=$4,reserved_until=$5 WHERE id=$1`, id, raw, t.worker, t.session, until)
 		} else {

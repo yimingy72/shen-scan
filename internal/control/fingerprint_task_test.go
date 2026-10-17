@@ -129,7 +129,7 @@ func TestFingerprintTaskSnapshotAndLeaseDownload(t *testing.T) {
 	}
 	oldWorker, newWorker := register("embedded-only"), register("snapshot-capable")
 	claimBody := func(w worker, session, requestID, schema string) map[string]any {
-		body := map[string]any{"worker_id": w.ID, "session_id": session, "request_id": requestID, "types": []string{"http"}, "service_profile": "nmap-light-v1", "web_evidence_profile": webevidence.Profile, "fingerprint_bundle": webevidence.FingerprintBundle, "supports_confirmed_stop": true, "use_rule_sets": true, "supports_httpx_cff": true}
+		body := map[string]any{"worker_id": w.ID, "session_id": session, "request_id": requestID, "types": []string{"http"}, "service_profile": "nmap-light-v1", "web_evidence_profile": webevidence.Profile, "fingerprint_bundle": webevidence.FingerprintBundle, "supports_confirmed_stop": true, "supports_http_request_budget": true, "use_rule_sets": true, "supports_httpx_cff": true}
 		if schema != "" {
 			body["fingerprint_bundle_schema"] = schema
 		}

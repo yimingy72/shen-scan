@@ -93,6 +93,7 @@ type Agent struct {
 	nucleiOriginalOnce  sync.Once
 	nucleiOriginalOK    bool
 	nucleiEngineVersion string
+	nucleiBatchOK       bool
 	wg                  sync.WaitGroup
 }
 
@@ -190,6 +191,7 @@ func (a *Agent) Run(ctx context.Context) error {
 		if ctx.Err() != nil {
 			a.cancelAll(context.Cause(ctx))
 			a.wg.Wait()
+			sharedWebProbe.stop()
 			if errors.Is(ctx.Err(), context.Canceled) && context.Cause(ctx) == context.Canceled {
 				return nil
 			}
@@ -275,7 +277,7 @@ func (a *Agent) claim(ctx context.Context, types []string) (*Task, error) {
 		return nil, err
 	}
 	for {
-		task, err := a.client.Claim(ctx, a.workerID, a.cfg.SessionID, requestID, types, a.supportsNucleiOriginal(), portReserved)
+		task, err := a.client.Claim(ctx, a.workerID, a.cfg.SessionID, requestID, types, a.supportsNucleiOriginal(), portReserved, a.supportsNucleiBatch())
 		if err == nil {
 			return task, nil
 		}
@@ -654,7 +656,7 @@ func (a *Agent) executeAndReport(ctx context.Context, task Task) error {
 			}
 			batch = append(batch, queued.observation)
 			batchBytes += delimiterBytes + queued.encodedBytes
-			if len(batch) >= maxBatchItems {
+			if len(batch) >= maxBatchItems || task.Type == "poc" {
 				if err := flush(); err != nil {
 					return err
 				}

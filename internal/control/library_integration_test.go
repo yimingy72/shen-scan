@@ -169,7 +169,7 @@ func TestRuleLibraryAndPOCClosure(t *testing.T) {
 	}, http.StatusOK, &worker)
 	claim := func(requestID string, types []string, output any) {
 		callAPI(t, handler, http.MethodPost, "/api/tasks/claim", worker.WorkerToken, map[string]any{
-			"worker_id": worker.WorkerID, "session_id": "session-library", "service_profile": "nmap-light-v1", "web_evidence_profile": webevidence.Profile, "fingerprint_bundle": webevidence.FingerprintBundle, "supports_confirmed_stop": true, "request_id": requestID, "types": types,
+			"worker_id": worker.WorkerID, "session_id": "session-library", "service_profile": "nmap-light-v1", "web_evidence_profile": webevidence.Profile, "fingerprint_bundle": webevidence.FingerprintBundle, "supports_confirmed_stop": true, "supports_http_request_budget": true, "request_id": requestID, "types": types,
 		}, http.StatusOK, output)
 	}
 	var httpClaim struct {
@@ -194,7 +194,7 @@ func TestRuleLibraryAndPOCClosure(t *testing.T) {
 		Task *Task `json:"task"`
 	}
 	callAPI(t, handler, http.MethodPost, "/api/tasks/claim", worker.WorkerToken, map[string]any{
-		"worker_id": worker.WorkerID, "session_id": "session-library", "service_profile": "nmap-light-v1", "web_evidence_profile": webevidence.Profile, "fingerprint_bundle": webevidence.FingerprintBundle, "supports_confirmed_stop": true, "request_id": "http-ref", "types": []string{"http"}, "use_rule_sets": true,
+		"worker_id": worker.WorkerID, "session_id": "session-library", "service_profile": "nmap-light-v1", "web_evidence_profile": webevidence.Profile, "fingerprint_bundle": webevidence.FingerprintBundle, "supports_confirmed_stop": true, "supports_http_request_budget": true, "request_id": "http-ref", "types": []string{"http"}, "use_rule_sets": true,
 	}, http.StatusOK, &refClaim)
 	var refPayload struct {
 		RulesRef string          `json:"rules_ref"`

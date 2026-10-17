@@ -36,6 +36,7 @@ export interface Verification {
 }
 
 export interface Asset {
+  positive_port_receipt?: { id: string; source_task_id: string; source_attempt_no: number; batch_seq: number; batch_sha256: string; accepted_at: string; coverage_independent: boolean }
   purpose?: string
   verification?: Verification
   checks?: { request_raw: string; response_raw: string }[]
@@ -91,11 +92,14 @@ export interface Worker {
 }
 
 export interface TargetResult {
+  port_coverage?: 'complete' | 'partial' | 'unconfirmed' | 'not_scanned'
   target: string; state: string; port_state: string; task_total: number; task_done: number; task_failed: number; failure_reason?: string
   open_port_count: number; ports: number[]; open_flood?: boolean; fingerprint_limited?: boolean; fingerprint_count?: number; http_count: number; error_count: number; ips: string[]
   services: string[]; products: string[]; technologies: string[]; titles: string[]; updated_at: string
 }
 export interface PortResult {
+  port_observation_id?: string
+  positive_port_receipt_id?: string
   port: number; is_open: boolean; service?: string; product?: string; version?: string; error?: string
   service_observation_id?: string
   http: { id: string; url: string; title?: string; status_code: number; technologies?: Technology[] }[]

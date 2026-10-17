@@ -59,12 +59,15 @@ func backfillTargetKeys(ctx context.Context, db *pgxpool.Pool) error {
 		return err
 	}
 	_, err := db.Exec(ctx, `UPDATE assets a SET target_key=CASE WHEN a.observation->>'kind' IN('port','service') THEN COALESCE(NULLIF(a.observation->>'ip',''),NULLIF(a.observation->>'target',''),t.target_key) ELSE t.target_key END FROM tasks t WHERE t.id=a.task_id AND a.target_key=''`)
-	return err
+	if err != nil {
+		return err
+	}
+	return initializeEarlyPorts(ctx, db)
 }
 
-const currentResults = `WITH rt AS (SELECT t.id,t.type,t.state,t.attempt_no,t.updated_at,t.error,tt.target_key FROM tasks t JOIN task_targets tt ON tt.task_id=t.id WHERE t.run_id=$1),
+const currentResults = `WITH rt AS (SELECT t.id,t.type,t.state,t.attempt_no,t.updated_at,t.error,t.coverage,tt.target_key FROM tasks t JOIN task_targets tt ON tt.task_id=t.id WHERE t.run_id=$1),
  ob AS (SELECT a.id,a.task_id,a.observed_at,a.observation,a.target_key,t.payload task_payload FROM assets a JOIN tasks t
- ON t.id=a.task_id AND COALESCE(t.accepted_attempt_no,t.attempt_no)=a.attempt_no AND t.state='completed' WHERE a.run_id=$1)`
+ ON t.id=a.task_id WHERE a.run_id=$1 AND ((COALESCE(t.accepted_attempt_no,t.attempt_no)=a.attempt_no AND t.state='completed') OR EXISTS(SELECT 1 FROM port_positive_receipts p WHERE p.observation_id=a.id) OR EXISTS(SELECT 1 FROM poc_template_receipts p WHERE p.observation_id=a.id)))`
 
 const targetResults = currentResults + `,
  ts AS (SELECT target_key AS target,count(*) task_total,count(*) FILTER(WHERE state='completed') task_done,
@@ -74,6 +77,9 @@ const targetResults = currentResults + `,
  CASE WHEN count(*) FILTER(WHERE type='port')=0 THEN 'not_scanned'
  WHEN bool_or(state='leased' AND type='port') THEN 'running' WHEN bool_or(state='queued' AND type='port') THEN 'pending'
  WHEN bool_or(state='failed' AND type='port') THEN 'failed' WHEN bool_or(state='cancelled' AND type='port') THEN 'cancelled' ELSE 'completed' END port_state,
+ CASE WHEN count(*) FILTER(WHERE type='port')=0 THEN 'not_scanned'
+ WHEN count(*) FILTER(WHERE type='port' AND state='completed' AND coverage='complete')=count(*) FILTER(WHERE type='port') THEN 'complete'
+ WHEN bool_or(type='port' AND state IN('completed','failed','cancelled')) OR EXISTS(SELECT 1 FROM port_positive_receipts p WHERE p.run_id=$1 AND p.target_key=rt.target_key) THEN 'partial' ELSE 'unconfirmed' END port_coverage,
  max(updated_at) updated_at FROM rt GROUP BY target_key),
  os AS (SELECT target_key,
  count(DISTINCT (observation->>'port')::int) FILTER(WHERE observation->>'kind'='port' AND COALESCE(observation->>'error','')='') open_port_count,
@@ -153,13 +159,15 @@ func (s *Server) listPortResults(w http.ResponseWriter, r *http.Request) {
 		writeError(w, 400, "请选择目标")
 		return
 	}
-	const grouped = `WITH latest AS (SELECT DISTINCT ON(a.observation->>'kind',a.observation->>'port') a.id,a.observed_at,a.observation
-	 FROM assets a JOIN tasks t ON t.id=a.task_id AND COALESCE(t.accepted_attempt_no,t.attempt_no)=a.attempt_no AND t.state='completed'
+	const grouped = `WITH latest AS (SELECT DISTINCT ON(a.observation->>'kind',a.observation->>'port') a.id,a.observed_at,a.observation,receipt.id positive_port_receipt_id
+	 FROM assets a JOIN tasks t ON t.id=a.task_id LEFT JOIN port_positive_receipts receipt ON receipt.observation_id=a.id
 	 WHERE a.run_id=$1 AND a.target_key=$2 AND a.observation->>'kind' IN('port','service')
-	 ORDER BY a.observation->>'kind',a.observation->>'port',(COALESCE(a.observation->>'error','')='') DESC,a.observed_at DESC,a.id DESC),
+ AND ((COALESCE(t.accepted_attempt_no,t.attempt_no)=a.attempt_no AND t.state='completed') OR EXISTS(SELECT 1 FROM port_positive_receipts p WHERE p.observation_id=a.id) OR EXISTS(SELECT 1 FROM poc_template_receipts p WHERE p.observation_id=a.id))
+	 ORDER BY a.observation->>'kind',a.observation->>'port',(COALESCE(a.observation->>'error','')='') DESC,(receipt.id IS NOT NULL) DESC,a.observed_at DESC,a.id DESC),
  ports AS (SELECT (observation->>'port')::int port,bool_or(observation->>'kind'='port') is_open,
  max(observation->>'service') service,max(observation->>'product') product,max(observation->>'version') version,
- max(observation->>'error') error,max(id) FILTER(WHERE observation->>'kind'='service') service_observation_id
+ max(observation->>'error') error,max(id) FILTER(WHERE observation->>'kind'='service') service_observation_id,
+ max(id) FILTER(WHERE observation->>'kind'='port') port_observation_id,max(positive_port_receipt_id) positive_port_receipt_id
  FROM latest GROUP BY (observation->>'port')::int)`
 	var total int64
 	var items json.RawMessage
@@ -252,7 +260,7 @@ func (s *Server) listFindings(w http.ResponseWriter, r *http.Request) {
 	 count(*) FILTER(WHERE observation->>'finding_status'='matched' AND COALESCE(NULLIF(observation->>'purpose',''),'discovery')='discovery'),
 	 COALESCE((SELECT jsonb_agg((observation-'request_raw'-'response_raw'-'body_excerpt'-'headers') ||
 	 jsonb_build_object('id',id,'run_id',$1::text,'source_target',target_key,'observed_at',observed_at,
-	 'matched_products',COALESCE(task_payload->'matched_products','[]'::jsonb),'trigger_reason',COALESCE(task_payload->>'trigger_reason',''))
+	 'matched_products',COALESCE(task_payload->'rule_triggers'->(observation->>'rule_id')->'matched_products',task_payload->'matched_products','[]'::jsonb),'trigger_reason',COALESCE(task_payload->'rule_triggers'->(observation->>'rule_id')->>'trigger_reason',task_payload->>'trigger_reason',''))
 	 ORDER BY observed_at DESC,id DESC) FROM page),'[]'::jsonb)
 	 FROM findings`, r.PathValue("id"), status, severity, query, purpose, limit, offset).Scan(
 		&total, &matched, &notMatched, &failed, &incomplete, &verificationMatched, &checkMatched, &discoveryMatched, &items)
@@ -268,8 +276,10 @@ func (s *Server) listFindings(w http.ResponseWriter, r *http.Request) {
 func (s *Server) getObservation(w http.ResponseWriter, r *http.Request) {
 	var item Asset
 	var raw, taskPayload []byte
-	err := s.db.QueryRow(r.Context(), `SELECT a.id,a.run_id,a.observed_at,COALESCE(a.observation_raw,convert_to(a.observation::text,'UTF8')),t.payload
-		FROM assets a JOIN tasks t ON t.id=a.task_id WHERE a.id=$1`, r.PathValue("id")).Scan(&item.ID, &item.RunID, &item.ObservedAt, &raw, &taskPayload)
+	var positiveReceipt json.RawMessage
+	err := s.db.QueryRow(r.Context(), `SELECT a.id,a.run_id,a.observed_at,COALESCE(a.observation_raw,convert_to(a.observation::text,'UTF8')),t.payload,
+ (SELECT jsonb_build_object('id',p.id,'source_task_id',p.source_task_id,'source_attempt_no',p.source_attempt_no,'batch_seq',p.batch_seq,'batch_sha256',encode(p.batch_digest,'hex'),'accepted_at',p.accepted_at,'coverage_independent',true) FROM port_positive_receipts p WHERE p.observation_id=a.id)
+		FROM assets a JOIN tasks t ON t.id=a.task_id WHERE a.id=$1`, r.PathValue("id")).Scan(&item.ID, &item.RunID, &item.ObservedAt, &raw, &taskPayload, &positiveReceipt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		writeError(w, 404, "结果不存在")
 		return
@@ -283,9 +293,17 @@ func (s *Server) getObservation(w http.ResponseWriter, r *http.Request) {
 		TriggerReason   string   `json:"trigger_reason,omitempty"`
 	}
 	_ = json.Unmarshal(taskPayload, &trace)
+	var perRule struct {
+		Triggers map[string]json.RawMessage `json:"rule_triggers"`
+	}
+	_ = json.Unmarshal(taskPayload, &perRule)
+	if raw := perRule.Triggers[item.RuleID]; len(raw) > 0 {
+		_ = json.Unmarshal(raw, &trace)
+	}
 	writeJSON(w, 200, struct {
 		Asset
-		MatchedProducts []string `json:"matched_products,omitempty"`
-		TriggerReason   string   `json:"trigger_reason,omitempty"`
-	}{Asset: item, MatchedProducts: trace.MatchedProducts, TriggerReason: trace.TriggerReason})
+		MatchedProducts     []string        `json:"matched_products,omitempty"`
+		TriggerReason       string          `json:"trigger_reason,omitempty"`
+		PositivePortReceipt json.RawMessage `json:"positive_port_receipt,omitempty"`
+	}{Asset: item, MatchedProducts: trace.MatchedProducts, TriggerReason: trace.TriggerReason, PositivePortReceipt: positiveReceipt})
 }

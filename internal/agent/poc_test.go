@@ -79,6 +79,7 @@ func TestNativePoCAndMissingNucleiAreDistinctOutcomes(t *testing.T) {
 	run := func(rule rulelib.Rule) Observation {
 		payload, _ := json.Marshal(pocPayload{Endpoint: Endpoint{URL: fixture.URL}, Rules: []rulelib.Rule{rule}})
 		var got Observation
+		allowHTTPFixture(t, a)
 		if err := a.runPoC(context.Background(), Task{Payload: payload}, func(obs Observation) error { got = obs; return nil }); err != nil {
 			t.Fatal(err)
 		}
@@ -208,6 +209,7 @@ func TestReviewedVerificationsProduceCompleteChecks(t *testing.T) {
 						t.Fatal(err)
 					}
 					var got Observation
+					allowHTTPFixture(t, agent)
 					if err := agent.runPoC(context.Background(), Task{Payload: payload}, func(observation Observation) error {
 						got = observation
 						return nil
@@ -291,6 +293,7 @@ func TestNativePoCTruncatedResponseIsIncomplete(t *testing.T) {
 	}
 	payload, _ := json.Marshal(pocPayload{Endpoint: Endpoint{URL: fixture.URL}, Rules: []rulelib.Rule{findBuiltinRule(t, "poc-exposed-git-head")}})
 	var got Observation
+	allowHTTPFixture(t, a)
 	if err := a.runPoC(context.Background(), Task{Payload: payload}, func(obs Observation) error { got = obs; return nil }); err != nil {
 		t.Fatal(err)
 	}
@@ -368,6 +371,7 @@ func TestRealNucleiPoC(t *testing.T) {
 			var got Observation
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
+			allowHTTPFixture(t, a)
 			if err := a.runPoC(ctx, Task{Payload: payload}, func(obs Observation) error { got = obs; return nil }); err != nil {
 				t.Fatal(err)
 			}
@@ -431,6 +435,7 @@ func TestRealNucleiRootPoC(t *testing.T) {
 			var got Observation
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
+			allowHTTPFixture(t, agent)
 			if err := agent.runPoC(ctx, Task{Payload: payload}, func(observation Observation) error { got = observation; return nil }); err != nil {
 				t.Fatal(err)
 			}

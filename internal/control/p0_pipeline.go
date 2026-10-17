@@ -89,6 +89,12 @@ func completeOutcome(ctx context.Context, tx pgx.Tx, taskID, typeName string, at
 	if typeName == "port" {
 		return "scanned", "complete", nil
 	}
+	if typeName == "poc" {
+		var p pocBatchPayload
+		if json.Unmarshal(payload, &p) == nil && p.Profile != "" {
+			return completePOCBatch(ctx, tx, taskID, attempt, payload)
+		}
+	}
 	rows, err := tx.Query(ctx, `SELECT observation FROM assets WHERE task_id=$1 AND attempt_no=$2 ORDER BY batch_seq,item_index`, taskID, attempt)
 	if err != nil {
 		return "", "", err

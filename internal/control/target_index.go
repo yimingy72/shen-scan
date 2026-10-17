@@ -202,11 +202,28 @@ func validatePOCObservation(payload []byte, item *Observation) error {
 	var assignment struct {
 		Endpoint taskEndpoint   `json:"endpoint"`
 		Rules    []rulelib.Rule `json:"rules"`
+		Profile  string         `json:"nuclei_batch_profile"`
 	}
-	if json.Unmarshal(payload, &assignment) != nil || len(assignment.Rules) != 1 {
+	if json.Unmarshal(payload, &assignment) != nil || len(assignment.Rules) == 0 || (len(assignment.Rules) != 1 && !validPOCBatch(pocBatchPayload{Endpoint: assignment.Endpoint, Rules: assignment.Rules, Profile: assignment.Profile})) {
 		return errors.New("invalid PoC task payload")
 	}
 	rule := assignment.Rules[0]
+	if assignment.Profile != "" {
+		if !validPOCBatch(pocBatchPayload{Endpoint: assignment.Endpoint, Rules: assignment.Rules, Profile: assignment.Profile}) {
+			return errors.New("invalid Nuclei batch assignment")
+		}
+		found := false
+		for _, candidate := range assignment.Rules {
+			if candidate.ID == item.RuleID {
+				rule = candidate
+				found = true
+				break
+			}
+		}
+		if !found {
+			return errors.New("PoC rule is not assigned in this batch")
+		}
+	}
 	if item.RuleID != rule.ID || item.RuleRevision != rule.Revision || item.Engine != rule.Engine {
 		return errors.New("PoC observation rule identity does not match assigned rule")
 	}
@@ -226,6 +243,13 @@ func validatePOCObservation(payload []byte, item *Observation) error {
 		proofProfile = proofProfile && item.EvidenceProfile == "native-http-matcher-v1" && len(item.Checks) == len(rule.Definition.Requests)
 	} else {
 		proofProfile = proofProfile && item.EngineVersion == "3.11.1" && item.EvidenceProfile == "nuclei-3.11.1-single-http-response-v1" && item.ContentSHA256 != ""
+	}
+	if assignment.Profile != "" && (item.FindingStatus == "matched" || item.FindingStatus == "not_matched") && (item.EngineVersion != "3.11.1" || item.EvidenceProfile != "nuclei-3.11.1-single-http-response-v1" || item.Truncated || item.Error != "" || !completePOCBatchEvidence(assignment.Endpoint, rule, item)) {
+		item.FindingStatus = "incomplete"
+		item.CanProveNoMatch = false
+		item.Coverage = "partial"
+		item.Outcome = "incomplete"
+		item.Evidence = "Nuclei batch response evidence is incomplete"
 	}
 	if item.FindingStatus == "not_matched" && !proofProfile {
 		item.FindingStatus = "incomplete"

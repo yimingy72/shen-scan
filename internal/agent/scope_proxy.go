@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"crypto/tls"
 	"fmt"
 	"io"
@@ -19,6 +20,7 @@ import (
 )
 
 type scopeProxy struct {
+	ctx          context.Context
 	server       *http.Server
 	listener     net.Listener
 	transport    *http.Transport
@@ -28,13 +30,14 @@ type scopeProxy struct {
 	allowed      map[string]bool
 	allowedPaths map[string]bool
 
-	mu           sync.Mutex
-	requestCount int
-	firstErr     error
-	truncated    bool
-	requestRaw   bytes.Buffer
-	responseRaw  bytes.Buffer
-	connections  map[net.Conn]struct{}
+	mu                sync.Mutex
+	requestCount      int
+	firstErr          error
+	truncated         bool
+	requestRaw        bytes.Buffer
+	responseRaw       bytes.Buffer
+	connections       map[net.Conn]struct{}
+	upstreamExchanges [][32]byte
 }
 
 func (a *Agent) startScopeProxy(ctx context.Context, ep Endpoint, rawBase string, requests []rulelib.Request) (*scopeProxy, error) {
@@ -47,7 +50,7 @@ func (a *Agent) startScopeProxy(ctx context.Context, ep Endpoint, rawBase string
 		return nil, err
 	}
 	proxy := &scopeProxy{
-		listener: listener, agent: a, endpoint: ep, base: base,
+		ctx: ctx, listener: listener, agent: a, endpoint: ep, base: base,
 		allowed: make(map[string]bool, len(requests)), allowedPaths: make(map[string]bool, len(requests)), connections: make(map[net.Conn]struct{}),
 	}
 	for _, request := range requests {
@@ -61,7 +64,7 @@ func (a *Agent) startScopeProxy(ctx context.Context, ep Endpoint, rawBase string
 		DisableKeepAlives: true, DisableCompression: true, MaxResponseHeaderBytes: 32 << 10,
 	}
 	proxy.server = &http.Server{
-		Handler: proxy, ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 10 * time.Second,
+		Handler: proxy, BaseContext: func(net.Listener) context.Context { return ctx }, ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 10 * time.Second,
 		ErrorLog: log.New(io.Discard, "", 0),
 	}
 	go func() {
@@ -92,7 +95,10 @@ func (proxy *scopeProxy) ServeHTTP(w http.ResponseWriter, request *http.Request)
 	removeHopHeaders(outbound.Header)
 	outbound.Header.Del("Proxy-Authorization")
 	requestRaw := string(rawHTTPRequest(outbound))
-	response, err := proxy.transport.RoundTrip(outbound)
+	proxy.mu.Lock()
+	proxy.requestCount++
+	proxy.mu.Unlock()
+	response, err := (budgetHTTPTransport{proxy.transport}).RoundTrip(outbound)
 	if err != nil {
 		proxy.reject(w, err)
 		return
@@ -149,46 +155,18 @@ func (proxy *scopeProxy) connect(w http.ResponseWriter, request *http.Request) {
 		proxy.reject(w, fmt.Errorf("CONNECT target outside validated HTTPS scope: %s", request.Host))
 		return
 	}
-	hijacker, ok := w.(http.Hijacker)
-	if !ok {
-		proxy.reject(w, fmt.Errorf("HTTP proxy does not support CONNECT hijacking"))
-		return
-	}
-	client, _, err := hijacker.Hijack()
+	err = serveProxyTLS(proxy.ctx, w, request, proxy.base.Hostname(), http.HandlerFunc(func(w http.ResponseWriter, inner *http.Request) {
+		if inner.Method == http.MethodConnect || inner.URL == nil || inner.URL.IsAbs() {
+			proxy.reject(w, fmt.Errorf("nested/absolute HTTPS proxy request"))
+			return
+		}
+		inner.URL.Scheme = "https"
+		inner.URL.Host = inner.Host
+		proxy.ServeHTTP(w, inner)
+	}), proxy.trackConnection)
 	if err != nil {
 		proxy.recordError(err)
-		return
 	}
-	upstream, err := proxy.agent.safeDialer(proxy.endpoint.IP, proxy.base.Hostname())(request.Context(), "tcp", request.Host)
-	if err != nil {
-		_, _ = io.WriteString(client, "HTTP/1.1 502 Bad Gateway\r\nConnection: close\r\n\r\n")
-		_ = client.Close()
-		proxy.recordError(err)
-		return
-	}
-	proxy.trackConnection(client, true)
-	proxy.trackConnection(upstream, true)
-	proxy.mu.Lock()
-	proxy.requestCount++
-	proxy.mu.Unlock()
-	if _, err := io.WriteString(client, "HTTP/1.1 200 Connection Established\r\n\r\n"); err != nil {
-		proxy.recordError(err)
-		_ = client.Close()
-		_ = upstream.Close()
-		return
-	}
-	done := make(chan struct{}, 2)
-	copyConnection := func(dst, src net.Conn) {
-		_, _ = io.Copy(dst, src)
-		done <- struct{}{}
-	}
-	go copyConnection(upstream, client)
-	go copyConnection(client, upstream)
-	<-done
-	_ = client.Close()
-	_ = upstream.Close()
-	proxy.trackConnection(client, false)
-	proxy.trackConnection(upstream, false)
 }
 
 func (proxy *scopeProxy) reject(w http.ResponseWriter, err error) {
@@ -199,7 +177,11 @@ func (proxy *scopeProxy) reject(w http.ResponseWriter, err error) {
 func (proxy *scopeProxy) recordExchange(requestRaw, responseRaw string, truncated bool) {
 	proxy.mu.Lock()
 	defer proxy.mu.Unlock()
-	proxy.requestCount++
+	if !truncated && len(proxy.upstreamExchanges) < 16 {
+		if digest, ok := upstreamExchangeDigest(requestRaw, responseRaw); ok {
+			proxy.upstreamExchanges = append(proxy.upstreamExchanges, digest)
+		}
+	}
 	separator := 0
 	if proxy.requestRaw.Len() > 0 {
 		separator = 2
@@ -310,4 +292,50 @@ func removeHopHeaders(headers http.Header) {
 			headers.Del(strings.TrimSpace(name))
 		}
 	}
+}
+
+// Only fully read successful upstream exchanges are recorded. Synthetic proxy
+// failures never enter this bounded queue. Each Nuclei event consumes one exact
+// method/authority/path/status/header/body receipt, preventing a proxy 502 from
+// being accepted as a target response and preventing evidence reuse.
+func upstreamExchangeDigest(rawRequest, rawResponse string) ([32]byte, bool) {
+	var zero [32]byte
+	request, err := http.ReadRequest(bufio.NewReader(strings.NewReader(rawRequest)))
+	if err != nil {
+		return zero, false
+	}
+	defer request.Body.Close()
+	response, err := http.ReadResponse(bufio.NewReader(strings.NewReader(rawResponse)), request)
+	if err != nil {
+		return zero, false
+	}
+	defer response.Body.Close()
+	body, err := io.ReadAll(io.LimitReader(response.Body, maxNucleiSavedResponse+1))
+	if err != nil || len(body) >= maxNucleiSavedResponse {
+		return zero, false
+	}
+	headers := response.Header.Clone()
+	removeHopHeaders(headers)
+	headers.Del("Content-Length")
+	var canonical bytes.Buffer
+	fmt.Fprintf(&canonical, "%s\n%s\n%s\n%d\n", request.Method, strings.ToLower(request.Host), request.URL.RequestURI(), response.StatusCode)
+	_ = headers.Write(&canonical)
+	canonical.WriteByte('\n')
+	canonical.Write(body)
+	return sha256.Sum256(canonical.Bytes()), true
+}
+func (proxy *scopeProxy) consumeUpstreamExchange(request, response string) bool {
+	digest, ok := upstreamExchangeDigest(request, response)
+	if !ok {
+		return false
+	}
+	proxy.mu.Lock()
+	defer proxy.mu.Unlock()
+	for index, receipt := range proxy.upstreamExchanges {
+		if receipt == digest {
+			proxy.upstreamExchanges = append(proxy.upstreamExchanges[:index], proxy.upstreamExchanges[index+1:]...)
+			return true
+		}
+	}
+	return false
 }

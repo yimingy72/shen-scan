@@ -12,12 +12,15 @@ const openFloodThreshold = 1024
 // Port evidence is never capped. Dense targets get a bounded, explicit
 // fingerprint policy so one wildcard SYN responder cannot fill every queue.
 func fingerprintPorts(ctx context.Context, tx pgx.Tx, runID, target string, ports []int) ([]int, error) {
-	// Port shards share one target policy. Count accepted prior shards plus the
-	// completing shard, and spend only the remaining downstream allowance.
+	// All intake paths share one unique positive-port set and downstream budget.
+	// Already scheduled endpoints were removed by the stable service-work binding.
 	var priorPorts, alreadySelected, limit int
-	err := tx.QueryRow(ctx, `SELECT count(DISTINCT (a.observation->>'port')::int) FROM assets a JOIN tasks t ON t.id=a.task_id
+	err := tx.QueryRow(ctx, `SELECT count(DISTINCT port) FROM (
+        SELECT port FROM port_positive_receipts WHERE run_id=$1 AND target_key=$2
+        UNION SELECT (a.observation->>'port')::int FROM assets a JOIN tasks t ON t.id=a.task_id
         WHERE a.run_id=$1 AND a.target_key=$2 AND a.observation->>'kind'='port' AND t.state='completed'
-        AND a.attempt_no=COALESCE(t.accepted_attempt_no,t.attempt_no)`, runID, target).Scan(&priorPorts)
+        AND a.attempt_no=COALESCE(t.accepted_attempt_no,t.attempt_no) AND COALESCE(a.observation->>'error','')=''
+        UNION SELECT unnest($3::int[])) positive`, runID, target, ports).Scan(&priorPorts)
 	if err != nil {
 		return nil, err
 	}
@@ -25,7 +28,7 @@ func fingerprintPorts(ctx context.Context, tx pgx.Tx, runID, target string, port
         VALUES($1,$2,$3,$4,1024) ON CONFLICT(run_id,target_key) DO UPDATE SET
         open_flood=run_target_policies.open_flood OR EXCLUDED.open_flood,
         open_port_count=GREATEST(run_target_policies.open_port_count,EXCLUDED.open_port_count),updated_at=now()
-        RETURNING fingerprint_limit,fingerprint_count`, runID, target, priorPorts+len(ports) > openFloodThreshold, priorPorts+len(ports)).Scan(&limit, &alreadySelected)
+        RETURNING fingerprint_limit,fingerprint_count`, runID, target, priorPorts > openFloodThreshold, priorPorts).Scan(&limit, &alreadySelected)
 	if err != nil {
 		return nil, err
 	}

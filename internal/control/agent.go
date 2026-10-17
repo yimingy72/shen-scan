@@ -221,8 +221,10 @@ func (s *Server) claimTask(w http.ResponseWriter, r *http.Request) {
 		UseRuleSets                bool     `json:"use_rule_sets"`
 		SupportsHTTPXCFF           bool     `json:"supports_httpx_cff"`
 		SupportsNucleiHTTPOriginal bool     `json:"supports_nuclei_http_original"`
+		SupportsNucleiHTTPBatch    bool     `json:"supports_nuclei_http_batch"`
 		SupportsPortRanges         bool     `json:"supports_port_ranges"`
 		SupportsConfirmedStop      bool     `json:"supports_confirmed_stop"`
+		SupportsHTTPRequestBudget  bool     `json:"supports_http_request_budget"`
 		PortStartReserved          bool     `json:"port_start_reserved"`
 		ServiceProfile             string   `json:"service_profile"`
 		WebEvidenceProfile         string   `json:"web_evidence_profile"`
@@ -245,6 +247,15 @@ func (s *Server) claimTask(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
+	}
+	if !request.SupportsHTTPRequestBudget {
+		filtered := make([]string, 0, len(types))
+		for _, stage := range types {
+			if stage != "http" && stage != "poc" {
+				filtered = append(filtered, stage)
+			}
+		}
+		types = filtered
 	}
 	if err := s.reconcileExpiredWork(r.Context()); err != nil {
 		writeError(w, 503, "reconcile execution limits failed")
@@ -296,13 +307,13 @@ func (s *Server) claimTask(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "claim task failed")
 		return
 	}
-	if inserted.RowsAffected() == 1 && (!poolEnabled || workerStatus == "draining" || workerStatus == "offline" || sessionSuspect || maintenance || !request.SupportsConfirmedStop) {
+	if inserted.RowsAffected() == 1 && (!poolEnabled || workerStatus == "draining" || workerStatus == "offline" || sessionSuspect || maintenance || !request.SupportsConfirmedStop || len(types) == 0) {
 		if err := tx.Commit(r.Context()); err != nil {
 			writeError(w, http.StatusServiceUnavailable, "database unavailable")
 			return
 		}
 		response := map[string]any{"task": nil}
-		if !request.SupportsConfirmedStop {
+		if !request.SupportsConfirmedStop || len(types) == 0 {
 			response["blocked_reason"] = "agent_upgrade_required"
 		} else if maintenance {
 			response["blocked_reason"] = "worker_maintenance"
@@ -326,6 +337,22 @@ func (s *Server) claimTask(w http.ResponseWriter, r *http.Request) {
 		expired := false
 		if previousTaskID != nil {
 			expired = !poolEnabled || workerStatus == "draining" || workerStatus == "offline"
+			if !expired && !request.SupportsHTTPRequestBudget {
+				var needsBudget bool
+				if err := tx.QueryRow(r.Context(), `SELECT type IN('http','poc') FROM tasks WHERE id=$1`, *previousTaskID).Scan(&needsBudget); err != nil {
+					writeError(w, 500, "load HTTP budget compatibility failed")
+					return
+				}
+				expired = needsBudget
+			}
+			if !expired && !request.SupportsNucleiHTTPBatch {
+				var needsBatch bool
+				if err := tx.QueryRow(r.Context(), `SELECT COALESCE(payload->>'nuclei_batch_profile','')<>'' FROM tasks WHERE id=$1`, *previousTaskID).Scan(&needsBatch); err != nil {
+					writeError(w, 500, "load batch compatibility failed")
+					return
+				}
+				expired = needsBatch
+			}
 			if !expired && !originalNucleiCapable {
 				var requiresOriginal bool
 				checkErr := tx.QueryRow(r.Context(), `SELECT COALESCE(payload->'rules'->0->'nuclei'->>'execution_profile','')='http-basic-v1'
@@ -370,6 +397,13 @@ func (s *Server) claimTask(w http.ResponseWriter, r *http.Request) {
 			loaded.ServerTime = utcNow()
 			task = &loaded
 		}
+		if task != nil && task.Type == "poc" {
+			task.Payload, err = remainingPOCRules(r.Context(), tx, task.ID, task.Payload)
+			if err != nil {
+				writeError(w, 500, "filter accepted PoC templates failed")
+				return
+			}
+		}
 		if err := tx.Commit(r.Context()); err != nil {
 			writeError(w, http.StatusServiceUnavailable, "database unavailable")
 			return
@@ -408,6 +442,7 @@ func (s *Server) claimTask(w http.ResponseWriter, r *http.Request) {
             AND (t.type<>'http' OR NOT r.requires_httpx_cff OR $4)
             AND (t.type<>'http' OR COALESCE(t.payload->>'web_profile','')='' OR (t.payload->>'web_profile'=$7 AND CASE WHEN COALESCE(t.payload->>'fingerprint_bundle_schema','')='' THEN t.payload->>'fingerprint_bundle'=$8 ELSE $10<>'' AND t.payload->>'fingerprint_bundle_schema'=$10 END))
 			AND (t.type<>'poc' OR COALESCE(t.payload->'rules'->0->'nuclei'->>'execution_profile','') <> 'http-basic-v1' OR $5)
+ AND (COALESCE(t.payload->>'nuclei_batch_profile','')='' OR $11)
 			AND ((t.type='port' AND NOT EXISTS (SELECT 1 FROM tasks active_port
 				WHERE active_port.worker_id=$2 AND active_port.session_id=$3 AND active_port.type='port'
 				AND active_port.state='leased' AND active_port.lease_until > now()))
@@ -418,7 +453,7 @@ func (s *Server) claimTask(w http.ResponseWriter, r *http.Request) {
                     ((active_target.payload->'endpoints'->0) - 'work_key') = ((t.payload->'endpoints'->0) - 'work_key'))
 				AND active_target.state='leased' AND active_target.lease_until > now()))))
 		ORDER BY r.last_claim_at,r.created_at,r.id FOR UPDATE OF r SKIP LOCKED LIMIT 1`,
-			types, request.WorkerID, request.SessionID, httpxCapable, originalNucleiCapable, request.SupportsPortRanges, request.WebEvidenceProfile, request.FingerprintBundle, request.ServiceProfile, request.FingerprintBundleSchema).Scan(&runID, &lastTargetKey, &requiresHTTPXCFF)
+			types, request.WorkerID, request.SessionID, httpxCapable, originalNucleiCapable, request.SupportsPortRanges, request.WebEvidenceProfile, request.FingerprintBundle, request.ServiceProfile, request.FingerprintBundleSchema, request.SupportsNucleiHTTPBatch).Scan(&runID, &lastTargetKey, &requiresHTTPXCFF)
 	}
 	if errors.Is(err, pgx.ErrNoRows) {
 		if err := tx.Commit(r.Context()); err != nil {
@@ -452,6 +487,7 @@ func (s *Server) claimTask(w http.ResponseWriter, r *http.Request) {
             AND (t.type<>'http' OR NOT $8 OR $9)
             AND (t.type<>'http' OR COALESCE(t.payload->>'web_profile','')='' OR (t.payload->>'web_profile'=$12 AND CASE WHEN COALESCE(t.payload->>'fingerprint_bundle_schema','')='' THEN t.payload->>'fingerprint_bundle'=$13 ELSE $15<>'' AND t.payload->>'fingerprint_bundle_schema'=$15 END))
 			AND (t.type<>'poc' OR COALESCE(t.payload->'rules'->0->'nuclei'->>'execution_profile','') <> 'http-basic-v1' OR $10)
+ AND (COALESCE(t.payload->>'nuclei_batch_profile','')='' OR $16)
 			AND ((t.type='port' AND NOT EXISTS (SELECT 1 FROM tasks active_port
 				WHERE active_port.worker_id=$3 AND active_port.session_id=$4 AND active_port.type='port'
 				AND active_port.state='leased' AND active_port.lease_until > now()))
@@ -463,7 +499,7 @@ func (s *Server) claimTask(w http.ResponseWriter, r *http.Request) {
 				AND active_target.state='leased' AND active_target.lease_until > now())))
 			ORDER BY (t.worker_id=$3 AND t.session_id=$4 AND t.reserved_until>now()) DESC NULLS LAST,t.target_key,t.created_at,t.id FOR UPDATE OF t SKIP LOCKED LIMIT 1`,
 			runID, types, request.WorkerID, request.SessionID, candidate.retry, candidate.afterCursor, lastTargetKey,
-			requiresHTTPXCFF, httpxCapable, originalNucleiCapable, request.SupportsPortRanges, request.WebEvidenceProfile, request.FingerprintBundle, request.ServiceProfile, request.FingerprintBundleSchema).Scan(
+			requiresHTTPXCFF, httpxCapable, originalNucleiCapable, request.SupportsPortRanges, request.WebEvidenceProfile, request.FingerprintBundle, request.ServiceProfile, request.FingerprintBundleSchema, request.SupportsNucleiHTTPBatch).Scan(
 			&taskID, &runID, &typeName, &payload, &targetKey)
 		if !errors.Is(err, pgx.ErrNoRows) {
 			break
@@ -515,6 +551,9 @@ func (s *Server) claimTask(w http.ResponseWriter, r *http.Request) {
 	}
 	if err == nil {
 		payload, err = attachClaimRules(r.Context(), tx, runID, typeName, payload, request.UseRuleSets)
+	}
+	if err == nil && typeName == "poc" {
+		payload, err = remainingPOCRules(r.Context(), tx, taskID, payload)
 	}
 	task := Task{ID: taskID, RunID: runID, Type: typeName, AttemptNo: attempt, Payload: payload,
 		LeaseUntil: leaseUntil, RateUntil: rateUntil, ServerTime: serverTime, ControlGeneration: generation}
@@ -609,6 +648,9 @@ func loadTask(ctx context.Context, tx pgx.Tx, id string, attempt int) (Task, err
 	task.ServerTime = task.ServerTime.UTC()
 	if err == nil {
 		task.Payload, err = attachClaimRules(ctx, tx, task.RunID, task.Type, task.Payload, false)
+	}
+	if err == nil && task.Type == "poc" {
+		task.Payload, err = remainingPOCRules(ctx, tx, task.ID, task.Payload)
 	}
 	return task, err
 }
@@ -779,6 +821,16 @@ func (s *Server) submitBatch(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "store batch failed")
 		return
 	}
+	// Serialize derived work with completion/cancellation, always locking run before task.
+	var lockedRunID string
+	if err = tx.QueryRow(r.Context(), `SELECT run_id FROM tasks WHERE id=$1`, r.PathValue("id")).Scan(&lockedRunID); err != nil {
+		writeError(w, http.StatusConflict, "task execution is stale")
+		return
+	}
+	if err = tx.QueryRow(r.Context(), `SELECT id FROM runs WHERE id=$1 FOR UPDATE`, lockedRunID).Scan(&lockedRunID); err != nil {
+		writeError(w, http.StatusInternalServerError, "lock source run failed")
+		return
+	}
 	var runID, typeName, state, sourceTarget string
 	var payload json.RawMessage
 	var leaseUntil *time.Time
@@ -817,12 +869,31 @@ func (s *Server) submitBatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	assetRows := make([][]any, len(request.Items))
+	seenPOCRules := map[string]bool{}
 	for index := range request.Items {
 		item := &request.Items[index]
+		if typeName == "poc" {
+			if seenPOCRules[item.RuleID] {
+				writeError(w, 422, "duplicate PoC template outcome in one batch")
+				return
+			}
+			seenPOCRules[item.RuleID] = true
+		}
 		targetKey, err := observationTarget(typeName, payload, sourceTarget, item)
 		if err != nil {
 			writeError(w, http.StatusUnprocessableEntity, fmt.Sprintf("items[%d]: %v", index, err))
 			return
+		}
+		if typeName == "poc" {
+			var alreadyAccepted bool
+			if err := tx.QueryRow(r.Context(), `SELECT EXISTS(SELECT 1 FROM poc_template_receipts WHERE task_id=$1 AND rule_id=$2)`, r.PathValue("id"), item.RuleID).Scan(&alreadyAccepted); err != nil {
+				writeError(w, 500, "check accepted template failed")
+				return
+			}
+			if alreadyAccepted {
+				writeError(w, 422, "PoC template already has an immutable completion receipt")
+				return
+			}
 		}
 		raw, _ := json.Marshal(item)
 		stored, original, err := observationStorageJSON(raw)
@@ -841,6 +912,15 @@ func (s *Server) submitBatch(w http.ResponseWriter, r *http.Request) {
 			pgx.CopyFromRows(assetRows))
 		if err == nil && copied != int64(len(assetRows)) {
 			err = fmt.Errorf("copied %d of %d assets", copied, len(assetRows))
+		}
+	}
+	if err == nil && typeName == "poc" {
+		err = acceptPOCTemplates(r.Context(), tx, r.PathValue("id"), request.AttemptNo, request.BatchSeq, payload)
+	}
+	if err == nil && typeName == "port" {
+		err = acceptPortPositives(r.Context(), tx, r.PathValue("id"), runID, request.AttemptNo, request.BatchSeq)
+		if err == nil {
+			err = derivePortTasks(r.Context(), tx, r.PathValue("id"), runID, request.AttemptNo, payload, request.BatchSeq)
 		}
 	}
 	if err == nil {
@@ -964,6 +1044,9 @@ func (s *Server) completeTask(w http.ResponseWriter, r *http.Request) {
 	if err == nil {
 		err = sealCompletionEvidence(r.Context(), tx, r.PathValue("id"), typeName, request.AttemptNo, payload)
 	}
+	if err == nil && typeName == "poc" {
+		err = sealPOCBatchReceipts(r.Context(), tx, r.PathValue("id"), payload)
+	}
 	if err == nil {
 		_, err = tx.Exec(r.Context(), `UPDATE tasks SET payload=payload||jsonb_build_object('source_completion_id',$3::text)
       WHERE run_id=$1 AND payload->>'source_task_id'=$2 AND state='queued'`, runID, r.PathValue("id"), completionID)
@@ -982,15 +1065,19 @@ func (s *Server) completeTask(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"completed": true, "completion_id": completionID})
 }
 
-func derivePortTasks(ctx context.Context, tx pgx.Tx, taskID, runID string, attempt int, payload json.RawMessage) error {
+func derivePortTasks(ctx context.Context, tx pgx.Tx, taskID, runID string, attempt int, payload json.RawMessage, batches ...int) error {
 	var config struct {
 		HTTPEnabled bool `json:"http_enabled"`
 	}
 	if err := json.Unmarshal(payload, &config); err != nil {
 		return errors.New("invalid persisted port task payload")
 	}
+	var batch *int
+	if len(batches) > 0 {
+		batch = &batches[0]
+	}
 	rows, err := tx.Query(ctx, `SELECT observation FROM assets WHERE task_id=$1 AND attempt_no=$2
-		AND observation->>'kind'='port' AND COALESCE((observation->>'port')::int,0) BETWEEN 1 AND 65535 ORDER BY item_index`, taskID, attempt)
+		AND ($3::int IS NULL OR batch_seq=$3) AND observation->>'kind'='port' AND COALESCE(observation->>'error','')='' AND COALESCE((observation->>'port')::int,0) BETWEEN 1 AND 65535 ORDER BY batch_seq,item_index`, taskID, attempt, batch)
 	if err != nil {
 		return fmt.Errorf("load discovered ports: %w", err)
 	}
@@ -1019,27 +1106,50 @@ func derivePortTasks(ctx context.Context, tx pgx.Tx, taskID, runID string, attem
 		ips = append(ips, ip)
 	}
 	sort.Strings(ips)
+	tuning, err := loadAdaptiveBatch(ctx, tx, "service", 32, 45)
+	if err != nil {
+		return err
+	}
+	var serviceProfile string
+	if err = tx.QueryRow(ctx, `SELECT COALESCE(rules_snapshot->>'service_profile','') FROM runs WHERE id=$1`, runID).Scan(&serviceProfile); err != nil {
+		return err
+	}
 	for _, ip := range ips {
 		ports := make([]int, 0, len(portsByIP[ip]))
 		for port := range portsByIP[ip] {
 			ports = append(ports, port)
 		}
 		sort.Ints(ports)
+		selectedRows, err := tx.Query(ctx, `SELECT port FROM port_service_work WHERE run_id=$1 AND target_key=$2 AND profile=$3`, runID, ip, serviceProfile)
+		if err != nil {
+			return err
+		}
+		for selectedRows.Next() {
+			var port int
+			if err = selectedRows.Scan(&port); err != nil {
+				selectedRows.Close()
+				return err
+			}
+			delete(portsByIP[ip], port)
+		}
+		selectedRows.Close()
+		if err = selectedRows.Err(); err != nil {
+			return err
+		}
+		pending := ports[:0]
+		for _, port := range ports {
+			if _, exists := portsByIP[ip][port]; exists {
+				pending = append(pending, port)
+			}
+		}
+		ports = pending
 		ports, err = fingerprintPorts(ctx, tx, runID, ip, ports)
 		if err != nil {
 			return err
 		}
-		for start := 0; start < len(ports); start += 32 {
-			end := min(start+32, len(ports))
-			endpoints := make([]map[string]any, 0, end-start)
-			for _, port := range ports[start:end] {
-				endpoints = append(endpoints, map[string]any{"ip": ip, "port": port, "work_key": fmt.Sprintf("service:%s:%d", ip, port)})
-			}
-			chunk := start / 32
-			if err := insertDerivedTask(ctx, tx, runID, taskID, "service", ip, chunk, 60, endpoints); err != nil {
-				return err
-			}
-			if _, err := tx.Exec(ctx, `UPDATE tasks SET payload=payload||jsonb_build_object('http_enabled',$3::boolean) WHERE run_id=$1 AND derived_key=$2`, runID, fmt.Sprintf("derived:%s:service:%s:%d", taskID, ip, chunk), config.HTTPEnabled); err != nil {
+		for start := 0; start < len(ports); start += tuning.Size {
+			end := min(start+tuning.Size, len(ports))
+			if err := insertPortServiceBatch(ctx, tx, runID, taskID, ip, serviceProfile, attempt, ports[start:end], config.HTTPEnabled); err != nil {
 				return err
 			}
 		}
@@ -1146,12 +1256,18 @@ func derivePOCTasks(ctx context.Context, tx pgx.Tx, triggerTaskID, runID string,
 		if triggerType != "http" {
 			return nil
 		}
-		return deriveLegacyPOCTasks(ctx, tx, triggerTaskID, runID, triggerAttempt, sourceTarget, payload, snapshot.POC)
+		if err := deriveLegacyPOCTasks(ctx, tx, triggerTaskID, runID, triggerAttempt, sourceTarget, payload, snapshot.POC); err != nil {
+			return err
+		}
+		return groupDerivedPOCBatches(ctx, tx, runID)
 	}
 	if snapshot.POCPolicy != "fingerprint" {
 		return fmt.Errorf("unsupported persisted PoC policy %q", snapshot.POCPolicy)
 	}
-	return deriveFingerprintPOCTasks(ctx, tx, triggerTaskID, runID, triggerAttempt, triggerType, sourceTarget, snapshot)
+	if err := deriveFingerprintPOCTasks(ctx, tx, triggerTaskID, runID, triggerAttempt, triggerType, sourceTarget, snapshot); err != nil {
+		return err
+	}
+	return groupDerivedPOCBatches(ctx, tx, runID)
 }
 
 func deriveLegacyPOCTasks(ctx context.Context, tx pgx.Tx, parentID, runID string, attempt int, sourceTarget string, payload json.RawMessage, rules []rulelib.Rule) error {
@@ -1405,6 +1521,13 @@ func insertPOCTask(ctx context.Context, tx pgx.Tx, runID, parentID string, attem
 	derivedKey := fmt.Sprintf("poc:%s:%d:%s:%s", parentID, attempt, endpointKey, rule.ID)
 	if fingerprintPolicy {
 		derivedKey = fmt.Sprintf("poc-fingerprint:%s:%s:%d", endpointKey, rule.ID, rule.Revision)
+	}
+	var grouped bool
+	if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM poc_batch_derived_keys WHERE run_id=$1 AND derived_key=$2)`, runID, derivedKey).Scan(&grouped); err != nil {
+		return err
+	}
+	if grouped {
+		return nil
 	}
 	result, err := tx.Exec(ctx, `INSERT INTO tasks(id,run_id,type,payload,derived_key,target_key) VALUES($1,$2,'poc',$3,$4,$5)
 		ON CONFLICT(run_id,derived_key) DO NOTHING`, taskID, runID, payload, derivedKey, targetKey)

@@ -274,6 +274,7 @@ func newHTTPXTestAgent(t *testing.T, binary string) *Agent {
 	if err != nil {
 		t.Fatal(err)
 	}
+	allowHTTPFixture(t, agent)
 	return agent
 }
 

@@ -90,7 +90,17 @@ func (a *Agent) runWebProbe(ctx context.Context, task Task, payload httpPayload,
 		if err != nil {
 			return webFailure(ep, err)
 		}
-		input := webevidence.ProbeRequest{Protocol: webevidence.Protocol, URL: raw, ConnectIP: ip, AlternateScheme: ep.URL == "", TimeoutMillis: int(minDuration(boundedTimeout(payload.TimeoutSeconds, 8*time.Second), 8*time.Second) / time.Millisecond), EntryTimeoutMillis: 90000, CFF: cff, CFFSHA256: webevidence.SHA256(cff)}
+		itemID, err := RandomID()
+		if err != nil {
+			return webFailure(ep, err)
+		}
+		input := webevidence.ProbeRequest{ID: itemID, Protocol: webevidence.Protocol, URL: raw, ConnectIP: ip, AlternateScheme: ep.URL == "", TimeoutMillis: int(minDuration(boundedTimeout(payload.TimeoutSeconds, 8*time.Second), 8*time.Second) / time.Millisecond), EntryTimeoutMillis: 90000, CFF: cff, CFFSHA256: webevidence.SHA256(cff)}
+		admissionURL, token, closeAdmission, err := startWebAdmission(ctx, input.ID, ip, parsed, input.AlternateScheme)
+		if err != nil {
+			return webFailure(ep, err)
+		}
+		defer closeAdmission()
+		input.AdmissionURL, input.AdmissionToken = admissionURL, token
 		data, _ := json.Marshal(input)
 		output, err := runWebHelper(ctx, binary, data)
 		if err != nil {
@@ -100,11 +110,11 @@ func (a *Agent) runWebProbe(ctx context.Context, task Task, payload httpPayload,
 		if err = json.Unmarshal(output, &result); err != nil {
 			return webFailure(ep, fmt.Errorf("decode web helper: %w", err))
 		}
-		if result.Protocol != webevidence.Protocol || result.CFFSHA256 != input.CFFSHA256 {
+		if result.ID != input.ID || result.Protocol != webevidence.Protocol || result.CFFSHA256 != input.CFFSHA256 {
 			return webFailure(ep, fmt.Errorf("web helper contract/digest mismatch"))
 		}
 		observed, err := url.Parse(result.Response.URL)
-		if err != nil || observed.Host != parsed.Host || observed.EscapedPath() != parsed.EscapedPath() || observed.RawQuery != parsed.RawQuery || observed.User != nil || observed.Fragment != "" || (observed.Scheme != parsed.Scheme && !input.AlternateScheme) || result.Response.ConnectIP != ip {
+		if err != nil || !sameAuthority(observed, parsed) || observed.EscapedPath() != parsed.EscapedPath() || observed.RawQuery != parsed.RawQuery || observed.User != nil || observed.Fragment != "" || (observed.Scheme != parsed.Scheme && !input.AlternateScheme) || result.Response.ConnectIP != ip {
 			return webFailure(ep, fmt.Errorf("web helper returned an unrelated endpoint"))
 		}
 		obs := webProbeObservation(ep, result, payload.Rules)
@@ -216,46 +226,167 @@ func normalizedWebResponse(response webevidence.Response) []byte {
 	return raw
 }
 
+// A single sequential helper amortizes SDK initialization. Any failed or
+// cancelled item destroys its process before the next item can be dispatched.
+var sharedWebProbe = webProbeProcess{slot: make(chan struct{}, 1)}
+
 func runWebHelper(ctx context.Context, binary string, input []byte) ([]byte, error) {
-	cmd := exec.CommandContext(ctx, binary)
-	setProcessGroup(cmd)
-	cmd.Stdin = bytes.NewReader(input)
-	var stdout cappedWebBuffer
-	stderr := &stderrTail{limit: 32 << 10}
-	cmd.Stdout = &stdout
-	cmd.Stderr = stderr
-	// No cloud credentials or ambient proxy/config is inherited by tools.
-	dir, err := os.MkdirTemp("", "shen-web-")
-	if err != nil {
+	var request webevidence.ProbeRequest
+	if err := json.Unmarshal(input, &request); err != nil {
 		return nil, err
 	}
-	defer os.RemoveAll(dir)
-	for _, name := range []string{"home", "config", "cache", "tmp"} {
-		if err := os.Mkdir(filepath.Join(dir, name), 0700); err != nil {
+	if request.ID == "" {
+		id, err := RandomID()
+		if err != nil {
+			return nil, err
+		}
+		request.ID = id
+	}
+	return sharedWebProbe.run(ctx, binary, request)
+}
+
+type webProbeProcess struct {
+	slot    chan struct{}
+	cmd     *exec.Cmd
+	stdin   io.WriteCloser
+	scanner *bufio.Scanner
+	stderr  *stderrTail
+	done    chan error
+	binary  string
+	dir     string
+}
+
+func (p *webProbeProcess) run(ctx context.Context, binary string, request webevidence.ProbeRequest) ([]byte, error) {
+	select {
+	case p.slot <- struct{}{}:
+		defer func() { <-p.slot }()
+	case <-ctx.Done():
+		return nil, context.Cause(ctx)
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, context.Cause(ctx)
+	}
+	if p.cmd != nil && p.binary != binary {
+		p.stop()
+	}
+	if p.cmd == nil {
+		if err := p.start(binary); err != nil {
 			return nil, err
 		}
 	}
-	cmd.Env = httpxEnvironment(dir)
-	cmd.Dir = dir
-	if err := cmd.Start(); err != nil {
-		return nil, err
+	type reply struct {
+		data []byte
+		err  error
 	}
-	done := make(chan error, 1)
-	go func() { done <- cmd.Wait() }()
+	done := make(chan reply, 1)
+	stdin, scanner := p.stdin, p.scanner
+	go func() {
+		if err := json.NewEncoder(stdin).Encode(request); err != nil {
+			done <- reply{err: err}
+			return
+		}
+		if !scanner.Scan() {
+			err := scanner.Err()
+			if err == nil {
+				err = io.ErrUnexpectedEOF
+			}
+			done <- reply{err: err}
+			return
+		}
+		data := append([]byte(nil), scanner.Bytes()...)
+		var result webevidence.ProbeResult
+		err := json.Unmarshal(data, &result)
+		if err == nil && (result.ID != request.ID || result.Protocol != webevidence.Protocol || result.CFFSHA256 != request.CFFSHA256) {
+			err = fmt.Errorf("web helper reply identity/digest mismatch")
+		}
+		if err == nil && result.Error != "" {
+			err = fmt.Errorf("web helper: %s", result.Error)
+		}
+		done <- reply{data, err}
+	}()
 	select {
 	case <-ctx.Done():
-		killProcessGroup(cmd.Process)
+		p.stop()
 		<-done
 		return nil, context.Cause(ctx)
-	case err := <-done:
+	case reply := <-done:
+		if reply.err != nil {
+			detail := p.stderr.String()
+			p.stop()
+			return nil, fmt.Errorf("%w: %s", reply.err, strings.TrimSpace(detail))
+		}
+		return reply.data, nil
+	}
+}
+func (p *webProbeProcess) start(binary string) (err error) {
+	path, err := exec.LookPath(binary)
+	if err != nil {
+		return err
+	}
+	capCtx, capCancel := context.WithTimeout(context.Background(), 3*time.Second)
+	capability := exec.CommandContext(capCtx, path, "--capabilities")
+	capability.Env = []string{"NO_COLOR=1"}
+	capability.Stderr = &stderrTail{limit: 4096}
+	var advertised cappedWebBuffer
+	capability.Stdout = &advertised
+	err = capability.Run()
+	capCancel()
+	var contract struct {
+		Admission string `json:"request_admission"`
+		Stream    string `json:"stream_protocol"`
+	}
+	if err != nil || advertised.overflow || json.Unmarshal(advertised.Bytes(), &contract) != nil || contract.Admission != "loopback-v1" || contract.Stream != "jsonl-item-v1" {
+		return fmt.Errorf("web helper lacks request admission/item isolation capability")
+	}
+	dir, err := os.MkdirTemp("", "shen-web-")
+	if err != nil {
+		return err
+	}
+	defer func() {
 		if err != nil {
-			return nil, fmt.Errorf("web helper: %w: %s", err, strings.TrimSpace(stderr.String()))
+			os.RemoveAll(dir)
+		}
+	}()
+	for _, name := range []string{"home", "config", "cache", "tmp"} {
+		if err = os.Mkdir(filepath.Join(dir, name), 0700); err != nil {
+			return err
 		}
 	}
-	if stdout.overflow {
-		return nil, fmt.Errorf("web helper response exceeded IPC limit")
+	cmd := exec.Command(path)
+	setProcessGroup(cmd)
+	cmd.Env, cmd.Dir = httpxEnvironment(dir), dir
+	stderr := &stderrTail{limit: 32 << 10}
+	cmd.Stderr = stderr
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		return err
 	}
-	return stdout.Bytes(), nil
+	output, err := cmd.StdoutPipe()
+	if err != nil {
+		stdin.Close()
+		return err
+	}
+	if err = cmd.Start(); err != nil {
+		stdin.Close()
+		output.Close()
+		return err
+	}
+	p.cmd, p.stdin, p.stderr, p.binary, p.dir = cmd, stdin, stderr, binary, dir
+	p.scanner = bufio.NewScanner(output)
+	p.scanner.Buffer(make([]byte, 64<<10), webevidence.MaxMessage)
+	p.done = make(chan error, 1)
+	go func(done chan error) { done <- cmd.Wait() }(p.done)
+	return nil
+}
+func (p *webProbeProcess) stop() {
+	if p.cmd == nil {
+		return
+	}
+	killProcessGroup(p.cmd.Process)
+	p.stdin.Close()
+	<-p.done
+	os.RemoveAll(p.dir)
+	p.cmd, p.stdin, p.scanner = nil, nil, nil
 }
 
 type cappedWebBuffer struct {
@@ -444,10 +575,12 @@ func discoverWebCapabilities() (string, string, string) {
 		return "", "", ""
 	}
 	var profile struct {
-		Protocol string `json:"protocol"`
-		Profile  string `json:"profile"`
+		Protocol  string `json:"protocol"`
+		Profile   string `json:"profile"`
+		Admission string `json:"request_admission"`
+		Stream    string `json:"stream_protocol"`
 	}
-	if json.Unmarshal(raw, &profile) != nil || profile.Protocol != webevidence.Protocol || profile.Profile != webevidence.Profile {
+	if json.Unmarshal(raw, &profile) != nil || profile.Protocol != webevidence.Protocol || profile.Profile != webevidence.Profile || profile.Admission != "loopback-v1" || profile.Stream != "jsonl-item-v1" {
 		return "", "", ""
 	}
 	matcher := os.Getenv("FINGERPRINT_WORKER_BINARY")

@@ -23,14 +23,24 @@ const (
 )
 
 type pocPayload struct {
-	Endpoint Endpoint       `json:"endpoint"`
-	Rules    []rulelib.Rule `json:"rules"`
+	Endpoint     Endpoint       `json:"endpoint"`
+	Rules        []rulelib.Rule `json:"rules"`
+	BatchProfile string         `json:"nuclei_batch_profile,omitempty"`
 }
 
 func (a *Agent) runPoC(ctx context.Context, task Task, emit func(Observation) error) error {
+	ctx = a.withHTTPBudget(ctx, task)
 	var payload pocPayload
 	if err := json.Unmarshal(task.Payload, &payload); err != nil {
 		return &TaskError{Reason: "invalid poc payload: " + err.Error(), Retryable: false}
+	}
+	if payload.BatchProfile != "" {
+		if payload.BatchProfile != rulelib.NucleiSingleResponseBatchProfile {
+			return &TaskError{Reason: "unknown Nuclei batch profile"}
+		}
+		pocCtx, cancel := context.WithTimeout(ctx, maxNucleiPoCExecution)
+		defer cancel()
+		return a.runNucleiBatch(pocCtx, payload.Endpoint, payload.Rules, emit)
 	}
 	if len(payload.Rules) != 1 {
 		return &TaskError{Reason: "poc task must contain exactly one rule", Retryable: false}
@@ -205,7 +215,7 @@ func (a *Agent) nativePoCRequest(ctx context.Context, ep Endpoint, base *url.URL
 		DisableKeepAlives: true, DisableCompression: true, MaxResponseHeaderBytes: 32 << 10,
 	}
 	defer transport.CloseIdleConnections()
-	client := &http.Client{Transport: transport, Timeout: 8 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error {
+	client := &http.Client{Transport: budgetHTTPTransport{transport}, Timeout: 8 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error {
 		return http.ErrUseLastResponse
 	}}
 	requestRaw := string(rawHTTPRequest(req))

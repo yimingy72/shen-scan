@@ -62,7 +62,7 @@ func New(ctx context.Context, databaseURL, adminToken, joinToken string) (*Serve
 		db.Close()
 		return nil, fmt.Errorf("ping database: %w", err)
 	}
-	if _, err = db.Exec(ctx, schema); err != nil {
+	if _, err = db.Exec(ctx, schema+httpBudgetSchema); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("migrate database: %w", err)
 	}
@@ -102,6 +102,7 @@ func (s *Server) Close() {
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/health", s.health)
+	mux.HandleFunc("GET /api/scheduler/status", s.admin(s.schedulerStatus))
 	mux.HandleFunc("GET /api/library/fingerprint-bundles", s.admin(s.getFingerprintBundleStatus))
 	mux.HandleFunc("GET /api/library/fingerprint-bundles/{digest}", s.admin(s.getFingerprintBundle))
 	mux.HandleFunc("GET /api/library", s.admin(s.listLibrary))
@@ -149,6 +150,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/tasks/{id}/fingerprint-bundle", s.worker(s.getTaskFingerprintBundle))
 	mux.HandleFunc("GET /api/tasks/{id}/rules", s.worker(s.getTaskRules))
 	mux.HandleFunc("POST /api/tasks/{id}/renew", s.worker(s.renewTask))
+	mux.HandleFunc("POST /api/tasks/{id}/http-permit", s.worker(s.httpPermit))
 	mux.HandleFunc("POST /api/tasks/{id}/batches", s.worker(s.submitBatch))
 	mux.HandleFunc("POST /api/tasks/{id}/complete", s.worker(s.completeTask))
 	mux.HandleFunc("POST /api/tasks/{id}/release", s.worker(s.releaseTask))

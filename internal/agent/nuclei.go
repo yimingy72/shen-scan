@@ -56,9 +56,11 @@ func (a *Agent) supportsNucleiOriginal() bool {
 				a.nucleiEngineVersion = match[1]
 			}
 		}
+		a.nucleiBatchOK = a.nucleiEngineVersion == "3.11.1" && strings.Contains(help, "-disable-clustering")
 	})
 	return a.nucleiOriginalOK
 }
+func (a *Agent) supportsNucleiBatch() bool { return a.supportsNucleiOriginal() && a.nucleiBatchOK }
 
 type boundedCapture struct {
 	bytes.Buffer
@@ -249,6 +251,9 @@ func nucleiEnvironment(workDir string) []string {
 }
 
 func nucleiOutcome(obs Observation, rule rulelib.Rule, expectedTemplateID string, output []byte, proxy *scopeProxy, negativeBody bool) Observation {
+	return nucleiOutcomeEvidence(obs, rule, expectedTemplateID, output, proxy, negativeBody, proxy.Truncated())
+}
+func nucleiOutcomeEvidence(obs Observation, rule rulelib.Rule, expectedTemplateID string, output []byte, proxy *scopeProxy, negativeBody, exchangeTruncated bool) Observation {
 	scanner := bufio.NewScanner(bytes.NewReader(output))
 	scanner.Buffer(make([]byte, 64<<10), maxNucleiLine)
 	matched, events, truncated := false, 0, false
@@ -301,7 +306,7 @@ func nucleiOutcome(obs Observation, rule rulelib.Rule, expectedTemplateID string
 		appendBounded(&responses, proxyResponse, maxRawResponse)
 	}
 	obs.RequestRaw, obs.ResponseRaw = requests.String(), responses.String()
-	obs.Truncated = truncated || requests.Len() >= maxRawRequest || responses.Len() >= maxRawResponse || proxy.Truncated()
+	obs.Truncated = truncated || requests.Len() >= maxRawRequest || responses.Len() >= maxRawResponse || exchangeTruncated
 	if obs.Truncated && negativeBody {
 		return nucleiError(obs, "nuclei response evidence was truncated; negative body matcher result is incomplete", proxy)
 	}

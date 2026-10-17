@@ -62,6 +62,8 @@ SCAN_AGENT_PACKAGE_SHA256=填写真实的64位SHA256
 
 从旧控制面迁移P0时，先阻止旧Worker认领并等已有执行自然结束；停旧服务后再次确认 `leased=0`，再启动新版迁移。新控制面只给声明 `supports_confirmed_stop` 的Agent新增执行，旧Agent仍可心跳和处理合法历史回放。不要把缺失停发确认解释为已经停止。
 
+升级P1时使用相同维护/排空步骤。新HTTP/PoC执行还需要 `supports_http_request_budget`，Nuclei合批另需对应能力；不兼容节点不会接到新协议任务。新版本迁移共享HTTP预算、阳性端口和逐模板凭证表及成本查询索引。Web helper随Agent一同升级；仅替换控制面不能获得进程复用和统一请求限速。详情见[P1扫描调度](P1_SCHEDULING.md)。
+
 维护接口：`POST /api/workers/{id}/maintenance`，请求 `{"enabled":true,"expected_session_id":"当前session"}`；关闭维护必须带当前session。响应包含 `maintenance` 和保守的 `active_tasks`。Worker页面提供维护/恢复调度按钮。自动滚动编排仍由发布流程完成，不会因为上传包就自动重启所有节点。
 
 ## 调整扫描策略

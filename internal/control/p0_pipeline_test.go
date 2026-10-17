@@ -73,7 +73,7 @@ func TestP0CorePipelineAndQuotaRecovery(t *testing.T) {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			rr := recordAPI(h, "POST", "/api/tasks/claim", workers[i].Token, map[string]any{"worker_id": workers[i].ID, "session_id": "s1", "supports_confirmed_stop": true, "request_id": "start", "types": []string{"port"}, "supports_port_ranges": true, "port_start_reserved": true})
+			rr := recordAPI(h, "POST", "/api/tasks/claim", workers[i].Token, map[string]any{"worker_id": workers[i].ID, "session_id": "s1", "supports_confirmed_stop": true, "supports_http_request_budget": true, "request_id": "start", "types": []string{"port"}, "supports_port_ranges": true, "port_start_reserved": true})
 			if rr.Code != 200 {
 				errors[i] = rr.Body.String()
 				return
@@ -157,7 +157,7 @@ func TestP0CorePipelineAndQuotaRecovery(t *testing.T) {
 		var out struct {
 			Task *Task `json:"task"`
 		}
-		callAPI(t, h, "POST", "/api/tasks/claim", w.Token, map[string]any{"worker_id": w.ID, "session_id": "s1", "supports_confirmed_stop": true, "request_id": fmt.Sprintf("next-%d", request), "types": types, "service_profile": "nmap-light-v1", "web_evidence_profile": webevidence.Profile, "fingerprint_bundle": webevidence.FingerprintBundle}, 200, &out)
+		callAPI(t, h, "POST", "/api/tasks/claim", w.Token, map[string]any{"worker_id": w.ID, "session_id": "s1", "supports_confirmed_stop": true, "supports_http_request_budget": true, "request_id": fmt.Sprintf("next-%d", request), "types": types, "service_profile": "nmap-light-v1", "web_evidence_profile": webevidence.Profile, "fingerprint_bundle": webevidence.FingerprintBundle}, 200, &out)
 		return out.Task
 	}
 	service := claim("service")
@@ -255,7 +255,7 @@ func TestP0ExpiredStartupReservationDoesNotPoisonNewExecution(t *testing.T) {
 	var out struct {
 		Task *Task `json:"task"`
 	}
-	callAPI(t, h, "POST", "/api/tasks/claim", b.Token, map[string]any{"worker_id": b.ID, "session_id": "s1", "supports_confirmed_stop": true, "request_id": "takeover", "types": []string{"port"}, "supports_port_ranges": true}, 200, &out)
+	callAPI(t, h, "POST", "/api/tasks/claim", b.Token, map[string]any{"worker_id": b.ID, "session_id": "s1", "supports_confirmed_stop": true, "supports_http_request_budget": true, "request_id": "takeover", "types": []string{"port"}, "supports_port_ranges": true}, 200, &out)
 	if out.Task == nil || out.Task.ID != taskID || out.Task.AttemptNo != 1 {
 		t.Fatalf("B did not take over attempt 1: %+v", out.Task)
 	}
@@ -335,7 +335,7 @@ func TestP0IndependentWebEntriesShareTwoTargetSlots(t *testing.T) {
 		var out struct {
 			Task *Task `json:"task"`
 		}
-		callAPI(t, h, "POST", "/api/tasks/claim", w.Token, map[string]any{"worker_id": w.ID, "session_id": "s1", "supports_confirmed_stop": true, "request_id": fmt.Sprintf("web-%d", request), "types": []string{stage}, "service_profile": "nmap-light-v1", "web_evidence_profile": webevidence.Profile, "fingerprint_bundle": webevidence.FingerprintBundle}, 200, &out)
+		callAPI(t, h, "POST", "/api/tasks/claim", w.Token, map[string]any{"worker_id": w.ID, "session_id": "s1", "supports_confirmed_stop": true, "supports_http_request_budget": true, "request_id": fmt.Sprintf("web-%d", request), "types": []string{stage}, "service_profile": "nmap-light-v1", "web_evidence_profile": webevidence.Profile, "fingerprint_bundle": webevidence.FingerprintBundle}, 200, &out)
 		return out.Task
 	}
 	slow := create("slow")

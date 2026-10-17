@@ -21,6 +21,7 @@ type httpxScopeTarget struct {
 }
 
 type httpxScopeProxy struct {
+	ctx       context.Context
 	server    *http.Server
 	listener  net.Listener
 	transport *http.Transport
@@ -81,7 +82,7 @@ func (a *Agent) startHTTPXScopeProxy(ctx context.Context, targets []httpxScopeTa
 		return nil, err
 	}
 	proxy := &httpxScopeProxy{
-		listener: listener, agent: a, targets: make(map[string]httpxScopeTarget), inputs: make(map[string]httpxScopeTarget), dial: make(map[string]httpxScopeTarget),
+		ctx: ctx, listener: listener, agent: a, targets: make(map[string]httpxScopeTarget), inputs: make(map[string]httpxScopeTarget), dial: make(map[string]httpxScopeTarget),
 		maxCount: max(4, len(targets)*2), connections: make(map[net.Conn]struct{}), connectedIPs: make(map[string]string),
 	}
 	for _, target := range targets {
@@ -101,7 +102,7 @@ func (a *Agent) startHTTPXScopeProxy(ctx context.Context, targets []httpxScopeTa
 		TLSHandshakeTimeout: 10 * time.Second, ResponseHeaderTimeout: 20 * time.Second,
 		DisableKeepAlives: true, MaxResponseHeaderBytes: 32 << 10,
 	}
-	proxy.server = &http.Server{Handler: proxy, ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 15 * time.Second, ErrorLog: log.New(io.Discard, "", 0)}
+	proxy.server = &http.Server{Handler: proxy, BaseContext: func(net.Listener) context.Context { return ctx }, ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 15 * time.Second, ErrorLog: log.New(io.Discard, "", 0)}
 	go func() {
 		if err := proxy.server.Serve(listener); err != nil && err != http.ErrServerClosed {
 			proxy.recordError(err)
@@ -130,7 +131,7 @@ func (proxy *httpxScopeProxy) ServeHTTP(response http.ResponseWriter, request *h
 		return
 	}
 	target, ok := proxy.targets[httpxOrigin(request.URL)]
-	if !ok || target.url.Scheme != "http" {
+	if !ok || target.url.Scheme != request.URL.Scheme {
 		proxy.reject(response, fmt.Errorf("httpx request outside assigned origins: %s", request.URL.String()))
 		return
 	}
@@ -147,7 +148,7 @@ func (proxy *httpxScopeProxy) ServeHTTP(response http.ResponseWriter, request *h
 	outbound.RequestURI = ""
 	removeHopHeaders(outbound.Header)
 	outbound.Header.Del("Proxy-Authorization")
-	upstream, err := proxy.transport.RoundTrip(outbound)
+	upstream, err := (budgetHTTPTransport{proxy.transport}).RoundTrip(outbound)
 	if err != nil {
 		http.Error(response, "upstream request failed", http.StatusBadGateway)
 		return
@@ -193,46 +194,18 @@ func (proxy *httpxScopeProxy) connect(response http.ResponseWriter, request *htt
 		proxy.reject(response, fmt.Errorf("httpx CONNECT outside assigned origins: %s", request.Host))
 		return
 	}
-	if !proxy.takeRequest() {
-		proxy.reject(response, fmt.Errorf("httpx request count exceeded %d", proxy.maxCount))
-		return
-	}
-	hijacker, ok := response.(http.Hijacker)
-	if !ok {
-		proxy.reject(response, fmt.Errorf("httpx proxy does not support CONNECT hijacking"))
-		return
-	}
-	client, _, err := hijacker.Hijack()
+	err = serveProxyTLS(proxy.ctx, response, request, target.url.Hostname(), http.HandlerFunc(func(w http.ResponseWriter, inner *http.Request) {
+		if inner.Method == http.MethodConnect || inner.URL == nil || inner.URL.IsAbs() {
+			proxy.reject(w, fmt.Errorf("nested/absolute HTTPS proxy request"))
+			return
+		}
+		inner.URL.Scheme = "https"
+		inner.URL.Host = inner.Host
+		proxy.ServeHTTP(w, inner)
+	}), proxy.track)
 	if err != nil {
 		proxy.recordError(err)
-		return
 	}
-	upstream, err := proxy.agent.safeDialer(target.endpoint.IP, target.url.Hostname())(request.Context(), "tcp", request.Host)
-	if err != nil {
-		_, _ = io.WriteString(client, "HTTP/1.1 502 Bad Gateway\r\nConnection: close\r\n\r\n")
-		_ = client.Close()
-		return
-	}
-	proxy.recordConnectedIP(target.origin, upstream)
-	proxy.track(client, true)
-	proxy.track(upstream, true)
-	if _, err := io.WriteString(client, "HTTP/1.1 200 Connection Established\r\n\r\n"); err != nil {
-		_ = client.Close()
-		_ = upstream.Close()
-		return
-	}
-	done := make(chan struct{}, 2)
-	copyConnection := func(destination, source net.Conn) {
-		_, _ = io.Copy(destination, source)
-		done <- struct{}{}
-	}
-	go copyConnection(upstream, client)
-	go copyConnection(client, upstream)
-	<-done
-	_ = client.Close()
-	_ = upstream.Close()
-	proxy.track(client, false)
-	proxy.track(upstream, false)
 }
 
 func (proxy *httpxScopeProxy) takeRequest() bool {

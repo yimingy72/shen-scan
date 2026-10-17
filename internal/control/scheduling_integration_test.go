@@ -65,7 +65,7 @@ func TestPostgresSchedulingInvariants(t *testing.T) {
 		"instance_id": "integration-worker", "hostname": "local", "agent_version": "test", "session_id": "session-1", "spec": map[string]any{},
 	}, http.StatusOK, &registered)
 	claimBody := func(requestID string, types []string) map[string]any {
-		return map[string]any{"worker_id": registered.WorkerID, "session_id": "session-1", "supports_confirmed_stop": true, "request_id": requestID, "types": types,
+		return map[string]any{"worker_id": registered.WorkerID, "session_id": "session-1", "supports_confirmed_stop": true, "supports_http_request_budget": true, "request_id": requestID, "types": types,
 			"service_profile": "nmap-light-v1", "web_evidence_profile": webevidence.Profile, "fingerprint_bundle": webevidence.FingerprintBundle}
 	}
 	// Logical cancellation does not prove a fixture executor has stopped. Model
