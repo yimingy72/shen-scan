@@ -214,12 +214,13 @@ func validateWorkerMetrics(raw json.RawMessage) (map[string]float64, error) {
 
 func (s *Server) claimTask(w http.ResponseWriter, r *http.Request) {
 	var request struct {
-		WorkerID         string   `json:"worker_id"`
-		SessionID        string   `json:"session_id"`
-		RequestID        string   `json:"request_id"`
-		Types            []string `json:"types"`
-		UseRuleSets      bool     `json:"use_rule_sets"`
-		SupportsHTTPXCFF bool     `json:"supports_httpx_cff"`
+		WorkerID                   string   `json:"worker_id"`
+		SessionID                  string   `json:"session_id"`
+		RequestID                  string   `json:"request_id"`
+		Types                      []string `json:"types"`
+		UseRuleSets                bool     `json:"use_rule_sets"`
+		SupportsHTTPXCFF           bool     `json:"supports_httpx_cff"`
+		SupportsNucleiHTTPOriginal bool     `json:"supports_nuclei_http_original"`
 	}
 	if err := decodeJSON(w, r, &request); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
@@ -239,6 +240,7 @@ func (s *Server) claimTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpxCapable := request.SupportsHTTPXCFF && request.UseRuleSets
+	originalNucleiCapable := request.SupportsNucleiHTTPOriginal
 	tx, err := s.db.Begin(r.Context())
 	if err != nil {
 		writeError(w, http.StatusServiceUnavailable, "database unavailable")
@@ -289,6 +291,14 @@ func (s *Server) claimTask(w http.ResponseWriter, r *http.Request) {
 		expired := false
 		if previousTaskID != nil {
 			expired = !poolEnabled || workerStatus == "draining" || workerStatus == "offline"
+			if !expired && !originalNucleiCapable {
+				var requiresOriginal bool
+				checkErr := tx.QueryRow(r.Context(), `SELECT COALESCE(payload->'rules'->0->'nuclei'->>'execution_profile','')='http-basic-v1'
+					FROM tasks WHERE id=$1`, *previousTaskID).Scan(&requiresOriginal)
+				if checkErr == nil && requiresOriginal {
+					expired = true
+				}
+			}
 			if !expired {
 				valid, validErr := claimStillValid(r.Context(), tx, *previousTaskID, *previousAttempt, request.WorkerID, request.SessionID)
 				if validErr != nil {
@@ -333,6 +343,7 @@ func (s *Server) claimTask(w http.ResponseWriter, r *http.Request) {
 			SELECT 1 FROM tasks t WHERE t.run_id=r.id AND t.type=ANY($1)
 			AND (t.state='queued' OR (t.state='leased' AND t.lease_until <= now()))
 			AND (t.type<>'http' OR NOT r.requires_httpx_cff OR $4)
+			AND (t.type<>'poc' OR COALESCE(t.payload->'rules'->0->'nuclei'->>'execution_profile','') <> 'http-basic-v1' OR $5)
 			AND ((t.type='port' AND NOT EXISTS (SELECT 1 FROM tasks active_port
 				WHERE active_port.worker_id=$2 AND active_port.session_id=$3 AND active_port.type='port'
 				AND active_port.state='leased' AND active_port.lease_until > now()))
@@ -341,7 +352,7 @@ func (s *Server) claimTask(w http.ResponseWriter, r *http.Request) {
 				AND active_target.type IN ('service','http','poc') AND active_target.target_key=t.target_key
 				AND active_target.state='leased' AND active_target.lease_until > now()))))
 		ORDER BY r.last_claim_at,r.created_at,r.id FOR UPDATE OF r SKIP LOCKED LIMIT 1`,
-		types, request.WorkerID, request.SessionID, httpxCapable).Scan(&runID, &lastTargetKey, &requiresHTTPXCFF)
+		types, request.WorkerID, request.SessionID, httpxCapable, originalNucleiCapable).Scan(&runID, &lastTargetKey, &requiresHTTPXCFF)
 	if errors.Is(err, pgx.ErrNoRows) {
 		if err := tx.Commit(r.Context()); err != nil {
 			writeError(w, http.StatusInternalServerError, "record empty claim failed")
@@ -366,6 +377,7 @@ func (s *Server) claimTask(w http.ResponseWriter, r *http.Request) {
 				OR (NOT $5 AND t.state='queued' AND t.attempt_no=0))
 			AND (NOT $6 OR t.target_key>$7)
 			AND (t.type<>'http' OR NOT $8 OR $9)
+			AND (t.type<>'poc' OR COALESCE(t.payload->'rules'->0->'nuclei'->>'execution_profile','') <> 'http-basic-v1' OR $10)
 			AND ((t.type='port' AND NOT EXISTS (SELECT 1 FROM tasks active_port
 				WHERE active_port.worker_id=$3 AND active_port.session_id=$4 AND active_port.type='port'
 				AND active_port.state='leased' AND active_port.lease_until > now()))
@@ -375,7 +387,7 @@ func (s *Server) claimTask(w http.ResponseWriter, r *http.Request) {
 				AND active_target.state='leased' AND active_target.lease_until > now())))
 			ORDER BY t.target_key,t.created_at,t.id FOR UPDATE OF t SKIP LOCKED LIMIT 1`,
 			runID, types, request.WorkerID, request.SessionID, candidate.retry, candidate.afterCursor, lastTargetKey,
-			requiresHTTPXCFF, httpxCapable).Scan(
+			requiresHTTPXCFF, httpxCapable, originalNucleiCapable).Scan(
 			&taskID, &runID, &typeName, &payload, &targetKey)
 		if !errors.Is(err, pgx.ErrNoRows) {
 			break
@@ -1054,6 +1066,15 @@ func deriveLegacyPOCTasks(ctx context.Context, tx pgx.Tx, parentID, runID string
 			observedURL.Path, observedURL.RawPath, observedURL.RawQuery, observedURL.Fragment = "/", "", "", ""
 			derivedEndpoint := endpoint
 			derivedEndpoint.URL = observedURL.String()
+			if endpoint.URL != "" {
+				if inputURL, parseErr := url.Parse(endpoint.URL); parseErr == nil {
+					inputURL.Scheme, inputURL.Host = observedURL.Scheme, observedURL.Host
+					inputURL.Path = strings.TrimRight(inputURL.Path, "/")
+					inputURL.RawPath = strings.TrimRight(inputURL.RawPath, "/")
+					inputURL.RawQuery, inputURL.Fragment, inputURL.ForceQuery = "", "", false
+					derivedEndpoint.URL = inputURL.String()
+				}
+			}
 			endpoints[origin(observedURL)] = derivedEndpoint
 			break
 		}

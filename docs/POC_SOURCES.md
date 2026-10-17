@@ -26,18 +26,18 @@ Nuclei 上游原库更新**不会**新增、覆盖、退役或重新启用这 90
 
 这些字段用于浏览、筛选、风险判断和以后迁移，不表示当前 Agent 能执行模板。工作台“上游原库”只提供查看原文和下载；完整 ZIP 带 MIT 许可证和逐文件 SHA-256 manifest。
 
-## 尚未完成的执行迁移
+## 原始 YAML 执行子集
 
-后续开发方案见 [原始 Nuclei YAML 兼容性适配方案](NUCLEI_MIGRATION_PLAN.md)。该方案仅覆盖首阶段无害 HTTP 子集，当前为文档计划，尚未开始实现和部署。
+[原始 Nuclei YAML 兼容性适配方案](NUCLEI_MIGRATION_PLAN.md) 定义的 `http-basic-v1` 已实现。导入时保留原始字节并由官方 Nuclei v3.11.1 执行，支持 GET / HEAD、最多 3 个静态同源请求及 word / regex / status matcher。原始规则必须显式绑定产品，PoC 仍默认关闭并只在任务显式开启后按指纹派发。
 
-本轮原始 Nuclei 执行器迁移被自动安全审核拦截，相关实现已停止，没有换通道继续。以下能力因此尚未交付：
+以下能力仍不在执行范围：
 
-- 直接运行 14,075 条原始模板；
-- 执行 DSL、raw、workflow、code、headless、OAST、DNS 或其他完整 Nuclei 语义；
+- 直接把 14,075 条上游目录批量转为执行规则；
+- 执行 DSL、extractor、动态变量、raw、payload、fuzz、race、workflow / flow、重定向、code、headless、OAST、DNS 或其他协议；
 - 从 `technologies` / `exposed-panels` 模板派生主动 HTTP 发现；
 - 将 catalog enabled 状态解释为任务运行许可。
 
-文档和 UI 不应把“原库同步完成”描述成“成熟 Nuclei 引擎已迁移”或“原有只读执行限制已取消”。固定 Nuclei v3.11.1 仍只服务于当前已经支持的旧规则；原始目录不会被发送给该执行器。
+原库同步仍不改变执行库；只有单独导入、通过兼容性检查并启用产品绑定的规则才会进入任务快照。
 
 ## 结果语义
 

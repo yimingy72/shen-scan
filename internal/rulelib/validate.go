@@ -121,6 +121,27 @@ func validateRawNucleiRule(rule Rule, purpose string) error {
 	if len(rule.Fingerprint) != 0 || rule.Verification != nil {
 		return fmt.Errorf("nuclei rules require nuclei metadata only")
 	}
+	if rule.Nuclei.ExecutionProfile == NucleiExecutionProfileHTTPBasic {
+		if rule.Nuclei.CatalogOnly || rule.Nuclei.RuntimeReason != "" {
+			return fmt.Errorf("http-basic-v1 rules must be executable, not catalog-only entries")
+		}
+		if purpose != "check" || rule.Kind != "poc" {
+			return fmt.Errorf("http-basic-v1 rules must use poc kind and check purpose")
+		}
+		if len(rule.AppliesTo) == 0 {
+			return fmt.Errorf("http-basic-v1 rules require an explicit product binding")
+		}
+		if len(rule.Template) == 0 || len(rule.Template) > maxOriginalTemplateBytes {
+			return fmt.Errorf("original nuclei template must be 1..%d bytes", maxOriginalTemplateBytes)
+		}
+		if !reflect.DeepEqual(rule.Definition, Definition{}) {
+			return fmt.Errorf("http-basic-v1 rules cannot contain a normalized native definition")
+		}
+		return validateNucleiMetadata(rule.Template, rule.Nuclei)
+	}
+	if rule.Nuclei.ExecutionProfile != "" {
+		return fmt.Errorf("unsupported nuclei execution profile %q", rule.Nuclei.ExecutionProfile)
+	}
 	if !rule.Nuclei.CatalogOnly || rule.Nuclei.RuntimeReason == "" {
 		return fmt.Errorf("original nuclei source rules must remain catalog-only entries")
 	}

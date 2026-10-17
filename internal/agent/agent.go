@@ -66,27 +66,29 @@ type Config struct {
 }
 
 type Agent struct {
-	cfg             Config
-	client          *Client
-	policy          targetPolicy
-	log             *slog.Logger
-	portExecutor    string
-	endpointSlots   chan struct{}
-	httpxSlots      chan struct{}
-	httpTargetMu    sync.Mutex
-	httpTargetSlots map[string]*targetSlots
-	resources       *resourceSampler
-	ruleSets        *ruleSetCache
-	ruleSetFlights  singleflight.Group
-	workerID        string
-	heartbeatEvery  time.Duration
-	draining        atomic.Bool
-	mu              sync.Mutex
-	active          map[string]activeTask
-	lastTaskType    string
-	taskFinished    chan struct{}
-	terminationAt   *time.Time
-	wg              sync.WaitGroup
+	cfg                Config
+	client             *Client
+	policy             targetPolicy
+	log                *slog.Logger
+	portExecutor       string
+	endpointSlots      chan struct{}
+	httpxSlots         chan struct{}
+	httpTargetMu       sync.Mutex
+	httpTargetSlots    map[string]*targetSlots
+	resources          *resourceSampler
+	ruleSets           *ruleSetCache
+	ruleSetFlights     singleflight.Group
+	workerID           string
+	heartbeatEvery     time.Duration
+	draining           atomic.Bool
+	mu                 sync.Mutex
+	active             map[string]activeTask
+	lastTaskType       string
+	taskFinished       chan struct{}
+	terminationAt      *time.Time
+	nucleiOriginalOnce sync.Once
+	nucleiOriginalOK   bool
+	wg                 sync.WaitGroup
 }
 
 func New(cfg Config) (*Agent, error) {
@@ -245,7 +247,7 @@ func (a *Agent) claim(ctx context.Context, types []string) (*Task, error) {
 		return nil, err
 	}
 	for {
-		task, err := a.client.Claim(ctx, a.workerID, a.cfg.SessionID, requestID, types)
+		task, err := a.client.Claim(ctx, a.workerID, a.cfg.SessionID, requestID, types, a.supportsNucleiOriginal())
 		if err == nil {
 			return task, nil
 		}

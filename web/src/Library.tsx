@@ -52,6 +52,7 @@ function RuleEditor({ api, rule, kind, close, saved }: { api: ApiClient; rule: L
       <div className="two-fields"><Form.Item label="标签" name="tags"><Select disabled={!!verification} mode="tags" tokenSeparators={[',']} placeholder="输入后回车" /></Form.Item><Form.Item label="来源" name="source"><Input readOnly={!!verification} maxLength={1024} /></Form.Item></div>
       {(existing?.kind || kind) === 'poc' && <div className="two-fields"><Form.Item label="风险级别" name="severity"><Select disabled={!!verification} options={Object.entries(severityNames).map(([value, label]) => ({ value, label }))} /></Form.Item><div className="rule-engine-field"><span>执行引擎</span><Tag>{engine === 'nuclei' ? 'Nuclei' : '原生只读检查'}</Tag></div></div>}
       {(existing?.kind || kind) === 'poc' && <><Form.Item label="关联指纹" name="applies_to" extra="匹配任一组件后执行；留空则需在任务中手动选择该规则。"><Select disabled={!!verification} mode="tags" tokenSeparators={[',']} aria-label="关联指纹" placeholder="例如 WordPress、Apache Tomcat" loading={products.loading} options={products.data?.items.map(value => ({ value, label: value })) || []} /></Form.Item><LoadError error={products.error} retry={() => void products.reload()} /></>}
+      {existing?.nuclei?.execution_profile === 'http-basic-v1' && <div className="compact-note mono">原始 YAML · {existing.nuclei?.template_id} · SHA-256 {existing.nuclei?.content_sha256?.slice(0, 16)}…</div>}
       <Form.Item label={engine === 'nuclei' ? 'Nuclei 模板 · YAML' : engine === 'httpx-cff' ? 'Wappalyzer 原始规则 · JSON' : '匹配定义 · JSON'} name="content" rules={[{ required: true, message: '请输入规则定义' }]}><Input.TextArea readOnly={!!verification} className="mono rule-code" rows={18} spellCheck={false} /></Form.Item>
       <div className="rule-editor-footer"><Form.Item name="enabled" valuePropName="checked" noStyle><Checkbox>启用规则</Checkbox></Form.Item>{existing && <span className="muted">{existing.builtin ? '内置' : '自定义'} · v{existing.revision}</span>}<span className="bar-spacer" /><Button onClick={close}>取消</Button><Button htmlType="submit" type="primary" loading={busy}>保存规则</Button></div>
     </Form>
@@ -60,6 +61,7 @@ function RuleEditor({ api, rule, kind, close, saved }: { api: ApiClient; rule: L
 
 function ImportRules({ api, open, close, imported }: { api: ApiClient; open: boolean; close: () => void; imported: () => void }) {
   const [format, setFormat] = useState('json')
+  const [profile, setProfile] = useState('http-basic-v1')
   const [content, setContent] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -67,13 +69,13 @@ function ImportRules({ api, open, close, imported }: { api: ApiClient; open: boo
   const submit = async () => {
     setBusy(true); setError('')
     try {
-      const body = JSON.stringify({ format, content })
+      const body = JSON.stringify({ format, content, ...(format === 'nuclei' ? { execution_profile: profile } : {}) })
       if (new Blob([body]).size > 32 * 1024 * 1024) throw new Error('导入请求不能超过 32 MB，请分批导入')
       const r = await api.request<{ count: number }>('/library/import', { method: 'POST', body })
       message.success(`已导入 ${r.count} 条规则，默认禁用`); setContent(''); imported(); close()
     } catch (e) { setError(e instanceof Error ? e.message : '导入失败') } finally { setBusy(false) }
   }
-  return <Drawer title="导入规则" open={open} onClose={close} size={720}><LoadError error={error} /><div className="import-toolbar"><Segmented value={format} onChange={setFormat} options={[{ label: '规则 JSON', value: 'json' }, { label: 'Nuclei YAML', value: 'nuclei' }]} /><span className="bar-spacer" /><Upload accept=".json,.yaml,.yml" showUploadList={false} beforeUpload={async file => { if (file.size > 32 * 1024 * 1024) { setError('文件不能超过 32 MB'); return false }; setContent(await file.text()); setFormat(/\.ya?ml$/i.test(file.name) ? 'nuclei' : 'json'); setError(''); return false }}><Button icon={<ImportOutlined />}>选择文件</Button></Upload></div><Input.TextArea rows={23} className="mono rule-code" aria-label="导入规则内容" value={content} onChange={e => setContent(e.target.value)} placeholder={format === 'json' ? '粘贴导出的规则 JSON，最多 10000 条' : '粘贴只读 HTTP GET / HEAD 模板'} spellCheck={false} /><div className="compact-note">导入后默认禁用；删除的规则可重新导入。Nuclei 仅接受静态同源只读模板，无关联指纹时需手动选择。</div><div className="drawer-actions"><Button onClick={close}>取消</Button><Button type="primary" loading={busy} disabled={!content.trim()} onClick={() => void submit()}>校验并导入</Button></div></Drawer>
+  return <Drawer title="导入规则" open={open} onClose={close} size={720}><LoadError error={error} /><div className="import-toolbar"><Segmented value={format} onChange={setFormat} options={[{ label: '规则 JSON', value: 'json' }, { label: 'Nuclei YAML', value: 'nuclei' }]} /><span className="bar-spacer" /><Upload accept=".json,.yaml,.yml" showUploadList={false} beforeUpload={async file => { if (file.size > 32 * 1024 * 1024) { setError('文件不能超过 32 MB'); return false }; setContent(await file.text()); setFormat(/\.ya?ml$/i.test(file.name) ? 'nuclei' : 'json'); setError(''); return false }}><Button icon={<ImportOutlined />}>选择文件</Button></Upload></div>{format === 'nuclei' && <div className="filter-bar" style={{ paddingTop: 10 }}><span className="muted">执行格式</span><Segmented size="small" value={profile} onChange={value => setProfile(String(value))} options={[{ label: '原始 YAML（受支持子集）', value: 'http-basic-v1' }, { label: '兼容规范化（旧）', value: 'legacy' }]} /></div>}<Input.TextArea rows={23} className="mono rule-code" aria-label="导入规则内容" value={content} onChange={e => setContent(e.target.value)} placeholder={format === 'json' ? '粘贴导出的规则 JSON，最多 10000 条' : profile === 'http-basic-v1' ? '原始 Nuclei YAML：GET / HEAD，最多 3 个静态请求，需明确 info.metadata.product' : '粘贴旧版可规范化模板'} spellCheck={false} /><div className="compact-note">导入后默认禁用。原始 YAML 保留注释与原始模板 ID；仅支持静态同源只读请求，执行前按识别到的产品精确匹配。</div><div className="drawer-actions"><Button onClick={close}>取消</Button><Button type="primary" loading={busy} disabled={!content.trim()} onClick={() => void submit()}>校验并导入</Button></div></Drawer>
 }
 
 export function LibraryPage({ api, active = true }: { api: ApiClient; active?: boolean }) {
@@ -123,7 +125,7 @@ export function LibraryPage({ api, active = true }: { api: ApiClient; active?: b
       const r = await api.request<LibraryRule>(`/library/${encodeURIComponent(id)}`)
       if (copy) {
         const copyID = `${kind}-custom-${crypto.randomUUID().slice(0, 8)}`
-        const item = { ...r, id: copyID, name: `${r.name}（副本）`, builtin: false, revision: 1, enabled: false, template: r.template?.replace(/^id:\s*.+$/m, `id: ${copyID}`) }
+        const item = { ...r, id: copyID, name: `${r.name}（副本）`, builtin: false, revision: 1, enabled: false, template: r.nuclei?.execution_profile === 'http-basic-v1' ? r.template : r.template?.replace(/^id:\s*.+$/m, `id: ${copyID}`) }
         await api.request('/library', { method: 'POST', body: JSON.stringify(item) }); reload(); message.success('副本已创建，默认禁用')
       } else setEditing(r)
     } catch (e) { message.error(e instanceof Error ? e.message : '读取失败') } finally { setBusyID('') }
@@ -146,7 +148,7 @@ export function LibraryPage({ api, active = true }: { api: ApiClient; active?: b
     { title: '规则名称', key: 'name', width: kind === 'poc' ? 240 : 280, render: (_: unknown, r: LibraryRule) => <div className="name-cell"><button className="text-link strong" onClick={() => void load(r.id)}>{r.name}</button><Tooltip title={r.id}>{kind === 'poc' && <span><RulePurpose value={r.purpose} /></span>}<span className="cell-secondary mono">{r.id.length > 34 ? `${r.id.slice(0, 31)}…` : r.id} · v{r.revision}</span></Tooltip></div> },
     ...(kind === 'poc' ? [{ title: '关联指纹', key: 'products', width: 180, render: (_: unknown, r: LibraryRule) => r.applies_to?.length ? <Tooltip title={r.applies_to.join(' · ')}><span className="tag-list">{r.applies_to.slice(0, 2).map(p => <Tag key={p}>{p}</Tag>)}{r.applies_to.length > 2 && <Tag>+{r.applies_to.length - 2}</Tag>}</span></Tooltip> : <Tag>手动指定</Tag> }] : []),
     { title: kind === 'poc' ? '请求范围' : '匹配规则', key: 'definition', width: kind === 'poc' ? 235 : 320, render: (_: unknown, r: LibraryRule) => <Tooltip title={r.match_summary || r.description}><span className="line-clamp mono">{r.match_summary || r.description || '—'}</span></Tooltip> },
-    ...(kind === 'poc' ? [{ title: '引擎 / 级别', key: 'engine', width: 155, render: (_: unknown, r: LibraryRule) => <Space size={4}><Tag>{r.engine === 'nuclei' ? 'Nuclei' : '原生'}</Tag><Severity value={r.severity} /></Space> }] : []),
+    ...(kind === 'poc' ? [{ title: '引擎 / 级别', key: 'engine', width: 165, render: (_: unknown, r: LibraryRule) => <Space size={4}><Tooltip title={r.nuclei?.execution_profile === 'http-basic-v1' ? `原始 YAML · ${r.nuclei?.template_id}` : undefined}><Tag color={r.nuclei?.execution_profile === 'http-basic-v1' ? 'geekblue' : undefined}>{r.engine === 'nuclei' ? (r.nuclei?.execution_profile === 'http-basic-v1' ? 'Nuclei 原文' : 'Nuclei') : '原生'}</Tag></Tooltip><Severity value={r.severity} /></Space> }] : []),
     ...(kind !== 'poc' ? [{ title: '标签', key: 'tags', width: 175, render: (_: unknown, r: LibraryRule) => <span className="tag-list">{r.tags?.slice(0, 3).map(t => <Tag key={t}>{t}</Tag>)}</span> }] : []),
     { title: '来源', key: 'source', width: 105, render: (_: unknown, r: LibraryRule) => <Tooltip title={r.source}><Tag>{r.source_id === 'wappalyzer' ? 'Wappalyzer' : r.source_id === 'nuclei-templates' ? 'Nuclei' : r.builtin ? '内置' : '自定义'}</Tag></Tooltip> },
     { title: '启用', key: 'enabled', width: 65, render: (_: unknown, r: LibraryRule) => <Switch size="small" aria-label={`启用 ${r.name}`} checked={r.enabled} loading={busyID === r.id} onChange={v => void toggle(r, v)} /> },

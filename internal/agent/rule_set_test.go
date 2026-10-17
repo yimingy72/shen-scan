@@ -209,7 +209,7 @@ func TestClaimRequestsRuleSets(t *testing.T) {
 		t.Fatal(err)
 	}
 	client.workerToken = "worker-token"
-	if _, err := client.Claim(context.Background(), "worker", "session", "request", []string{"http"}); err != nil {
+	if _, err := client.Claim(context.Background(), "worker", "session", "request", []string{"http"}, false); err != nil {
 		t.Fatal(err)
 	}
 }

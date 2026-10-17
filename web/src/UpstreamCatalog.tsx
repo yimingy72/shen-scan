@@ -7,7 +7,6 @@ import { LoadError, NoData, number, useLoad } from './ui'
 export interface Upstream { source_id: string; revision: string; path: string; sha256: string }
 export interface OriginalRule extends Omit<LibraryRule, 'engine'> {
   engine: string; upstream?: Upstream; capabilities?: string[]; default_disabled_reason?: string; runtime_reason?: string; execution_available?: boolean
-  nuclei?: { template_id: string; protocols?: string[]; raw?: boolean; capabilities?: string[]; default_disabled_reason?: string; runtime_reason?: string; info?: unknown; classification?: unknown }
 }
 function saveBlob(filename: string, blob: Blob) {
   const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = filename; link.click(); window.setTimeout(() => URL.revokeObjectURL(url), 1000)
@@ -30,14 +29,14 @@ export function UpstreamCatalog({ api, open, close }: { api: ApiClient; open: bo
   }
   return <><Drawer title="Nuclei 上游原库" open={open} onClose={close} size={1180}>
     <div className="filter-bar"><Select aria-label="上游规则用途" value={purpose} onChange={v => { setPurpose(v); setPage(1) }} style={{ width: 145 }} options={[{ value: '', label: '全部用途' }, { value: 'discovery', label: '产品发现' }, { value: 'verification', label: '漏洞模板' }, { value: 'check', label: '其他检查' }]} /><Input.Search aria-label="搜索上游规则" placeholder="名称、ID、标签、产品" onSearch={v => { setQuery(v.trim()); setPage(1) }} allowClear className="result-search" /><span className="bar-spacer" /><Button icon={<DownloadOutlined />} loading={busy} disabled={!data.data?.revision} onClick={() => void download()}>下载原库 ZIP</Button></div>
-    <div className="compact-note">原始模板执行器尚未接入；本页支持查看和导出完整原库，当前扫描继续使用已有执行规则。</div>
+    <div className="compact-note">此处为已同步的上游目录。需要执行的 HTTP 基础模板，请单独导入 PoC 库并关联指纹。</div>
     <LoadError error={data.error} retry={() => void data.reload()} />
     <Table<OriginalRule> rowKey="id" size="small" tableLayout="fixed" dataSource={data.data?.items || []} loading={data.loading && !data.data} pagination={false} scroll={{ x: 1000 }} locale={{ emptyText: <NoData text="请先完成 Nuclei 规则源更新" /> }} columns={[
       { title: '原始规则', key: 'name', width: 320, render: (_, rule) => <div className="name-cell"><button className="text-link strong" onClick={() => setSelected(rule.id)}>{rule.name}</button><Tooltip title={rule.id}><span className="cell-secondary mono line-clamp">{rule.id}</span></Tooltip></div> },
       { title: '用途 / 级别', key: 'kind', width: 150, render: (_, rule) => <Space size={3} wrap><Tag>{rule.purpose === 'discovery' ? '发现' : rule.purpose === 'verification' ? '漏洞' : '检查'}</Tag><Tag color={['critical', 'high'].includes(rule.severity) ? 'error' : rule.severity === 'medium' ? 'warning' : undefined}>{rule.severity}</Tag></Space> },
       { title: '关联产品', key: 'products', width: 160, render: (_, rule) => <Tooltip title={rule.applies_to?.join(' · ')}><span className="line-clamp">{rule.applies_to?.join(' · ') || '未声明'}</span></Tooltip> },
       { title: '来源路径', key: 'path', width: 240, render: (_, rule) => <Tooltip title={rule.upstream?.path}><span className="mono line-clamp">{rule.upstream?.path || '—'}</span></Tooltip> },
-      { title: '更新默认策略', key: 'policy', width: 140, render: (_, rule) => rule.default_disabled_reason ? <Tooltip title={rule.default_disabled_reason}><Tag color="warning">默认关闭</Tag></Tooltip> : <span className="muted">—</span> },
+      { title: '状态', key: 'policy', width: 140, render: (_, rule) => <Tooltip title={rule.runtime_reason || '目录仅供查看、导出，不参与任务执行'}><Tag>已同步 · 仅目录</Tag></Tooltip> },
       { title: '', key: 'detail', width: 70, render: (_, rule) => <Button type="link" size="small" onClick={() => setSelected(rule.id)}>原文</Button> },
     ]} />
     <div className="table-pagination"><span>{number(data.data?.total)} 条原始规则 <span className="mono muted">{data.data?.revision.slice(0, 12)}</span></span><Pagination size="small" current={page} pageSize={50} total={data.data?.total || 0} showSizeChanger={false} onChange={setPage} /></div>

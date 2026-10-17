@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -458,12 +459,12 @@ func TestNucleiTruncationRejectsNegativeBodyMatcher(t *testing.T) {
 			Part: "body", Type: "word", Words: []string{"error"}, Negative: true,
 		}}}}},
 	}
-	got := nucleiOutcome(Observation{}, rule, append(event, '\n'), proxy)
+	got := nucleiOutcome(Observation{}, rule, rule.ID, append(event, '\n'), proxy, hasNegativeBodyMatcher(rule))
 	if got.FindingStatus != "error" || !strings.Contains(got.Error, "negative body matcher") {
 		t.Fatalf("truncated negative-body match was trusted: %#v", got)
 	}
 	rule.Definition.Requests[0].Matchers[0].Negative = false
-	got = nucleiOutcome(Observation{}, rule, append(event, '\n'), proxy)
+	got = nucleiOutcome(Observation{}, rule, rule.ID, append(event, '\n'), proxy, hasNegativeBodyMatcher(rule))
 	if got.FindingStatus != "matched" || got.Error != "" {
 		t.Fatalf("positive match was rejected only because evidence was truncated: %#v", got)
 	}
@@ -506,4 +507,51 @@ func findBuiltinRule(t *testing.T, id string) rulelib.Rule {
 	}
 	t.Fatalf("missing built-in rule %s", id)
 	return rulelib.Rule{}
+}
+
+func TestNucleiOriginalExecutionStates(t *testing.T) {
+	binary := os.Getenv("NUCLEI_TEST_BINARY")
+	if binary == "" {
+		t.Skip("NUCLEI_TEST_BINARY is not set")
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/app/health" {
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = io.WriteString(w, "shen-local-fixture-ready")
+	}))
+	baseURL, err := url.Parse(server.URL + "/app")
+	if err != nil {
+		t.Fatal(err)
+	}
+	port, _ := strconv.Atoi(baseURL.Port())
+	endpoint := Endpoint{IP: "127.0.0.1", Port: port, URL: baseURL.String()}
+	agent := &Agent{cfg: Config{NucleiBinary: binary}, policy: targetPolicy{allowPrivate: true}}
+	run := func(template string) Observation {
+		rule, err := rulelib.ParseNucleiOriginal(template)
+		if err != nil {
+			t.Fatal(err)
+		}
+		base, err := pocOriginalBaseURL(endpoint)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		return agent.runNucleiPoC(ctx, endpoint, base, rule, newPoCObservation(endpoint, base, rule))
+	}
+	matched := run("id: local-match\ninfo:\n  name: Local match\n  author: shen\n  severity: info\n  metadata:\n    product: ShenFixtureApp\nhttp:\n  - method: GET\n    path: [\"{{BaseURL}}/health\"]\n    matchers:\n      - type: status\n        status: [200]\n      - type: word\n        part: body\n        words: [\"shen-local-fixture-ready\"]\n")
+	if matched.FindingStatus != "matched" || !strings.Contains(matched.RequestRaw, "GET /app/health") || !strings.Contains(matched.ResponseRaw, "shen-local-fixture-ready") {
+		t.Fatalf("unexpected matched result: %#v", matched)
+	}
+	notMatched := run("id: local-miss\ninfo:\n  name: Local miss\n  author: shen\n  severity: info\n  metadata:\n    product: ShenFixtureApp\nhttp:\n  - method: GET\n    path: [\"{{BaseURL}}/health\"]\n    matchers:\n      - type: word\n        part: body\n        words: [\"not-present-marker\"]\n")
+	if notMatched.FindingStatus != "not_matched" {
+		t.Fatalf("unexpected not_matched result: %#v", notMatched)
+	}
+	server.Close()
+	failed := run("id: local-error\ninfo:\n  name: Local error\n  author: shen\n  severity: info\n  metadata:\n    product: ShenFixtureApp\nhttp:\n  - method: GET\n    path: [\"{{BaseURL}}/health\"]\n    matchers:\n      - type: status\n        status: [200]\n")
+	if failed.FindingStatus != "error" {
+		t.Fatalf("unexpected error result: %#v", failed)
+	}
 }

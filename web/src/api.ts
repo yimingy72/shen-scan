@@ -187,8 +187,14 @@ export const formatTime = (value?: string) => {
 }
 
 export type RuleKind = 'http' | 'port' | 'poc'
+export interface NucleiMetadata {
+  template_id: string; execution_profile?: string; content_sha256?: string; catalog_only?: boolean
+  protocols?: string[]; raw?: boolean; capabilities?: string[]; request_count?: number
+  default_disabled_reason?: string; runtime_reason?: string; info?: unknown; classification?: unknown
+}
 export interface LibraryRule {
   purpose?: string; verification?: Verification
+  nuclei?: NucleiMetadata; execution_profile?: string; template_id?: string; content_sha256?: string
   fingerprint?: Record<string, unknown>; execution_available?: boolean; runtime_reason?: string
   id: string; kind: RuleKind; name: string; description?: string; engine: 'native' | 'nuclei' | 'httpx-cff'
   severity: string; enabled: boolean; builtin: boolean; revision: number; tags?: string[]; source?: string

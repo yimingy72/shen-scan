@@ -33,6 +33,8 @@ type Upstream struct {
 
 type NucleiMetadata struct {
 	TemplateID            string          `json:"template_id" yaml:"template_id"`
+	ExecutionProfile      string          `json:"execution_profile,omitempty" yaml:"execution_profile,omitempty"`
+	ContentSHA256         string          `json:"content_sha256,omitempty" yaml:"content_sha256,omitempty"`
 	CatalogOnly           bool            `json:"catalog_only,omitempty" yaml:"catalog_only,omitempty"`
 	Protocols             []string        `json:"protocols,omitempty" yaml:"protocols,omitempty"`
 	Raw                   bool            `json:"raw,omitempty" yaml:"raw,omitempty"`

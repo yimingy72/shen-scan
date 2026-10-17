@@ -188,10 +188,33 @@ func validatePOCObservation(payload []byte, item *Observation) error {
 		return errors.New("PoC observation URL query or fragment was not assigned")
 	}
 	allowedPath := observed.EscapedPath() == "" || observed.EscapedPath() == "/"
-	for _, request := range rule.Definition.Requests {
-		if observed.EscapedPath() == request.Path {
-			allowedPath = true
-			break
+	if rule.Nuclei != nil && rule.Nuclei.ExecutionProfile == rulelib.NucleiExecutionProfileHTTPBasic {
+		if item.TemplateID != rule.Nuclei.TemplateID || item.ExecutionProfile != rule.Nuclei.ExecutionProfile ||
+			item.ContentSHA256 != rule.Nuclei.ContentSHA256 {
+			return errors.New("original PoC observation template identity does not match assigned rule")
+		}
+		analysis, err := rulelib.AnalyzeNucleiOriginal([]byte(rule.Template))
+		if err != nil || analysis.Plan.TemplateID != rule.Nuclei.TemplateID || analysis.Plan.ContentSHA256 != rule.Nuclei.ContentSHA256 {
+			return errors.New("assigned original PoC template is invalid")
+		}
+		base.Path = strings.TrimRight(base.Path, "/")
+		base.RawPath = strings.TrimRight(base.RawPath, "/")
+		requests, err := rulelib.ResolveNucleiOriginalRequests(analysis.Plan, base)
+		if err != nil {
+			return errors.New("assigned original PoC request scope is invalid")
+		}
+		for _, request := range requests {
+			if observed.EscapedPath() == request.Path {
+				allowedPath = true
+				break
+			}
+		}
+	} else {
+		for _, request := range rule.Definition.Requests {
+			if observed.EscapedPath() == request.Path {
+				allowedPath = true
+				break
+			}
 		}
 	}
 	if !allowedPath {

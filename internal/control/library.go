@@ -50,6 +50,9 @@ type ruleSummary struct {
 	DefaultDisabledReason  string            `json:"default_disabled_reason,omitempty"`
 	RuntimeReason          string            `json:"runtime_reason,omitempty"`
 	CatalogOnly            bool              `json:"catalog_only,omitempty"`
+	ExecutionProfile       string            `json:"execution_profile,omitempty"`
+	TemplateID             string            `json:"template_id,omitempty"`
+	ContentSHA256          string            `json:"content_sha256,omitempty"`
 	ExecutionAvailable     bool              `json:"execution_available"`
 	CatalogSanitizedFields []string          `json:"catalog_sanitized_fields,omitempty"`
 	Upstream               *rulelib.Upstream `json:"upstream,omitempty"`
@@ -203,7 +206,17 @@ func attachClaimRules(ctx context.Context, tx pgx.Tx, runID, taskType string, pa
 
 func summarizeRule(rule rulelib.Rule, sourceID string) ruleSummary {
 	parts := []string{}
-	if rule.Kind == "poc" {
+	if rule.Nuclei != nil && rule.Nuclei.ExecutionProfile == rulelib.NucleiExecutionProfileHTTPBasic {
+		if analysis, err := rulelib.AnalyzeNucleiOriginal([]byte(rule.Template)); err == nil {
+			for _, request := range analysis.Plan.Requests {
+				prefix := "{{BaseURL}}"
+				if request.Root {
+					prefix = "{{RootURL}}"
+				}
+				parts = append(parts, request.Method+" "+prefix+request.Path)
+			}
+		}
+	} else if rule.Kind == "poc" {
 		for _, request := range rule.Definition.Requests {
 			parts = append(parts, request.Method+" "+request.Path)
 		}
@@ -256,6 +269,9 @@ func summarizeRule(rule rulelib.Rule, sourceID string) ruleSummary {
 		item.DefaultDisabledReason = rule.Nuclei.DefaultDisabledReason
 		item.RuntimeReason = rule.Nuclei.RuntimeReason
 		item.CatalogOnly = rule.Nuclei.CatalogOnly
+		item.ExecutionProfile = rule.Nuclei.ExecutionProfile
+		item.TemplateID = rule.Nuclei.TemplateID
+		item.ContentSHA256 = rule.Nuclei.ContentSHA256
 		item.ExecutionAvailable = !rule.Nuclei.CatalogOnly && rule.Nuclei.RuntimeReason == ""
 		// Discovery templates have no execution binding; display their upstream
 		// product metadata in the isolated catalog without changing stored rules.
@@ -508,6 +524,35 @@ func normalizeNewRule(rule *rulelib.Rule) error {
 func normalizeNucleiDefinition(rule *rulelib.Rule) error {
 	if rule.Engine != "nuclei" {
 		return nil
+	}
+	if rule.Nuclei != nil && rule.Nuclei.ExecutionProfile == rulelib.NucleiExecutionProfileHTTPBasic {
+		if rule.Kind != "poc" {
+			return errors.New("http-basic-v1 rules must use poc kind")
+		}
+		parsed, err := rulelib.ParseNucleiOriginal(rule.Template)
+		if err != nil {
+			return err
+		}
+		rule.Purpose = "check"
+		rule.Nuclei = parsed.Nuclei
+		rule.AppliesTo = parsed.AppliesTo
+		rule.Template = parsed.Template
+		if strings.TrimSpace(rule.Name) == "" {
+			rule.Name = parsed.Name
+		}
+		if strings.TrimSpace(rule.Description) == "" {
+			rule.Description = parsed.Description
+		}
+		if strings.TrimSpace(rule.Severity) == "" {
+			rule.Severity = parsed.Severity
+		}
+		if len(rule.Tags) == 0 {
+			rule.Tags = parsed.Tags
+		}
+		return nil
+	}
+	if rule.Nuclei != nil && rule.Nuclei.ExecutionProfile != "" {
+		return fmt.Errorf("unsupported nuclei execution profile %q", rule.Nuclei.ExecutionProfile)
 	}
 	if rule.Nuclei != nil && (rule.Nuclei.CatalogOnly || rule.Nuclei.RuntimeReason != "") {
 		return nil
@@ -808,22 +853,35 @@ func decodeRuleJSON(content string) ([]rulelib.Rule, error) {
 
 func (s *Server) importLibrary(w http.ResponseWriter, r *http.Request) {
 	var request struct {
-		Format  string `json:"format"`
-		Content string `json:"content"`
+		Format           string `json:"format"`
+		Content          string `json:"content"`
+		ExecutionProfile string `json:"execution_profile,omitempty"`
 	}
 	if err := decodeJSONLimit(w, r, &request, maxLibraryImportBody); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	request.Format = strings.ToLower(strings.TrimSpace(request.Format))
+	request.ExecutionProfile = strings.ToLower(strings.TrimSpace(request.ExecutionProfile))
 	var rules []rulelib.Rule
 	var err error
 	switch request.Format {
 	case "json":
+		if request.ExecutionProfile != "" {
+			writeError(w, http.StatusBadRequest, "execution_profile is only valid for nuclei imports")
+			return
+		}
 		rules, err = decodeRuleJSON(request.Content)
 	case "nuclei":
 		var rule rulelib.Rule
-		rule, err = rulelib.ParseNuclei(request.Content)
+		switch request.ExecutionProfile {
+		case "", "legacy":
+			rule, err = rulelib.ParseNuclei(request.Content)
+		case rulelib.NucleiExecutionProfileHTTPBasic:
+			rule, err = rulelib.ParseNucleiOriginal(request.Content)
+		default:
+			err = fmt.Errorf("execution_profile must be http-basic-v1 or legacy")
+		}
 		rules = []rulelib.Rule{rule}
 	default:
 		err = errors.New("format must be json or nuclei")

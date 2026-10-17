@@ -8,7 +8,9 @@
 
 执行库列表支持搜索、启停、编辑、复制、JSON 导出与导入。内置及自定义规则都可以编辑、禁用和删除；删除使用持久标记，重启或补种不会复活。导入为原子操作，一次最多 10,000 条；import 端点请求体上限为 32 MiB，成功项默认禁用。其他 JSON API 仍保持 8 MiB 上限。
 
-“上游原库”是独立的只读浏览与导出界面。Nuclei 原始条目带 `catalog_only` 和运行能力原因，不出现在可执行规则计数中，不能通过 CRUD / JSON 导入进入任务快照。原库 enabled 是目录管理元数据，不代表执行许可。
+“上游原库”是独立的只读浏览与导出界面。目录条目带 `catalog_only` 和运行能力原因，不出现在可执行规则计数中，也不会因一键同步自动进入任务快照。原库 enabled 是目录管理元数据，不代表执行许可。
+
+Nuclei 导入选择“原始 YAML（受支持子集）”时使用 `execution_profile:"http-basic-v1"`：平台保存原始字节、注释、行尾和模板 `id`，另生成平台规则 ID 与 `content_sha256`。执行器再次检查摘要后把原文写入临时文件，由 Nuclei 解析和匹配；控制面不保存第二套 matcher 定义。子集只允许 GET / HEAD、最多 3 个静态 `{{BaseURL}}` / `{{RootURL}}` 请求、每个请求最多 8 个 word / regex / status matcher，并要求 `info.author` 和明确的 `info.metadata.product`。DSL、extractor、动态变量、raw、payload、fuzz、race、flow、重定向、query、其他协议和未知字段会带字段路径拒绝。旧版导入仍可用“兼容规范化（旧）”保留。
 
 创建任务时，平台保存当时启用的 HTTP / 端口规则及选择的 PoC 规则。修改、禁用或删除库内规则只影响之后创建的任务，已有任务继续使用其快照。界面显示的规则版本与观测记录对应。
 
@@ -18,7 +20,7 @@
 
 列表支持勾选跨页规则后批量导出和删除（最多 1000 条）；“导出筛选结果”导出当前条件的全部结果，不限当前页。版本冲突时整批删除失败，不会删一半。
 
-每 Worker 最多执行一个 PoC。原生检查总超时 60 秒，单请求 8 秒；Nuclei 总超时 90 秒，进程请求速率 3/秒、并发 1。每条规则最多 3 个请求、8 个匹配器。任务取消、租约失效和实例回收继续沿用 Agent 的停止及重派机制。
+每 Worker 最多执行一个 PoC。原生检查总超时 60 秒，单请求 8 秒；Nuclei 总超时 90 秒，进程请求速率 3/秒、并发 1。每条规则最多 3 个请求、8 个匹配器。`http-basic-v1` 任务只由声明 `supports_nuclei_http_original:true` 且本地 Nuclei 参数检查通过的 Agent 领取。任务取消、租约失效和实例回收继续沿用 Agent 的停止及重派机制。
 
 ## HTTPx 与 Wapp 被动指纹
 
@@ -42,7 +44,7 @@ PoC 的 `purpose` 为 `discovery`、`verification` 或 `check`；旧规则省略
 
 - discovery 用于确认产品页面、面板、版本、健康状态或公开元数据。命中不会计入漏洞验证数。
 - verification 必须是注册表中审核过的精确 native 定义，包含 CVE、类别、证据等级及上游 `source_pin`。用户不能把普通规则仅靠填写 `purpose` 或 metadata 升级为 verification。
-- check 保留给不属于产品发现、也没有 verification 证据合同的安全检查；当前 Nuclei 原始 catalog 中的 check 仍不可执行。
+- check 保留给不属于产品发现、也没有 verification 证据合同的安全检查；通过 `http-basic-v1` 导入的执行规则使用该 purpose，目录条目本身仍不可执行。
 
 verification 使用按顺序的 `probe` / `control` 请求。Agent 回传每项完整原始请求响应，控制面再按冻结任务规则核对请求的同源、方法、URI、Header、响应 matcher 和整体差分结果；缺项、截断或阴性对照失败的 `matched` 不会入库。结果详情展示逐请求 evidence 和固定上游来源。完整规则清单与结果语义见 [只读漏洞验证](READONLY_VERIFICATION.md)。
 

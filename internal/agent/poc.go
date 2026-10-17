@@ -43,6 +43,9 @@ func (a *Agent) runPoC(ctx context.Context, task Task, emit func(Observation) er
 		return &TaskError{Reason: "invalid poc rule: " + err.Error(), Retryable: false}
 	}
 	base, err := pocBaseURL(payload.Endpoint)
+	if isOriginalNucleiRule(rule) {
+		base, err = pocOriginalBaseURL(payload.Endpoint)
+	}
 	if err != nil {
 		return &TaskError{Reason: "invalid poc endpoint: " + err.Error(), Retryable: false}
 	}
@@ -73,6 +76,32 @@ func pocBaseURL(ep Endpoint) (*url.URL, error) {
 	return u, nil
 }
 
+func isOriginalNucleiRule(rule rulelib.Rule) bool {
+	return rule.Nuclei != nil && rule.Nuclei.ExecutionProfile == rulelib.NucleiExecutionProfileHTTPBasic
+}
+
+// pocOriginalBaseURL preserves the endpoint path because Nuclei's BaseURL is
+// path-sensitive. A trailing slash is trimmed so {{BaseURL}}/path does not
+// produce a doubled separator.
+func pocOriginalBaseURL(ep Endpoint) (*url.URL, error) {
+	if _, err := pocBaseURL(ep); err != nil {
+		return nil, err
+	}
+	raw, err := endpointURL(ep)
+	if err != nil {
+		return nil, err
+	}
+	parsed, err := url.Parse(raw)
+	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Hostname() == "" || parsed.User != nil {
+		return nil, fmt.Errorf("endpoint must be an HTTP(S) URL without userinfo")
+	}
+	parsed.RawQuery, parsed.Fragment, parsed.ForceQuery = "", "", false
+	parsed.Path = strings.TrimRight(parsed.Path, "/")
+	parsed.RawPath = strings.TrimRight(parsed.RawPath, "/")
+	parsed.Host = canonicalURLHost(parsed)
+	return parsed, nil
+}
+
 func canonicalURLHost(u *url.URL) string {
 	host := strings.ToLower(strings.TrimSuffix(u.Hostname(), "."))
 	port := urlPort(u)
@@ -87,11 +116,17 @@ func canonicalURLHost(u *url.URL) string {
 
 func newPoCObservation(ep Endpoint, base *url.URL, rule rulelib.Rule) Observation {
 	port, _ := strconv.Atoi(urlPort(base))
-	return Observation{
+	observation := Observation{
 		Kind: "poc", Target: endpointTarget(ep), IP: ep.IP, Port: port, Protocol: base.Scheme, URL: base.String(),
 		RuleID: rule.ID, RuleName: rule.Name, RuleRevision: rule.Revision,
 		Engine: rule.Engine, Severity: rule.Severity,
 	}
+	if rule.Nuclei != nil {
+		observation.TemplateID = rule.Nuclei.TemplateID
+		observation.ExecutionProfile = rule.Nuclei.ExecutionProfile
+		observation.ContentSHA256 = rule.Nuclei.ContentSHA256
+	}
+	return observation
 }
 
 func (a *Agent) runNativePoC(ctx context.Context, ep Endpoint, base *url.URL, rule rulelib.Rule, obs Observation) Observation {

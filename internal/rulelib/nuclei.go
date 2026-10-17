@@ -95,6 +95,29 @@ func validateNucleiMetadata(template string, metadata *NucleiMetadata) error {
 	if metadata == nil {
 		return fmt.Errorf("nuclei metadata is required")
 	}
+	if metadata.ExecutionProfile != "" {
+		if metadata.ExecutionProfile != NucleiExecutionProfileHTTPBasic {
+			return fmt.Errorf("unsupported nuclei execution profile %q", metadata.ExecutionProfile)
+		}
+		analysis, err := AnalyzeNucleiOriginal([]byte(template))
+		if err != nil {
+			return err
+		}
+		indexed := analysis.Metadata
+		if metadata.TemplateID != indexed.TemplateID || metadata.ContentSHA256 != indexed.ContentSHA256 ||
+			metadata.Raw != indexed.Raw || !equalStrings(metadata.Protocols, indexed.Protocols) ||
+			!equalStrings(metadata.Capabilities, indexed.Capabilities) || !equalOptionalInt(metadata.RequestCount, indexed.RequestCount) ||
+			!equalJSON(metadata.Info, indexed.Info) || !equalJSON(metadata.Classification, indexed.Classification) {
+			return fmt.Errorf("executable nuclei metadata does not match the original template")
+		}
+		if metadata.CatalogOnly || metadata.RuntimeReason != "" {
+			return fmt.Errorf("executable nuclei metadata cannot be catalog-only")
+		}
+		return nil
+	}
+	if metadata.ContentSHA256 != "" {
+		return fmt.Errorf("content_sha256 requires an execution profile")
+	}
 	indexed, err := InspectNucleiTemplate([]byte(template))
 	if err != nil {
 		return err

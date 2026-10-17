@@ -76,9 +76,11 @@ Agent 以引导令牌调用 `POST /api/workers/register`，获得独立会话令
 
 创建任务可设置 `poc_enabled:true`（必须包含 HTTP 模式）及 `poc_rule_ids:["poc-security-txt"]`。省略或空数组表示按端点指纹自动筛选已启用的产品型 PoC；默认 `poc_enabled:false` 不创建 PoC 任务。创建时保存 HTTP / 端口 / 所选 PoC 的规则快照。
 
-规则更新采用 `expected_revision` 乐观并发控制，冲突返回 409；详情和列表都有 `revision`。列表包含精简的 `match_summary`；完整定义从详情或导出接口获取。导入提交 `{ "format": "json" | "nuclei", "content": "原始文件内容" }`，JSON 一次最多 10,000 条。只有 `/api/library/import` 的请求体上限为 32 MiB，以容纳完整 Wapp 导出包经过外层 JSON 字符串转义后的膨胀；其他 JSON API 仍为 8 MiB。导出包可携带 `licenses` / `notices` 备份元数据。
+规则更新采用 `expected_revision` 乐观并发控制，冲突返回 409；详情和列表都有 `revision`。列表包含精简的 `match_summary`；完整定义从详情或导出接口获取。导入提交 `{ "format": "json" | "nuclei", "content": "原始文件内容" }`，JSON 一次最多 10,000 条。Nuclei 导入可增加 `execution_profile:"http-basic-v1"`，保存原始 YAML 字节并执行受支持的静态 HTTP 子集；省略该字段或传 `legacy` 保持旧版规范化导入。只有 `/api/library/import` 的请求体上限为 32 MiB，以容纳完整 Wapp 导出包经过外层 JSON 字符串转义后的膨胀；其他 JSON API 仍为 8 MiB。导出包可携带 `licenses` / `notices` 备份元数据。
 
-PoC 观测包含 `rule_id`、`rule_name`、`rule_revision`、`engine`、`severity`、`finding_status`、`evidence` 和 `purpose`；详情包含 `request_raw`、`response_raw`、`error`、`truncated`。verification 另含只读的 CVE / 类别 / 证据等级 / source pin metadata，以及按定义顺序排列的 `checks:[{request_raw,response_raw}]`。分类和 metadata 由控制面从冻结任务规则写入，不信任 Worker 自行上报。
+执行型原始规则的 `nuclei` metadata 含 `template_id`、`execution_profile:"http-basic-v1"`、`content_sha256`、`request_count` 和原始 `info` / `classification`。平台规则 ID 与模板 ID 分开；导入、导出及 Agent 临时文件都保留原文字节。此类规则必须是 `poc`、`purpose:"check"`、有 `applies_to` 产品绑定且 `catalog_only:false`。Agent 认领时声明 `supports_nuclei_http_original:true`；旧 Agent 不会领取新格式任务。
+
+PoC 观测包含 `rule_id`、`rule_name`、`rule_revision`、`engine`、`severity`、`finding_status`、`evidence` 和 `purpose`；原始 YAML 执行另含 `template_id`、`execution_profile`、`content_sha256`。详情包含 `request_raw`、`response_raw`、`error`、`truncated`。verification 另含只读的 CVE / 类别 / 证据等级 / source pin metadata，以及按定义顺序排列的 `checks:[{request_raw,response_raw}]`。分类和 metadata 由控制面从冻结任务规则写入，不信任 Worker 自行上报。
 
 `finding_status` 为 `matched`、`not_matched` 或 `error`。`findings` 接口返回 `{items,total,summary:{matched,not_matched,error,verification_matched,check_matched,discovery_matched}}`，只统计当前执行版本；`purpose` 可筛选列表。Run 的 `finding_count` 保持为全部 matched 的兼容总数，另有 `verification_finding_count`、`check_match_count`、`discovery_match_count` 和 `poc_checked_count`。
 

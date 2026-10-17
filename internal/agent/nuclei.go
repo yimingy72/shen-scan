@@ -4,13 +4,16 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"scanplatform/internal/rulelib"
 )
@@ -20,6 +23,29 @@ const (
 	maxNucleiLine          = 1 << 20
 	maxNucleiSavedResponse = 192 << 10
 )
+
+func (a *Agent) supportsNucleiOriginal() bool {
+	a.nucleiOriginalOnce.Do(func() {
+		binary, err := exec.LookPath(a.cfg.NucleiBinary)
+		if err != nil {
+			return
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		output, err := exec.CommandContext(ctx, binary, "-h").CombinedOutput()
+		if err != nil {
+			return
+		}
+		help := string(output)
+		for _, flag := range []string{"-matcher-status", "-include-rr", "-proxy-internal", "-no-httpx", "-auth"} {
+			if !strings.Contains(help, flag) {
+				return
+			}
+		}
+		a.nucleiOriginalOK = true
+	})
+	return a.nucleiOriginalOK
+}
 
 type boundedCapture struct {
 	bytes.Buffer
@@ -53,10 +79,36 @@ type nucleiEvent struct {
 	Error         string `json:"error"`
 }
 
-func (a *Agent) runNucleiPoC(ctx context.Context, ep Endpoint, baseURL fmt.Stringer, rule rulelib.Rule, obs Observation) Observation {
-	parsed, err := rulelib.ParseNuclei(rule.Template)
-	if err != nil {
-		return pocError(obs, "nuclei template failed strict validation: "+err.Error())
+func (a *Agent) runNucleiPoC(ctx context.Context, ep Endpoint, baseURL *url.URL, rule rulelib.Rule, obs Observation) Observation {
+	original := isOriginalNucleiRule(rule)
+	var templateBytes []byte
+	var scopeRequests []rulelib.Request
+	expectedTemplateID := rule.ID
+	negativeBody := false
+	if original {
+		analysis, err := rulelib.AnalyzeNucleiOriginal([]byte(rule.Template))
+		if err != nil {
+			return pocError(obs, "original nuclei template failed compatibility validation: "+err.Error())
+		}
+		if rule.Nuclei == nil || rule.Nuclei.TemplateID != analysis.Plan.TemplateID ||
+			rule.Nuclei.ContentSHA256 != analysis.Plan.ContentSHA256 || rule.Nuclei.ExecutionProfile != rulelib.NucleiExecutionProfileHTTPBasic {
+			return pocError(obs, "original nuclei metadata does not match the dispatched template")
+		}
+		scopeRequests, err = rulelib.ResolveNucleiOriginalRequests(analysis.Plan, baseURL)
+		if err != nil {
+			return pocError(obs, "resolve original nuclei request scope: "+err.Error())
+		}
+		templateBytes = []byte(rule.Template)
+		expectedTemplateID = analysis.Plan.TemplateID
+		negativeBody = analysis.Plan.HasNegativeBodyMatcher
+	} else {
+		parsed, err := rulelib.ParseNuclei(rule.Template)
+		if err != nil {
+			return pocError(obs, "nuclei template failed strict validation: "+err.Error())
+		}
+		templateBytes = []byte(parsed.Template)
+		scopeRequests = parsed.Definition.Requests
+		negativeBody = hasNegativeBodyMatcher(rule)
 	}
 	binary, err := exec.LookPath(a.cfg.NucleiBinary)
 	if err != nil {
@@ -77,12 +129,22 @@ func (a *Agent) runNucleiPoC(ctx context.Context, ep Endpoint, baseURL fmt.Strin
 		}
 	}
 	templatePath := filepath.Join(workDir, "template.yaml")
-	if err := os.WriteFile(templatePath, []byte(parsed.Template), 0o600); err != nil {
+	if err := os.WriteFile(templatePath, templateBytes, 0o600); err != nil {
 		return pocError(obs, "write nuclei template: "+err.Error())
+	}
+	if original {
+		written, err := os.ReadFile(templatePath)
+		if err != nil {
+			return pocError(obs, "read back nuclei template: "+err.Error())
+		}
+		digest := sha256.Sum256(written)
+		if fmt.Sprintf("%x", digest[:]) != rule.Nuclei.ContentSHA256 {
+			return pocError(obs, "nuclei template digest changed before execution")
+		}
 	}
 	errorLog := filepath.Join(workDir, "errors.log")
 
-	proxy, err := a.startScopeProxy(ctx, ep, baseURL.String(), parsed.Definition.Requests)
+	proxy, err := a.startScopeProxy(ctx, ep, baseURL.String(), scopeRequests)
 	if err != nil {
 		return pocError(obs, "start nuclei scope proxy: "+err.Error())
 	}
@@ -136,7 +198,7 @@ func (a *Agent) runNucleiPoC(ctx context.Context, ep Endpoint, baseURL fmt.Strin
 	} else if readErr != nil && !errors.Is(readErr, os.ErrNotExist) {
 		return nucleiError(obs, "read nuclei error log: "+readErr.Error(), proxy)
 	}
-	return nucleiOutcome(obs, rule, stdout.Bytes(), proxy)
+	return nucleiOutcome(obs, rule, expectedTemplateID, stdout.Bytes(), proxy, negativeBody)
 }
 
 func nucleiError(obs Observation, message string, proxy *scopeProxy) Observation {
@@ -163,7 +225,7 @@ func nucleiEnvironment(workDir string) []string {
 	}
 }
 
-func nucleiOutcome(obs Observation, rule rulelib.Rule, output []byte, proxy *scopeProxy) Observation {
+func nucleiOutcome(obs Observation, rule rulelib.Rule, expectedTemplateID string, output []byte, proxy *scopeProxy, negativeBody bool) Observation {
 	scanner := bufio.NewScanner(bytes.NewReader(output))
 	scanner.Buffer(make([]byte, 64<<10), maxNucleiLine)
 	matched, events, truncated := false, 0, false
@@ -178,7 +240,7 @@ func nucleiOutcome(obs Observation, rule rulelib.Rule, output []byte, proxy *sco
 		if err := json.Unmarshal(line, &event); err != nil {
 			return nucleiError(obs, "invalid nuclei JSONL: "+err.Error(), proxy)
 		}
-		if event.TemplateID != rule.ID {
+		if event.TemplateID != expectedTemplateID {
 			return nucleiError(obs, fmt.Sprintf("nuclei returned unexpected template id %q", event.TemplateID), proxy)
 		}
 		if event.Error != "" {
@@ -215,7 +277,7 @@ func nucleiOutcome(obs Observation, rule rulelib.Rule, output []byte, proxy *sco
 	}
 	obs.RequestRaw, obs.ResponseRaw = requests.String(), responses.String()
 	obs.Truncated = truncated || requests.Len() >= maxRawRequest || responses.Len() >= maxRawResponse || proxy.Truncated()
-	if obs.Truncated && hasNegativeBodyMatcher(rule) {
+	if obs.Truncated && negativeBody {
 		return nucleiError(obs, "nuclei response evidence was truncated; negative body matcher result is incomplete", proxy)
 	}
 	if !matched && obs.Truncated {

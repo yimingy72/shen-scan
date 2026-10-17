@@ -81,7 +81,7 @@ Agent 参数需要配置在 Worker 环境中，不是控制面 `.env` 的通用�
 
 推荐顺序为：先升级 Control，再升级 Agent 并安装 HTTPx，最后更新 Wapp source 和创建新任务。新版 Agent 在 claim 中声明 rules_ref 与 HTTPx capability；含 Wapp CFF 的 HTTP task 不会分配给旧 Agent。旧 Agent 仍可处理不要求 HTTPx 的历史快照和其他任务类型。不要在 Control 已升级而 Agent / HTTPx 尚未就绪的间隙启动新的 Wapp HTTP 任务。
 
-手动 Worker 的 `NUCLEI_BINARY` 可指定引擎路径，默认从 PATH 查找 `nuclei`。云发布包安装到 `/usr/local/bin/nuclei`。缺失引擎或执行失败会记录“检测错误”，不会当作未命中。每 Worker 最多一个 PoC 任务；Nuclei 不使用用户 HOME、云账号、外部回连或自动模板下载。
+手动 Worker 的 `NUCLEI_BINARY` 可指定引擎路径，默认从 PATH 查找 `nuclei`。云发布包安装到 `/usr/local/bin/nuclei`。缺失引擎或执行失败会记录“检测错误”，不会当作未命中。新版 Agent 认领时会检查二进制及原始 YAML 所需参数，并上报 `supports_nuclei_http_original`；旧 Agent 不会领取 `http-basic-v1` 任务。滚动升级时先停止创建新格式任务，等空闲 Worker 分批替换，再恢复派发。每 Worker 最多一个 PoC 任务；Nuclei 不使用用户 HOME、云账号、外部回连或自动模板下载。
 
 手动 Worker 的 `HTTPX_BINARY` 可指定 HTTPx 路径，云发布包安装到 `/usr/local/bin/httpx`。缺少 HTTPx 的新任务会 retryable release，不把规则记成永久失败。Nuclei 全量上游原库不会打包进任务，也不会由当前 Nuclei 二进制执行。
 
