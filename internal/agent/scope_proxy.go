@@ -98,7 +98,7 @@ func (proxy *scopeProxy) ServeHTTP(w http.ResponseWriter, request *http.Request)
 	proxy.mu.Lock()
 	proxy.requestCount++
 	proxy.mu.Unlock()
-	response, err := (budgetHTTPTransport{proxy.transport}).RoundTrip(outbound)
+	response, err := (budgetHTTPTransport{transport: proxy.transport, timeout: 8 * time.Second}).RoundTrip(outbound)
 	if err != nil {
 		proxy.reject(w, err)
 		return

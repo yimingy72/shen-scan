@@ -4,27 +4,28 @@ import (
 	"context"
 	"crypto/subtle"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
-	"net/http/httptrace"
 	"net/url"
 	"strconv"
-	"sync"
 	"time"
+
+	"scanplatform/internal/httpadmission"
 )
 
 type httpBudgetKey struct{}
 type httpTaskBudget struct {
 	agent *Agent
 	task  Task
-	mu    sync.Mutex
+	lock  chan struct{}
 	seq   int64
 }
 
 func (a *Agent) withHTTPBudget(ctx context.Context, task Task) context.Context {
-	return context.WithValue(ctx, httpBudgetKey{}, &httpTaskBudget{agent: a, task: task})
+	return context.WithValue(ctx, httpBudgetKey{}, &httpTaskBudget{agent: a, task: task, lock: make(chan struct{}, 1)})
 }
 
 func admitHTTPRequest(ctx context.Context, ip, host, port string) error {
@@ -32,14 +33,21 @@ func admitHTTPRequest(ctx context.Context, ip, host, port string) error {
 	return err
 }
 func admitHTTPPermit(ctx context.Context, ip, host, port string) (time.Time, error) {
+	return admitHTTPPermitMode(ctx, ip, host, port, true)
+}
+func admitHTTPPermitMode(ctx context.Context, ip, host, port string, wait bool) (time.Time, error) {
 	budget, ok := ctx.Value(httpBudgetKey{}).(*httpTaskBudget)
 	if !ok {
 		return time.Now().Add(500 * time.Millisecond), nil
 	} // Internal standalone collectors used by local fixtures.
 	// The server retains a single monotonic receipt/task. Serialize admissions so
 	// concurrent entries cannot reorder IDs or mistake a newer receipt for a replay.
-	budget.mu.Lock()
-	defer budget.mu.Unlock()
+	select {
+	case budget.lock <- struct{}{}:
+		defer func() { <-budget.lock }()
+	case <-ctx.Done():
+		return time.Time{}, context.Cause(ctx)
+	}
 	if err := ctx.Err(); err != nil {
 		return time.Time{}, context.Cause(ctx)
 	}
@@ -79,6 +87,9 @@ func admitHTTPPermit(ctx context.Context, ip, host, port string) (time.Time, err
 		if response.RetryAfterMS < 1 || response.RetryAfterMS > 5000 {
 			return time.Time{}, fmt.Errorf("invalid HTTP permit retry interval")
 		}
+		if !wait {
+			return time.Time{}, httpadmission.ErrPending
+		}
 		timer := time.NewTimer(time.Duration(response.RetryAfterMS) * time.Millisecond)
 		select {
 		case <-ctx.Done():
@@ -89,44 +100,14 @@ func admitHTTPPermit(ctx context.Context, ip, host, port string) (time.Time, err
 	}
 }
 
-// Admission runs after connection/TLS establishment and before net/http hands
-// the request to its write loop. Every fresh connection (including a retry) is
-// charged. All callers disable keepalives. Failed admission closes the socket
-// before returning to the writer, so a cancellation race cannot emit headers.
-type budgetHTTPTransport struct{ transport *http.Transport }
+type budgetHTTPTransport struct {
+	transport *http.Transport
+	timeout   time.Duration
+}
 
 func (b budgetHTTPTransport) RoundTrip(request *http.Request) (*http.Response, error) {
-	ctx, cancel := context.WithCancelCause(request.Context())
-
-	var permitErr error
-	trace := &httptrace.ClientTrace{GotConn: func(info httptrace.GotConnInfo) {
-		permitErr = admitHTTPRequest(ctx, remoteHost(info.Conn.RemoteAddr()), request.URL.Hostname(), urlPort(request.URL))
-		if permitErr != nil {
-			_ = info.Conn.Close()
-			cancel(permitErr)
-		}
-	}}
-	response, err := b.transport.RoundTrip(request.Clone(httptrace.WithClientTrace(ctx, trace)))
-	if permitErr != nil {
-		if response != nil {
-			response.Body.Close()
-		}
-		return nil, permitErr
-	}
-	if err != nil {
-		cancel(err)
-		return nil, err
-	}
-	response.Body = &budgetHTTPBody{ReadCloser: response.Body, cancel: cancel}
-	return response, nil
+	return (httpadmission.Transport{Base: b.transport, NetworkTimeout: b.timeout, Permit: admitHTTPPermitMode}).RoundTrip(request)
 }
-
-type budgetHTTPBody struct {
-	io.ReadCloser
-	cancel context.CancelCauseFunc
-}
-
-func (b *budgetHTTPBody) Close() error { err := b.ReadCloser.Close(); b.cancel(nil); return err }
 
 // This callback carries only one item's random bearer token. Worker credentials
 // and the complete task binding remain in this process, never helper IPC/env.
@@ -148,8 +129,9 @@ func startWebAdmission(ctx context.Context, inputID, fixedIP string, base *url.U
 			return
 		}
 		var item struct {
-			ID  string `json:"id"`
-			URL string `json:"url"`
+			ID   string `json:"id"`
+			URL  string `json:"url"`
+			Wait *bool  `json:"wait,omitempty"`
 		}
 		if json.NewDecoder(io.LimitReader(r.Body, 4097)).Decode(&item) != nil || item.ID != inputID {
 			http.Error(w, "invalid item", 400)
@@ -160,8 +142,13 @@ func startWebAdmission(ctx context.Context, inputID, fixedIP string, base *url.U
 			http.Error(w, "outside entry", 400)
 			return
 		}
-		deadline, err := admitHTTPPermit(r.Context(), fixedIP, target.Hostname(), urlPort(target))
+		wait := item.Wait == nil || *item.Wait
+		deadline, err := admitHTTPPermitMode(r.Context(), fixedIP, target.Hostname(), urlPort(target), wait)
 		if err != nil {
+			if errors.Is(err, httpadmission.ErrPending) {
+				http.Error(w, "pending", http.StatusTooManyRequests)
+				return
+			}
 			http.Error(w, "admission failed", 503)
 			return
 		}

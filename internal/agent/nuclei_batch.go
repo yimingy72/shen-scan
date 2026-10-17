@@ -94,7 +94,7 @@ func (a *Agent) runNucleiBatch(ctx context.Context, ep Endpoint, rules []rulelib
 	defer proxy.Close()
 	args := []string{"-target", base.String(), "-templates", strings.Join(files, ","), "-type", "http", "-jsonl", "-silent", "-no-color", "-matcher-status", "-include-rr", "-disable-clustering",
 		"-disable-update-check", "-no-interactsh", "-disable-redirects", "-no-httpx", "-no-stdin", "-proxy", proxy.URL(), "-proxy-internal", "-auth=false",
-		"-rate-limit", "3", "-bulk-size", "1", "-concurrency", "1", "-payload-concurrency", "1", "-retries", "0", "-timeout", "8", "-response-size-read", "1048576", "-response-size-save", "196608"}
+		"-rate-limit", "3", "-bulk-size", "1", "-concurrency", "1", "-payload-concurrency", "1", "-retries", "0", "-timeout", "90", "-response-size-read", "1048576", "-response-size-save", "196608"}
 	cmd := exec.Command(binary, args...)
 	setProcessGroup(cmd)
 	cmd.Dir = work

@@ -136,7 +136,7 @@ func TestWebProbeProcessReuseCancellationAndIdentity(t *testing.T) {
 	bad := filepath.Join(t.TempDir(), "wrong-reply")
 	script := `#!/bin/sh
 if [ "$1" = "--capabilities" ]; then
- echo '{"request_admission":"loopback-v1","stream_protocol":"jsonl-item-v1"}'
+ echo '{"request_admission":"loopback-v2","stream_protocol":"jsonl-item-v1"}'
  exit 0
 fi
 if [ -n "$HTTP_BUDGET_TEST_SECRET" ]; then exit 9; fi
@@ -205,7 +205,8 @@ func TestWebProbePermitsTLSPageAndIcons(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if json.Unmarshal(output, &result) != nil || result.Response.StatusCode != 0 || !strings.Contains(result.Response.Error, "HTTP admission") || requests.Load() != 3 || permits.Load() != 3 {
+	result = webevidence.ProbeResult{}
+	if json.Unmarshal(output, &result) != nil || result.Response.StatusCode != 0 || !strings.Contains(result.Response.Error, "admission") || requests.Load() != 3 || permits.Load() != 3 {
 		t.Fatalf("denied helper callback emitted traffic: actual=%d permits=%d result=%+v", requests.Load(), permits.Load(), result)
 	}
 }

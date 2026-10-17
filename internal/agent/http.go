@@ -9,7 +9,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"net/http/httptrace"
 	"net/http/httputil"
 	"net/url"
 	"regexp"
@@ -18,6 +17,7 @@ import (
 	"sync"
 	"time"
 
+	"scanplatform/internal/httpadmission"
 	"scanplatform/internal/rulelib"
 )
 
@@ -192,7 +192,7 @@ func (a *Agent) acquireHTTPTarget(ctx context.Context, key string) (func(), erro
 }
 
 func (a *Agent) fetchHTTP(ctx context.Context, ep Endpoint, timeout time.Duration) Observation {
-	endpointCtx, cancel := context.WithTimeout(ctx, timeout)
+	endpointCtx, cancel := context.WithTimeout(ctx, 90*time.Second)
 	defer cancel()
 	firstTimeout := timeout
 	if ep.URL == "" && timeout > time.Nanosecond {
@@ -231,17 +231,11 @@ func (a *Agent) fetchHTTPOnce(ctx context.Context, ep Endpoint, timeout time.Dur
 	}
 	setObservationURL(&obs, u)
 
-	requestCtx, cancel := context.WithTimeout(ctx, timeout)
+	requestCtx, cancel := context.WithTimeout(ctx, 90*time.Second)
 	defer cancel()
 	var remoteMu sync.Mutex
 	remoteIP := ""
-	requestCtx = httptrace.WithClientTrace(requestCtx, &httptrace.ClientTrace{GotConn: func(info httptrace.GotConnInfo) {
-		if host := remoteHost(info.Conn.RemoteAddr()); host != "" {
-			remoteMu.Lock()
-			remoteIP = host
-			remoteMu.Unlock()
-		}
-	}})
+
 	req, err := http.NewRequestWithContext(requestCtx, http.MethodGet, targetURL, nil)
 	if err != nil {
 		obs.Error = err.Error()
@@ -252,8 +246,16 @@ func (a *Agent) fetchHTTPOnce(ctx context.Context, ep Endpoint, timeout time.Dur
 	req.Header.Set("Accept-Encoding", "identity")
 
 	transport := &http.Transport{
-		Proxy:                  nil,
-		DialContext:            a.safeDialer(ep.IP, u.Hostname()),
+		Proxy: nil,
+		DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
+			conn, err := a.safeDialer(ep.IP, u.Hostname())(ctx, network, address)
+			if err == nil {
+				remoteMu.Lock()
+				remoteIP = remoteHost(conn.RemoteAddr())
+				remoteMu.Unlock()
+			}
+			return conn, err
+		},
 		TLSClientConfig:        &tls.Config{InsecureSkipVerify: true, MinVersion: tls.VersionTLS10}, // scanner records self-signed and legacy endpoints
 		TLSHandshakeTimeout:    10 * time.Second,
 		ResponseHeaderTimeout:  minDuration(timeout, 20*time.Second),
@@ -261,7 +263,7 @@ func (a *Agent) fetchHTTPOnce(ctx context.Context, ep Endpoint, timeout time.Dur
 		DisableCompression:     true,
 		MaxResponseHeaderBytes: 32 << 10,
 	}
-	client := &http.Client{Transport: budgetHTTPTransport{transport}, Timeout: timeout}
+	client := &http.Client{Transport: budgetHTTPTransport{transport: transport, timeout: timeout}}
 	client.CheckRedirect = func(next *http.Request, via []*http.Request) error {
 		if len(via) >= 5 {
 			return fmt.Errorf("too many redirects")
@@ -315,6 +317,7 @@ func (a *Agent) safeDialer(fixedIP string, fixedHost ...string) func(context.Con
 		boundHost = fixedHost[0]
 	}
 	return func(ctx context.Context, network, address string) (net.Conn, error) {
+		ctx = httpadmission.RequestContext(ctx)
 		host, port, err := net.SplitHostPort(address)
 		if err != nil {
 			return nil, err
@@ -323,11 +326,18 @@ func (a *Agent) safeDialer(fixedIP string, fixedHost ...string) func(context.Con
 		if err != nil {
 			return nil, err
 		}
-		return dialer.DialContext(ctx, network, net.JoinHostPort(dialHost, port))
+		ctx, err = httpadmission.BeforeDial(ctx, dialHost, host, port)
+		if err != nil {
+			return nil, err
+		}
+		conn, err := dialer.DialContext(ctx, network, net.JoinHostPort(dialHost, port))
+		return httpadmission.AfterDial(ctx, conn, err)
 	}
 }
 
 func (a *Agent) httpDialHost(ctx context.Context, host, port, fixedIP, fixedHost string) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, 8*time.Second)
+	defer cancel()
 	if err := a.policy.validateEndpoint(ctx, host, port); err != nil {
 		return "", err
 	}

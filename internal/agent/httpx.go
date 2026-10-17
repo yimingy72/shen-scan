@@ -237,17 +237,13 @@ func (a *Agent) runHTTPXBatch(ctx context.Context, endpoints []Endpoint, rules [
 	if err := os.WriteFile(cffPath, cff, 0o600); err != nil {
 		return err
 	}
-	timeoutSeconds := int(timeout / time.Second)
-	if timeoutSeconds < 1 {
-		timeoutSeconds = 1
-	}
 	args := []string{
 		"-list", targetPath, "-json", "-include-response", "-probe",
 		"-status-code", "-title", "-web-server", "-tech-detect", "-custom-fingerprint-file", cffPath,
 		"-silent", "-no-color", "-disable-update-check", "-no-stdin", "-no-fallback-scheme", "-stream",
 		"-proxy", proxy.URL(), "-auth=false", "-cdn=false", "-random-agent=false",
 		"-threads", strconv.Itoa(a.cfg.HTTPXThreads), "-rate-limit", strconv.Itoa(a.cfg.HTTPXThreads),
-		"-retries", "0", "-timeout", strconv.Itoa(timeoutSeconds), "-max-host-error", strconv.Itoa(max(4, len(targets)*2)),
+		"-retries", "0", "-timeout", "90", "-max-host-error", strconv.Itoa(max(4, len(targets)*2)),
 		"-response-size-to-read", strconv.Itoa(maxHTTPBody), "-response-size-to-save", strconv.Itoa(maxHTTPBody),
 	}
 	seen := make(map[string]bool, len(targets))

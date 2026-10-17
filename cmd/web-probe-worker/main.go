@@ -16,7 +16,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"net/http/httptrace"
 	"net/http/httputil"
 	"net/url"
 	"os"
@@ -27,12 +26,13 @@ import (
 	hx "github.com/projectdiscovery/httpx/common/httpx"
 	wapp "github.com/projectdiscovery/wappalyzergo"
 	"golang.org/x/net/html"
+	"scanplatform/internal/httpadmission"
 	"scanplatform/internal/webevidence"
 )
 
 func main() {
 	if len(os.Args) == 2 && os.Args[1] == "--capabilities" {
-		json.NewEncoder(os.Stdout).Encode(map[string]string{"protocol": webevidence.Protocol, "profile": webevidence.Profile, "engine": "httpx-sdk-v1.12.0/bounded-transport+wappalyzergo-v0.2.96", "request_admission": "loopback-v1", "stream_protocol": "jsonl-item-v1"})
+		json.NewEncoder(os.Stdout).Encode(map[string]string{"protocol": webevidence.Protocol, "profile": webevidence.Profile, "engine": "httpx-sdk-v1.12.0/bounded-transport+wappalyzergo-v0.2.96", "request_admission": "loopback-v2", "stream_protocol": "jsonl-item-v1"})
 		return
 	}
 	if err := serve(os.Stdin, os.Stdout); err != nil {
@@ -96,7 +96,9 @@ func probe(ctx context.Context, input webevidence.ProbeRequest) (webevidence.Pro
 		if count > 8 {
 			return webevidence.Response{URL: u.String(), Completeness: "missing", Error: "request budget exhausted"}
 		}
-		return collect(ctx, u, input.ConnectIP, timeout, limit, func(ctx context.Context) error { return admit(ctx, input, u) })
+		return collect(ctx, u, input.ConnectIP, timeout, limit, func(ctx context.Context, ip, host, port string, wait bool) (time.Time, error) {
+			return localHTTPPermit(ctx, input, u, wait)
+		})
 	}
 	result.Response = fetch(target, webevidence.MaxBody)
 	result.Attempts = append(result.Attempts, metadata(result.Response))
@@ -143,24 +145,13 @@ func metadata(response webevidence.Response) webevidence.Response {
 	return response
 }
 
-func collect(ctx context.Context, target *url.URL, ip string, timeout time.Duration, limit int, permits ...func(context.Context) error) webevidence.Response {
+func collect(ctx context.Context, target *url.URL, ip string, timeout time.Duration, limit int, permits ...httpadmission.Permit) webevidence.Response {
 	result := webevidence.Response{URL: target.String(), Host: target.Host, ConnectIP: ip, ObservedAt: time.Now().UTC(), Completeness: "missing"}
-	ctx, cancel := context.WithTimeout(ctx, timeout)
+	ctx, cancel := context.WithTimeout(ctx, 90*time.Second)
 	defer cancel()
 	sdk := &hx.HTTPX{Options: &hx.Options{DefaultUserAgent: "shen-scan/2"}}
-	requestCtx, cancelRequest := context.WithCancelCause(ctx)
-	defer cancelRequest(nil)
-	var permitErr error
-	if len(permits) > 0 {
-		requestCtx = httptrace.WithClientTrace(requestCtx, &httptrace.ClientTrace{GotConn: func(info httptrace.GotConnInfo) {
-			permitErr = permits[0](ctx)
-			if permitErr != nil {
-				info.Conn.Close()
-				cancelRequest(permitErr)
-			}
-		}})
-	}
-	request, err := sdk.NewRequestWithContext(requestCtx, http.MethodGet, target.String())
+
+	request, err := sdk.NewRequestWithContext(ctx, http.MethodGet, target.String())
 	if err != nil {
 		result.Error = err.Error()
 		return result
@@ -174,20 +165,29 @@ func collect(ctx context.Context, target *url.URL, ip string, timeout time.Durat
 		TLSClientConfig:     &tls.Config{InsecureSkipVerify: true, ServerName: target.Hostname(), MinVersion: tls.VersionTLS10},
 		TLSHandshakeTimeout: timeout, ResponseHeaderTimeout: timeout,
 		DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
+			ctx = httpadmission.RequestContext(ctx)
 			host, port, err := net.SplitHostPort(address)
 			if err != nil || !strings.EqualFold(host, target.Hostname()) || port != portOf(target) {
 				return nil, errors.New("dial outside fixed entry")
 			}
-			return (&net.Dialer{Timeout: timeout}).DialContext(ctx, network, net.JoinHostPort(ip, port))
+			ctx, err = httpadmission.BeforeDial(ctx, ip, host, port)
+			if err != nil {
+				return nil, err
+			}
+			conn, err := (&net.Dialer{Timeout: timeout}).DialContext(ctx, network, net.JoinHostPort(ip, port))
+			return httpadmission.AfterDial(ctx, conn, err)
 		},
 	}
 	defer transport.CloseIdleConnections()
-	client := &http.Client{Transport: transport, Timeout: timeout, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
-	response, err := client.Do(request.Request)
-	if permitErr != nil {
-		result.Error = "HTTP admission: " + permitErr.Error()
-		return result
+	permit := httpadmission.Permit(func(context.Context, string, string, string, bool) (time.Time, error) {
+		return time.Now().Add(500 * time.Millisecond), nil
+	})
+	if len(permits) > 0 {
+		permit = permits[0]
 	}
+	client := &http.Client{Transport: httpadmission.Transport{Base: transport, NetworkTimeout: timeout, Permit: permit}, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	response, err := client.Do(request.Request)
+
 	if err != nil {
 		result.Error = err.Error()
 		return result
@@ -356,17 +356,21 @@ func cachedMatcher(cff []byte, digest string) (*wapp.Wappalyze, error) {
 }
 
 func admit(ctx context.Context, input webevidence.ProbeRequest, target *url.URL) error {
+	_, err := localHTTPPermit(ctx, input, target, true)
+	return err
+}
+func localHTTPPermit(ctx context.Context, input webevidence.ProbeRequest, target *url.URL, wait bool) (time.Time, error) {
 	if input.AdmissionURL == "" && input.AdmissionToken == "" {
-		return nil
+		return time.Now().Add(500 * time.Millisecond), nil
 	}
 	endpoint, err := url.Parse(input.AdmissionURL)
 	if err != nil || endpoint.Scheme != "http" || endpoint.Hostname() != "127.0.0.1" || endpoint.User != nil || input.AdmissionToken == "" {
-		return errors.New("invalid local admission endpoint")
+		return time.Time{}, errors.New("invalid local admission endpoint")
 	}
-	payload, _ := json.Marshal(map[string]string{"id": input.ID, "url": target.String()})
+	payload, _ := json.Marshal(map[string]any{"id": input.ID, "url": target.String(), "wait": wait})
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint.String(), bytes.NewReader(payload))
 	if err != nil {
-		return err
+		return time.Time{}, err
 	}
 	request.Header.Set("Authorization", "Bearer "+input.AdmissionToken)
 	transport := &http.Transport{Proxy: nil, DisableKeepAlives: true}
@@ -375,29 +379,33 @@ func admit(ctx context.Context, input webevidence.ProbeRequest, target *url.URL)
 	sentAt := time.Now()
 	response, err := client.Do(request)
 	if err != nil {
-		return err
+		return time.Time{}, err
 	}
 	defer response.Body.Close()
+	if !wait && response.StatusCode == http.StatusTooManyRequests {
+		return time.Time{}, httpadmission.ErrPending
+	}
 	if response.StatusCode != http.StatusOK {
-		return fmt.Errorf("local admission returned %s", response.Status)
+		return time.Time{}, fmt.Errorf("local admission returned %s", response.Status)
 	}
 	var permission struct {
 		ValidForMS int64 `json:"valid_for_ms"`
 		WaitedMS   int64 `json:"waited_ms"`
 	}
 	if json.NewDecoder(io.LimitReader(response.Body, 1024)).Decode(&permission) != nil || permission.ValidForMS <= 0 || permission.ValidForMS > 1000 || permission.WaitedMS < 0 || permission.WaitedMS > 90000 {
-		return errors.New("invalid local HTTP permit")
+		return time.Time{}, errors.New("invalid local HTTP permit")
 	}
-	elapsed := time.Since(sentAt)
+	received := time.Now()
+	elapsed := received.Sub(sentAt)
 	waited := time.Duration(permission.WaitedMS) * time.Millisecond
 	// The Agent reports a fresh remaining TTL after queueing. Deduct only
 	// delivery/IPC overhead; charging its monotonic handler time twice rejects
 	// valid grants when the shared queue takes longer than the permit lifetime.
 	if waited > elapsed || max(time.Duration(0), elapsed-waited) >= time.Duration(permission.ValidForMS)*time.Millisecond {
-		return errors.New("local HTTP permit expired")
+		return time.Time{}, errors.New("local HTTP permit expired")
 	}
 	if ctx.Err() != nil {
-		return context.Cause(ctx)
+		return time.Time{}, context.Cause(ctx)
 	}
-	return nil
+	return received.Add(time.Duration(permission.ValidForMS)*time.Millisecond - max(time.Duration(0), elapsed-waited)), nil
 }

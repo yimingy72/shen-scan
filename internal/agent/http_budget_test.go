@@ -57,7 +57,7 @@ func TestHTTPPermitFailureClosesBeforeHeaders(t *testing.T) {
 			defer cancel()
 			ctx = a.withHTTPBudget(ctx, Task{ID: "fixture", AttemptNo: 1})
 			obs := a.fetchHTTP(ctx, Endpoint{URL: target.URL}, time.Second)
-			if obs.Error == "" || obs.StatusCode != 0 || seen.Load() != 0 {
+			if obs.Error == "" || obs.StatusCode != 0 || obs.IP != "" || seen.Load() != 0 {
 				t.Fatalf("unauthorized request emitted: %+v, target requests=%d", obs, seen.Load())
 			}
 		})
@@ -161,5 +161,78 @@ func TestWebAdmissionReportsQueueTime(t *testing.T) {
 	}
 	if json.NewDecoder(response.Body).Decode(&permission) != nil || response.StatusCode != 200 || permission.Waited < 690 || permission.ValidFor <= 0 || permission.ValidFor > 500 {
 		t.Fatalf("bad queued callback permission: %+v status=%d", permission, response.StatusCode)
+	}
+}
+
+func TestHTTPAdmissionQueueBeforeNativeAndProxyConnections(t *testing.T) {
+	for _, mode := range []string{"native", "nuclei-proxy", "httpx-proxy"} {
+		t.Run(mode, func(t *testing.T) {
+			var connected atomic.Int32
+			target := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { fmt.Fprint(w, "ok") }))
+			target.Config.ReadHeaderTimeout = 50 * time.Millisecond
+			target.Config.ConnState = func(_ net.Conn, s http.ConnState) {
+				if s == http.StateNew {
+					connected.Add(1)
+				}
+			}
+			target.Start()
+			defer target.Close()
+			a := newHTTPXTestAgent(t, "unused")
+			var calls atomic.Int32
+			central := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if calls.Add(1) == 1 {
+					json.NewEncoder(w).Encode(map[string]any{"granted": false, "retry_after_ms": 700})
+					return
+				}
+				if connected.Load() != 0 {
+					t.Error("target socket held during permission queue")
+				}
+				now := time.Now().UTC()
+				json.NewEncoder(w).Encode(map[string]any{"granted": true, "server_time": now, "valid_until": now.Add(500 * time.Millisecond)})
+			}))
+			defer central.Close()
+			a.client.baseURL = central.URL
+			ctx, cancel := context.WithTimeout(a.withHTTPBudget(context.Background(), Task{ID: "fixture", AttemptNo: 1}), 3*time.Second)
+			defer cancel()
+			ep := Endpoint{URL: target.URL}
+			if mode == "native" {
+				observation := a.fetchHTTP(ctx, ep, 100*time.Millisecond)
+				if observation.Error != "" || observation.StatusCode != 200 {
+					t.Fatalf("native queue consumed network limit: %+v", observation)
+				}
+				return
+			}
+			var proxyURL string
+			if mode == "nuclei-proxy" {
+				proxy, err := a.startScopeProxy(ctx, ep, target.URL, []rulelib.Request{{Method: "GET", Path: "/"}})
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer proxy.Close()
+				proxyURL = proxy.URL()
+			} else {
+				targets, err := prepareHTTPXTargets(ctx, a, []Endpoint{ep})
+				if err != nil {
+					t.Fatal(err)
+				}
+				proxy, err := a.startHTTPXScopeProxy(ctx, targets)
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer proxy.Close()
+				proxyURL = proxy.URL()
+			}
+			parsed, _ := url.Parse(proxyURL)
+			request, _ := http.NewRequestWithContext(ctx, "GET", target.URL, nil)
+			response, err := (&http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(parsed)}, Timeout: 2 * time.Second}).Do(request)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer response.Body.Close()
+			io.Copy(io.Discard, response.Body)
+			if response.StatusCode != 200 {
+				t.Fatalf("proxy queue failed: %s", response.Status)
+			}
+		})
 	}
 }

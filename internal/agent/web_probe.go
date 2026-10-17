@@ -335,7 +335,7 @@ func (p *webProbeProcess) start(binary string) (err error) {
 		Admission string `json:"request_admission"`
 		Stream    string `json:"stream_protocol"`
 	}
-	if err != nil || advertised.overflow || json.Unmarshal(advertised.Bytes(), &contract) != nil || contract.Admission != "loopback-v1" || contract.Stream != "jsonl-item-v1" {
+	if err != nil || advertised.overflow || json.Unmarshal(advertised.Bytes(), &contract) != nil || contract.Admission != "loopback-v2" || contract.Stream != "jsonl-item-v1" {
 		return fmt.Errorf("web helper lacks request admission/item isolation capability")
 	}
 	dir, err := os.MkdirTemp("", "shen-web-")
@@ -580,7 +580,7 @@ func discoverWebCapabilities() (string, string, string) {
 		Admission string `json:"request_admission"`
 		Stream    string `json:"stream_protocol"`
 	}
-	if json.Unmarshal(raw, &profile) != nil || profile.Protocol != webevidence.Protocol || profile.Profile != webevidence.Profile || profile.Admission != "loopback-v1" || profile.Stream != "jsonl-item-v1" {
+	if json.Unmarshal(raw, &profile) != nil || profile.Protocol != webevidence.Protocol || profile.Profile != webevidence.Profile || profile.Admission != "loopback-v2" || profile.Stream != "jsonl-item-v1" {
 		return "", "", ""
 	}
 	matcher := os.Getenv("FINGERPRINT_WORKER_BINARY")

@@ -118,3 +118,31 @@ func TestAdmissionQueueAndDeliveryTiming(t *testing.T) {
 		})
 	}
 }
+
+func TestProbeQueueOutsideNetworkTimeout(t *testing.T) {
+	var connected, calls atomic.Int32
+	target := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("<title>ok</title>")) }))
+	target.Config.ReadHeaderTimeout = 50 * time.Millisecond
+	target.Config.ConnState = func(_ net.Conn, s http.ConnState) {
+		if s == http.StateNew {
+			connected.Add(1)
+		}
+	}
+	target.Start()
+	defer target.Close()
+	callback := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		started := time.Now()
+		if calls.Add(1) == 1 {
+			time.Sleep(700 * time.Millisecond)
+			if connected.Load() != 0 {
+				t.Error("helper held a target socket while queueing")
+			}
+		}
+		json.NewEncoder(w).Encode(map[string]int64{"valid_for_ms": 475, "waited_ms": time.Since(started).Milliseconds()})
+	}))
+	defer callback.Close()
+	result, err := probe(context.Background(), webevidence.ProbeRequest{Protocol: webevidence.Protocol, URL: target.URL, ConnectIP: "127.0.0.1", TimeoutMillis: 100, AdmissionURL: callback.URL, AdmissionToken: "local"})
+	if err != nil || result.Response.StatusCode != 200 {
+		t.Fatalf("helper network timer included queue: error=%v response=%+v", err, result.Response)
+	}
+}

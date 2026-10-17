@@ -39,6 +39,8 @@ type httpxScopeProxy struct {
 }
 
 func prepareHTTPXTargets(ctx context.Context, agent *Agent, endpoints []Endpoint) ([]httpxScopeTarget, error) {
+	ctx, cancel := context.WithTimeout(ctx, 8*time.Second)
+	defer cancel()
 	targets := make([]httpxScopeTarget, 0, len(endpoints))
 	seen := make(map[string]httpxScopeTarget)
 	for _, endpoint := range endpoints {
@@ -148,7 +150,7 @@ func (proxy *httpxScopeProxy) ServeHTTP(response http.ResponseWriter, request *h
 	outbound.RequestURI = ""
 	removeHopHeaders(outbound.Header)
 	outbound.Header.Del("Proxy-Authorization")
-	upstream, err := (budgetHTTPTransport{proxy.transport}).RoundTrip(outbound)
+	upstream, err := (budgetHTTPTransport{transport: proxy.transport, timeout: 8 * time.Second}).RoundTrip(outbound)
 	if err != nil {
 		http.Error(response, "upstream request failed", http.StatusBadGateway)
 		return

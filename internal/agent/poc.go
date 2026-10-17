@@ -194,7 +194,7 @@ func (a *Agent) nativePoCRequest(ctx context.Context, ep Endpoint, base *url.URL
 	if err != nil {
 		return rulelib.Input{}, "", "", false, err
 	}
-	requestCtx, cancel := context.WithTimeout(ctx, 8*time.Second)
+	requestCtx, cancel := context.WithTimeout(ctx, maxNativePoCExecution)
 	defer cancel()
 	req, err := http.NewRequestWithContext(requestCtx, definition.Method, requestURL.String(), nil)
 	if err != nil {
@@ -215,7 +215,7 @@ func (a *Agent) nativePoCRequest(ctx context.Context, ep Endpoint, base *url.URL
 		DisableKeepAlives: true, DisableCompression: true, MaxResponseHeaderBytes: 32 << 10,
 	}
 	defer transport.CloseIdleConnections()
-	client := &http.Client{Transport: budgetHTTPTransport{transport}, Timeout: 8 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error {
+	client := &http.Client{Transport: budgetHTTPTransport{transport: transport, timeout: 8 * time.Second}, CheckRedirect: func(*http.Request, []*http.Request) error {
 		return http.ErrUseLastResponse
 	}}
 	requestRaw := string(rawHTTPRequest(req))

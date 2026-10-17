@@ -64,7 +64,7 @@ func serveProxyTLS(ctx context.Context, w http.ResponseWriter, request *http.Req
 	}
 	conn := &closingProxyConn{Conn: client, done: make(chan struct{})}
 	listener := &proxyTLSListener{conn: conn}
-	server := &http.Server{Handler: handler, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 10 * time.Second, IdleTimeout: 8 * time.Second, MaxHeaderBytes: 32 << 10, BaseContext: func(net.Listener) context.Context { return ctx }}
+	server := &http.Server{Handler: handler, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 90 * time.Second, WriteTimeout: 90 * time.Second, IdleTimeout: 8 * time.Second, MaxHeaderBytes: 32 << 10, BaseContext: func(net.Listener) context.Context { return ctx }}
 	err = server.Serve(listener)
 	if err != nil && err != net.ErrClosed && err != http.ErrServerClosed {
 		return err

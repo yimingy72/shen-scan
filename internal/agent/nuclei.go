@@ -180,7 +180,7 @@ func (a *Agent) runNucleiPoC(ctx context.Context, ep Endpoint, baseURL *url.URL,
 		"-disable-update-check", "-no-interactsh", "-disable-redirects", "-no-httpx", "-no-stdin",
 		"-proxy", proxy.URL(), "-proxy-internal", "-auth=false",
 		"-rate-limit", "3", "-bulk-size", "1", "-concurrency", "1", "-payload-concurrency", "1",
-		"-retries", "0", "-timeout", "8", "-response-size-read", "1048576", "-response-size-save", "196608",
+		"-retries", "0", "-timeout", "90", "-response-size-read", "1048576", "-response-size-save", "196608",
 		"-error-log", errorLog,
 	}
 	cmd := exec.Command(binary, args...)
