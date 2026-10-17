@@ -1,11 +1,7 @@
 diff --git a/src/main.c b/src/main.c
-index 9218aa1..9d5b161 100644
 --- a/src/main.c
 +++ b/src/main.c
-@@ -1067,6 +1067,19 @@ receive_thread(void *v)
- 
- 
-     LOG(1, "[+] exiting receive thread #%u                    \n", parms->nic_index);
+@@ -1069,0 +1070,13 @@
 +
 +    {
 +        unsigned received;
@@ -19,26 +15,40 @@ index 9218aa1..9d5b161 100644
 +            LOG(0, "scan_capture: unavailable\n");
 +        }
 +    }
-     
-     /*
-      * cleanup
 diff --git a/src/rawsock.c b/src/rawsock.c
-index 223607f..bdcf0f1 100755
 --- a/src/rawsock.c
 +++ b/src/rawsock.c
-@@ -47,6 +47,8 @@ static int is_pcap_file = 0;
- #include "rawsock-adapter.h"
- 
- #define SENDQ_SIZE 65536 * 8
+@@ -23,0 +24,3 @@
++#if defined(__linux__)
++#include <poll.h>
++#endif
+@@ -49,0 +53,2 @@
 +#define RECEIVE_SNAPLEN 2048
 +#define RECEIVE_BUFFER_SIZE (32 * 1024 * 1024)
- 
- 
- struct AdapterNames
-@@ -396,6 +398,25 @@ int rawsock_recv_packet(
-     return 0;
- }
- 
+@@ -386,0 +392,19 @@
++#if defined(__linux__)
++            else {
++                /* A libpcap read timeout need not expire on an idle interface.
++                 * Live handles are nonblocking; wait only after buffered packets
++                 * have drained, then let receive_thread recheck is_rx_done. */
++                int fd = PCAP.get_selectable_fd(adapter->pcap);
++                if (fd >= 0) {
++                    struct pollfd ready;
++                    ready.fd = fd;
++                    ready.events = POLLIN;
++                    ready.revents = 0;
++                    if (poll(&ready, 1, 100) < 0 ||
++                            (ready.revents & (POLLERR | POLLHUP | POLLNVAL)))
++                        pixie_usleep(1000);
++                } else {
++                    pixie_usleep(1000);
++                }
++            }
++#endif
+@@ -395,0 +420,19 @@
++    return 0;
++}
++
 +int rawsock_get_capture_stats(
 +    struct Adapter *adapter,
 +    unsigned *received,
@@ -55,68 +65,62 @@ index 223607f..bdcf0f1 100755
 +    *received = stats.ps_recv;
 +    *dropped = stats.ps_drop;
 +    *interface_dropped = stats.ps_ifdrop;
-+    return 0;
-+}
-+
- 
- /***************************************************************************
-  * Sends the TCP SYN probe packet.
-@@ -733,7 +754,7 @@ rawsock_init_adapter(const char *adapter_name,
-         if (adapter->pcap == NULL) {
-             adapter->pcap = PCAP.open_live(
-                         adapter_name,           /* interface name */
+@@ -736 +779 @@
 -                        65536,                  /* max packet size */
 +                        RECEIVE_SNAPLEN,        /* max packet size */
-                         8,                      /* promiscuous mode */
-                         1000,                   /* read timeout in milliseconds */
-                         errbuf);
-@@ -746,7 +767,7 @@ rawsock_init_adapter(const char *adapter_name,
-                 return 0;
-             }
-         } else {
+@@ -749 +792 @@
 -            err = PCAP.set_snaplen(adapter->pcap, 65536);
 +            err = PCAP.set_snaplen(adapter->pcap, RECEIVE_SNAPLEN);
-             if (err) {
-                 PCAP.perror(adapter->pcap, "if: set_snaplen");
-                 goto pcap_error;
-@@ -770,6 +791,12 @@ rawsock_init_adapter(const char *adapter_name,
-                 goto pcap_error;
-             }
- 
-+            err = PCAP.set_buffer_size(adapter->pcap, RECEIVE_BUFFER_SIZE);
-+            if (err) {
-+                PCAP.perror(adapter->pcap, "if: set_buffer_size");
+@@ -769,0 +813,6 @@
 +                goto pcap_error;
 +            }
 +
-             /* If errors happen, they aren't likely to happen above, but will
-              * happen where when they are applied */
-             err = PCAP.activate(adapter->pcap);
++            err = PCAP.set_buffer_size(adapter->pcap, RECEIVE_BUFFER_SIZE);
++            if (err) {
++                PCAP.perror(adapter->pcap, "if: set_buffer_size");
+@@ -790,0 +840,8 @@
++#if defined(__linux__)
++        /* pcap_next() must not indefinitely hide the receive-thread stop flag.
++         * Set this only on live handles after activation, never offline files. */
++        if (!is_pcap_file && PCAP.setnonblock(adapter->pcap, 1, errbuf) != 0) {
++            LOG(0, "[-] if(%s): setnonblock: %s\n", adapter_name, errbuf);
++            goto pcap_error;
++        }
++#endif
 diff --git a/src/rawsock.h b/src/rawsock.h
-index ac1313a..287192a 100644
 --- a/src/rawsock.h
 +++ b/src/rawsock.h
-@@ -143,6 +143,12 @@ int rawsock_recv_packet(
-     unsigned *usecs,
-     const unsigned char **packet);
- 
+@@ -145,0 +146,6 @@
 +int rawsock_get_capture_stats(
 +    struct Adapter *adapter,
 +    unsigned *received,
 +    unsigned *dropped,
 +    unsigned *interface_dropped);
 +
- 
- 
- /**
 diff --git a/src/stub-pcap.c b/src/stub-pcap.c
-index 1e06565..4b7393e 100644
 --- a/src/stub-pcap.c
 +++ b/src/stub-pcap.c
-@@ -233,6 +233,15 @@ static const unsigned char *null_PCAP_NEXT(pcap_t *p, struct pcap_pkthdr *h)
-     my_null(3, p, h);
-     return 0;
- }
+@@ -235,0 +236,29 @@
++#if defined(__linux__)
++static int null_PCAP_SETNONBLOCK(pcap_t *p, int nonblock, char *errbuf)
++{
++#ifdef STATICPCAP
++    return pcap_setnonblock(p, nonblock, errbuf);
++#endif
++    UNUSEDPARM(p);
++    UNUSEDPARM(nonblock);
++    seterr(errbuf, "pcap_setnonblock unavailable");
++    return -1;
++}
++static int null_PCAP_GET_SELECTABLE_FD(pcap_t *p)
++{
++#ifdef STATICPCAP
++    return pcap_get_selectable_fd(p);
++#endif
++    UNUSEDPARM(p);
++    return -1;
++}
++#endif
 +static int null_PCAP_STATS(pcap_t *p, struct pcap_stat *ps)
 +{
 +#ifdef STATICPCAP
@@ -126,25 +130,16 @@ index 1e06565..4b7393e 100644
 +    UNUSEDPARM(ps);
 +    return -1;
 +}
- static int null_PCAP_SETDIRECTION(pcap_t *p, pcap_direction_t d)
- {
- #ifdef STATICPCAP
-@@ -417,6 +426,7 @@ pl->func_err=0, pl->datalink = null_##PCAP_DATALINK;
-     DOLINK(PCAP_OPEN_OFFLINE    , open_offline);
-     DOLINK(PCAP_SENDPACKET      , sendpacket);
-     DOLINK(PCAP_NEXT            , next);
+@@ -419,0 +449,5 @@
 +    DOLINK(PCAP_STATS           , stats);
-     DOLINK(PCAP_SETDIRECTION    , setdirection);
-     DOLINK(PCAP_DATALINK_VAL_TO_NAME , datalink_val_to_name);
-     DOLINK(PCAP_PERROR          , perror);
++#if defined(__linux__)
++    DOLINK(PCAP_SETNONBLOCK     , setnonblock);
++    DOLINK(PCAP_GET_SELECTABLE_FD, get_selectable_fd);
++#endif
 diff --git a/src/stub-pcap.h b/src/stub-pcap.h
-index 5b615e0..1a50d51 100755
 --- a/src/stub-pcap.h
 +++ b/src/stub-pcap.h
-@@ -83,6 +83,17 @@ struct pcap_pkthdr {
- #endif
- };
- 
+@@ -85,0 +86,11 @@
 +struct pcap_stat {
 +    unsigned ps_recv;
 +    unsigned ps_drop;
@@ -156,22 +151,11 @@ index 5b615e0..1a50d51 100755
 +#endif
 +};
 +
- 
- /*
-  * This block is for function declarations. Consult the libpcap
-@@ -102,6 +113,7 @@ typedef void        (*PCAP_FREEALLDEVS)(pcap_if_t *alldevs);
- typedef pcap_t *    (*PCAP_OPEN_OFFLINE)(const char *fname, char *errbuf);
- typedef int         (*PCAP_SENDPACKET)(pcap_t *p, const unsigned char *buf, int size);
- typedef const unsigned char *(*PCAP_NEXT)(pcap_t *p, struct pcap_pkthdr *h);
+@@ -104,0 +116,3 @@
++typedef int         (*PCAP_SETNONBLOCK)(pcap_t *p, int nonblock, char *errbuf);
++typedef int         (*PCAP_GET_SELECTABLE_FD)(pcap_t *p);
 +typedef int         (*PCAP_STATS)(pcap_t *p, struct pcap_stat *ps);
- typedef int         (*PCAP_SETDIRECTION)(pcap_t *, pcap_direction_t);
- typedef const char *(*PCAP_DATALINK_VAL_TO_NAME)(int dlt);
- typedef void        (*PCAP_PERROR)(pcap_t *p, char *prefix);
-@@ -169,6 +181,7 @@ struct PcapFunctions {
-     PCAP_OPEN_OFFLINE       open_offline;
-     PCAP_SENDPACKET         sendpacket;
-     PCAP_NEXT               next;
+@@ -171,0 +186,3 @@
 +    PCAP_STATS              stats;
-     PCAP_SETDIRECTION       setdirection;
-     PCAP_DATALINK_VAL_TO_NAME datalink_val_to_name;
-     PCAP_PERROR             perror;
++    PCAP_SETNONBLOCK        setnonblock;
++    PCAP_GET_SELECTABLE_FD  get_selectable_fd;

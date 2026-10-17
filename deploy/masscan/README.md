@@ -32,3 +32,5 @@ scan_capture: received=N dropped=N if_dropped=N
 ```
 
 统计在 receive thread 退出 capture 循环后、adapter handle 关闭前读取。Ubuntu 的 live capture 应返回统计；不支持时明确记录 `scan_capture: unavailable`。
+
+Linux live capture 使用非阻塞读取：缓存读空后最多等待 100 ms 的可读事件，再检查接收线程退出标志；接口没有任何入站报文也能结束。等待只发生在缓存为空时，不对已收到报文逐包休眠。`pcap_setnonblock()` 失败会拒绝初始化，不能静默退回可能永久阻塞的读取。
