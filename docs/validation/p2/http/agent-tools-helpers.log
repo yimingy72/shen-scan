@@ -1,0 +1,10 @@
+=== RUN   TestToolTrackerIdentityReuseAndUnknownRSS
+--- PASS: TestToolTrackerIdentityReuseAndUnknownRSS (0.00s)
+=== RUN   TestToolTrackerDirectProcessLifetimes
+--- PASS: TestToolTrackerDirectProcessLifetimes (0.01s)
+=== RUN   TestWebProbePoolParallelReuseAndCancelIsolation
+--- PASS: TestWebProbePoolParallelReuseAndCancelIsolation (0.31s)
+=== RUN   TestRealWebProbeHelpers
+--- PASS: TestRealWebProbeHelpers (1.47s)
+PASS
+ok  	scanplatform/internal/agent	3.271s

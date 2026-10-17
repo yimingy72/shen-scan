@@ -1,0 +1,10 @@
+=== RUN   TestLinuxProcessStatIdentityAndRSS
+--- PASS: TestLinuxProcessStatIdentityAndRSS (0.00s)
+=== RUN   TestLinuxLiveToolRSSAndZeroMemoryAdmission
+    resource_linux_test.go:53: Linux direct child PID=11 nmap_rss_mib=0.688 tools_processes=1 page_size=4096
+--- PASS: TestLinuxLiveToolRSSAndZeroMemoryAdmission (0.04s)
+=== RUN   TestToolTrackerIdentityReuseAndUnknownRSS
+--- PASS: TestToolTrackerIdentityReuseAndUnknownRSS (0.00s)
+=== RUN   TestToolTrackerDirectProcessLifetimes
+--- PASS: TestToolTrackerDirectProcessLifetimes (0.01s)
+PASS
