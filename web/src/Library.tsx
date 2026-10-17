@@ -76,7 +76,7 @@ function ImportRules({ api, open, close, imported }: { api: ApiClient; open: boo
   return <Drawer title="导入规则" open={open} onClose={close} size={720}><LoadError error={error} /><div className="import-toolbar"><Segmented value={format} onChange={setFormat} options={[{ label: '规则 JSON', value: 'json' }, { label: 'Nuclei YAML', value: 'nuclei' }]} /><span className="bar-spacer" /><Upload accept=".json,.yaml,.yml" showUploadList={false} beforeUpload={async file => { if (file.size > 32 * 1024 * 1024) { setError('文件不能超过 32 MB'); return false }; setContent(await file.text()); setFormat(/\.ya?ml$/i.test(file.name) ? 'nuclei' : 'json'); setError(''); return false }}><Button icon={<ImportOutlined />}>选择文件</Button></Upload></div><Input.TextArea rows={23} className="mono rule-code" aria-label="导入规则内容" value={content} onChange={e => setContent(e.target.value)} placeholder={format === 'json' ? '粘贴导出的规则 JSON，最多 10000 条' : '粘贴只读 HTTP GET / HEAD 模板'} spellCheck={false} /><div className="compact-note">导入后默认禁用；删除的规则可重新导入。Nuclei 仅接受静态同源只读模板，无关联指纹时需手动选择。</div><div className="drawer-actions"><Button onClick={close}>取消</Button><Button type="primary" loading={busy} disabled={!content.trim()} onClick={() => void submit()}>校验并导入</Button></div></Drawer>
 }
 
-export function LibraryPage({ api }: { api: ApiClient }) {
+export function LibraryPage({ api, active = true }: { api: ApiClient; active?: boolean }) {
   const { message, modal } = App.useApp()
   const [kind, setKind] = useState<RuleKind>('http')
   const [query, setQuery] = useState('')
@@ -94,6 +94,7 @@ export function LibraryPage({ api }: { api: ApiClient }) {
   const [catalogOpen, setCatalogOpen] = useState(false)
   const [sourcePolling, setSourcePolling] = useState(false)
   const [sourceBusy, setSourceBusy] = useState<string[]>([])
+  useEffect(() => { if (!active) { setEditing(null); setImportOpen(false); setSourcesOpen(false); setCatalogOpen(false) } }, [active])
   const sources = useLoad<RuleSourcesData>(api, '/library/sources', sourcePolling ? 3000 : 0)
   const sourceVersions = useRef<string | undefined>(undefined)
   const path = '/library?' + new URLSearchParams({ kind, q: query, enabled, source_id: sourceID, purpose: kind === 'poc' ? purpose : '', engine: kind === 'poc' ? engine : '', limit: '50', offset: String((page - 1) * 50) })

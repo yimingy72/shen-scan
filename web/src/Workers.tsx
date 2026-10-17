@@ -58,7 +58,7 @@ function NodeDrawer({ node, close, openRun }: { node?: Node; close: () => void; 
   return <Drawer open={!!node} onClose={close} title="Worker 详情" size={620} destroyOnHidden>{node && <><div className="node-detail-heading"><CloudServerOutlined /><h2>{node.name}</h2><Status value={node.status} /></div><Typography.Text copyable className="mono muted">{node.id}</Typography.Text><div className="node-metrics"><div><span>CPU</span><b>{m?.cpu_percent !== undefined ? `${m.cpu_percent.toFixed(1)}%` : '—'}</b></div><div><span>可用内存</span><b>{m?.mem_available_mib !== undefined ? `${Math.round(m.mem_available_mib)} MiB` : '—'}</b></div><div><span>Agent 内存</span><b>{m?.agent_rss_mib !== undefined ? `${m.agent_rss_mib.toFixed(1)} MiB` : '—'}</b></div></div><div className="muted metric-caption">最后采样：{formatTime(w?.last_heartbeat)}</div><Descriptions size="small" column={2} items={[{ key: 'zone', label: '可用区', children: node.zone || '—' }, { key: 'spec', label: '规格', children: node.cores ? `${node.cores} 核 / ${(node.memory / 1024).toFixed(0)} GB` : node.status === 'released' ? '未记录' : '待同步' }, { key: 'type', label: '实例型号', children: <span className="mono">{node.type || '—'}</span>, span: 2 }, { key: 'agent', label: 'Agent', children: w?.agent_version || '尚未注册' }, { key: 'cloud', label: '云状态', children: node.cloud?.state || '—' }, { key: 'created', label: '创建时间', children: formatTime(node.cloud?.created_at) }, { key: 'updated', label: '同步时间', children: formatTime(node.cloud?.updated_at) }]} />{node.reason && <Alert className="inline-alert" type={node.status === 'unknown' ? 'warning' : 'info'} showIcon title="节点状态信息" description={node.reason} />}<h3 className="section-caption">当前执行（{w?.active_tasks?.length || 0}）</h3>{w?.active_tasks?.length ? <div className="node-task-list">{w.active_tasks.map(task => <div key={task.id}><button className="text-link" onClick={() => { close(); openRun(task.run_id) }}>{task.run_name}</button><span className="mono task-targets">{(task.targets?.length ? task.targets : [task.target]).join(" · ")}</span><Tag>{task.type === 'port' ? '端口扫描' : task.type === 'service' ? '服务指纹' : task.type === 'poc' ? 'PoC 检查' : 'HTTP 指纹'}</Tag></div>)}</div> : <div className="compact-note">{node.status === 'released' ? '实例已释放' : node.status === 'starting' ? '等待 Agent 注册并领取任务' : '没有正在执行的任务'}</div>}</>}</Drawer>
 }
 
-export function WorkersPage({ api, openRun }: { api: ApiClient; openRun: (id: string) => void }) {
+export function WorkersPage({ api, openRun, active = true }: { api: ApiClient; openRun: (id: string) => void; active?: boolean }) {
   const { message, modal } = AntApp.useApp()
   const [tab, setTab] = useState('nodes')
   const [filter, setFilter] = useState('current')
@@ -67,6 +67,7 @@ export function WorkersPage({ api, openRun }: { api: ApiClient; openRun: (id: st
   const [dirty, setDirty] = useState(false)
   const [saving, setSaving] = useState(false)
   const [selected, setSelected] = useState<string>()
+  useEffect(() => { if (!active) setSelected(undefined) }, [active])
   const poolData = useLoad<Pool>(api, '/worker-pool', 10000)
   const workerData = useLoad<{ items: Worker[] }>(api, '/workers', 10000)
   const cloudNodes = useLoad<{ items: CloudInstance[] }>(api, '/cloud/aliyun/instances', 10000)

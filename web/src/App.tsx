@@ -1,13 +1,24 @@
-import { useEffect, useMemo, useState } from 'react'
+import { lazy, memo, Suspense, startTransition, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { App as AntApp, Button, Checkbox, Drawer, Form, Input, Segmented, Select, Space, Table, Tag, Tooltip, Upload } from 'antd'
 import { ArrowRightOutlined, CloudServerOutlined, DatabaseOutlined, FileSearchOutlined, ImportOutlined, LogoutOutlined, PlusOutlined, SafetyOutlined, SearchOutlined, BookOutlined } from '@ant-design/icons'
 import { ApiClient, type Run, formatTime } from './api'
-import { Brand, LoadError, NoData, Refresh, Status, number, shortTime, useLoad } from './ui'
-import { ResultsPage } from './Results'
-import { WorkersPage } from './Workers'
-import { LibraryPage, type LibraryPageData } from './Library'
+import { Brand, LoadError, NoData, PageActivity, Refresh, Status, clearLoadCache, number, shortTime, useLoad } from './ui'
+import type { LibraryPageData } from './Library'
+
+const ResultsPage = memo(lazy(() => import('./Results').then(module => ({ default: module.ResultsPage }))), (previous, next) => {
+  if (previous.active || next.active) return previous.api === next.api && previous.runs === next.runs && previous.runId === next.runId && previous.active === next.active && previous.selectRun === next.selectRun && previous.reloadRuns === next.reloadRuns
+  return previous.api === next.api && previous.runId === next.runId && previous.active === next.active
+})
+function prefetchPage(page: Route['page']) {
+  if (page === 'results') void import('./Results')
+  else if (page === 'workers') void import('./Workers')
+  else if (page === 'library') void import('./Library')
+}
+const WorkersPage = memo(lazy(() => import('./Workers').then(module => ({ default: module.WorkersPage }))))
+const LibraryPage = memo(lazy(() => import('./Library').then(module => ({ default: module.LibraryPage }))))
 
 const AUTH_KEY = 'scan-platform-connection'
+const LAST_RUN_KEY = 'scan-platform-last-run'
 type Connection = { base: string; token: string }
 type Route = { page: 'runs' | 'results' | 'workers' | 'library'; runId: string }
 function readConnection(): Connection | null {
@@ -17,7 +28,14 @@ function readRoute(): Route {
   const [path, query] = location.hash.slice(1).split('?')
   return { page: path === 'results' || path === 'workers' || path === 'library' ? path : 'runs', runId: new URLSearchParams(query).get('run') || '' }
 }
-function go(page: Route['page'], runId = '') { location.hash = page + (runId ? `?run=${encodeURIComponent(runId)}` : '') }
+const pageScroll = new Map<Route['page'], number>()
+function go(page: Route['page'], runId = '') {
+  pageScroll.set(readRoute().page, window.scrollY)
+  location.hash = page + (runId ? `?run=${encodeURIComponent(runId)}` : '')
+}
+function PageSlot({ active, children }: { active: boolean; children: ReactNode }) {
+  return <div className="page-slot" hidden={!active}>{children}</div>
+}
 
 function Login({ onConnected }: { onConnected: (connection: Connection) => void }) {
   const [checking, setChecking] = useState(false)
@@ -95,18 +113,92 @@ function RunsPage({ runs, loading, reload, openCreate }: { runs: Run[]; loading:
 function Workspace({ connection, logout }: { connection: Connection; logout: () => void }) {
   const api = useMemo(() => new ApiClient(connection.base, connection.token), [connection])
   const [route, setRoute] = useState<Route>(readRoute)
+  const [mounted, setMounted] = useState<Set<Route['page']>>(() => new Set([route.page]))
+  const currentPage = useRef(route.page)
+  const lastRunId = useRef(route.runId || sessionStorage.getItem(LAST_RUN_KEY) || '')
   const [createOpen, setCreateOpen] = useState(false)
   const [runPoll, setRunPoll] = useState(10000)
   const runsData = useLoad<{ items: Run[] }>(api, ['workers', 'library'].includes(route.page) ? null : '/runs?summary=true', runPoll)
-  const runs = runsData.data?.items || []
+  const loadedRuns = runsData.data?.items || []
+  const lastRuns = useRef<Run[]>([])
+  if (loadedRuns.length) lastRuns.current = loadedRuns
+  const runs = loadedRuns.length ? loadedRuns : lastRuns.current
   useEffect(() => {
     if (runsData.data) setRunPoll(runsData.data.items.some(r => ['pending', 'running', 'paused'].includes(r.status)) ? 10000 : 60000)
   }, [runsData.data])
-  useEffect(() => { const listener = () => setRoute(readRoute()); window.addEventListener('hashchange', listener); return () => window.removeEventListener('hashchange', listener) }, [])
-  return <div className="app-shell"><aside className="sidebar"><Brand /><nav aria-label="主导航">{[{ key: 'runs', label: '扫描任务', icon: <FileSearchOutlined /> }, { key: 'results', label: '扫描结果', icon: <DatabaseOutlined /> }, { key: 'workers', label: 'Workers', icon: <CloudServerOutlined /> }, { key: 'library', label: '指纹库', icon: <BookOutlined /> }].map(item => <button key={item.key} className={`nav-item ${route.page === item.key ? 'active' : ''}`} onClick={() => go(item.key as Route['page'], item.key === 'results' ? route.runId : '')} aria-current={route.page === item.key ? 'page' : undefined} aria-label={item.label}>{item.icon}<span>{item.label}</span></button>)}</nav><div className="sidebar-footer"><Status value={runsData.error ? 'offline' : 'ready'} label={runsData.error ? '连接异常' : '控制面在线'} /><a className="scanner-source" href="/downloads/masscan-source-1.3.2-scan-platform.tar.gz">扫描器源码 · AGPLv3</a><button className="user-button" onClick={logout}><span className="avatar">AD</span><span>管理员</span><LogoutOutlined /></button></div></aside><main className="workspace"><LoadError error={runsData.error} retry={() => void runsData.reload()} />{route.page === 'runs' && <RunsPage runs={runs} loading={runsData.loading} reload={() => void runsData.reload()} openCreate={() => setCreateOpen(true)} />}{route.page === 'results' && <ResultsPage api={api} runs={runs} runId={route.runId} selectRun={id => go('results', id)} reloadRuns={() => void runsData.reload()} />}{route.page === 'workers' && <WorkersPage api={api} openRun={id => go('results', id)} />}{route.page === 'library' && <LibraryPage api={api} />}</main><CreateRun api={api} open={createOpen} close={() => setCreateOpen(false)} created={run => { setCreateOpen(false); void runsData.reload(); go('results', run.id) }} /></div>
+  useEffect(() => {
+    setMounted(previous => previous.has(route.page) ? previous : new Set(previous).add(route.page))
+  }, [route.page])
+  useEffect(() => { currentPage.current = route.page }, [route.page])
+  useEffect(() => {
+    if (route.page === 'results' && route.runId) {
+      lastRunId.current = route.runId
+      sessionStorage.setItem(LAST_RUN_KEY, route.runId)
+    }
+  }, [route.page, route.runId])
+  useEffect(() => {
+    const listener = () => {
+      const next = readRoute()
+      if (next.page !== currentPage.current) pageScroll.set(currentPage.current, window.scrollY)
+      startTransition(() => setRoute(next))
+    }
+    window.addEventListener('hashchange', listener)
+    return () => window.removeEventListener('hashchange', listener)
+  }, [])
+  useLayoutEffect(() => { window.scrollTo(0, pageScroll.get(route.page) ?? 0) }, [route.page])
+  const reloadRuns = useCallback(() => void runsData.reload(), [runsData.reload])
+  const selectRun = useCallback((id: string) => go('results', id), [])
+  const openCreate = useCallback(() => setCreateOpen(true), [])
+  const pageActive = (page: Route['page']) => route.page === page
+
+  return <div className="app-shell">
+    <aside className="sidebar">
+      <Brand />
+      <nav aria-label="主导航">
+        {[{ key: 'runs', label: '扫描任务', icon: <FileSearchOutlined /> }, { key: 'results', label: '扫描结果', icon: <DatabaseOutlined /> }, { key: 'workers', label: 'Workers', icon: <CloudServerOutlined /> }, { key: 'library', label: '指纹库', icon: <BookOutlined /> }].map(item =>
+          <button key={item.key} className={`nav-item ${route.page === item.key ? 'active' : ''}`} onClick={() => go(item.key as Route['page'], item.key === 'results' ? (route.runId || lastRunId.current) : '')} onMouseEnter={() => prefetchPage(item.key as Route['page'])} onFocus={() => prefetchPage(item.key as Route['page'])} aria-current={route.page === item.key ? 'page' : undefined} aria-label={item.label}>{item.icon}<span>{item.label}</span></button>
+        )}
+      </nav>
+      <div className="sidebar-footer">
+        <Status value={runsData.error ? 'offline' : 'ready'} label={runsData.error ? '连接异常' : '控制面在线'} />
+        <a className="scanner-source" href="/downloads/masscan-source-1.3.2-scan-platform.tar.gz">扫描器源码 · AGPLv3</a>
+        <button className="user-button" onClick={logout}><span className="avatar">AD</span><span>管理员</span><LogoutOutlined /></button>
+      </div>
+    </aside>
+    <main className="workspace">
+      <LoadError error={runsData.error} retry={reloadRuns} />
+      {mounted.has('runs') && <PageSlot active={pageActive('runs')}>
+        <PageActivity active={pageActive('runs')}>
+          <RunsPage runs={runs} loading={runsData.loading} reload={reloadRuns} openCreate={openCreate} />
+        </PageActivity>
+      </PageSlot>}
+      {mounted.has('results') && <PageSlot active={pageActive('results')}>
+        <PageActivity active={pageActive('results')}>
+          <Suspense fallback={<div className="page-loading">正在载入扫描结果…</div>}>
+            <ResultsPage api={api} runs={runs} runId={route.runId || lastRunId.current} selectRun={selectRun} reloadRuns={reloadRuns} active={pageActive('results')} />
+          </Suspense>
+        </PageActivity>
+      </PageSlot>}
+      {mounted.has('workers') && <PageSlot active={pageActive('workers')}>
+        <PageActivity active={pageActive('workers')}>
+          <Suspense fallback={<div className="page-loading">正在载入 Workers…</div>}>
+            <WorkersPage api={api} openRun={selectRun} active={pageActive('workers')} />
+          </Suspense>
+        </PageActivity>
+      </PageSlot>}
+      {mounted.has('library') && <PageSlot active={pageActive('library')}>
+        <PageActivity active={pageActive('library')}>
+          <Suspense fallback={<div className="page-loading">正在载入指纹库…</div>}>
+            <LibraryPage api={api} active={pageActive('library')} />
+          </Suspense>
+        </PageActivity>
+      </PageSlot>}
+    </main>
+    <CreateRun api={api} open={createOpen} close={() => setCreateOpen(false)} created={run => { setCreateOpen(false); void runsData.reload(); go('results', run.id) }} />
+  </div>
 }
 
 export default function App() {
   const [connection, setConnection] = useState<Connection | null>(readConnection)
-  return <AntApp>{connection ? <Workspace connection={connection} logout={() => { sessionStorage.removeItem(AUTH_KEY); setConnection(null) }} /> : <Login onConnected={setConnection} />}</AntApp>
+  return <AntApp>{connection ? <Workspace connection={connection} logout={() => { clearLoadCache(); sessionStorage.removeItem(AUTH_KEY); sessionStorage.removeItem(LAST_RUN_KEY); setConnection(null) }} /> : <Login onConnected={setConnection} />}</AntApp>
 }
