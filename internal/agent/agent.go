@@ -57,6 +57,7 @@ type Config struct {
 	MasscanInterface    string
 	MasscanRouterMAC    string
 	MetadataURL         string
+	NucleiBinary        string
 	Logger              *slog.Logger
 }
 
@@ -102,6 +103,9 @@ func New(cfg Config) (*Agent, error) {
 	}
 	if cfg.PortExecutor == "" {
 		cfg.PortExecutor = "masscan"
+	}
+	if cfg.NucleiBinary == "" {
+		cfg.NucleiBinary = "nuclei"
 	}
 	if cfg.PortExecutor != "masscan" && cfg.PortExecutor != "connect" {
 		return nil, fmt.Errorf("unknown port executor %q", cfg.PortExecutor)
@@ -251,18 +255,34 @@ func (a *Agent) claimOptions() [][]string {
 		lastTaskType := a.lastTaskType
 		a.mu.Unlock()
 		if lastTaskType == "port" {
-			return [][]string{{"service", "http"}, {"port"}}
+			return [][]string{{"service", "http", "poc"}, {"port"}}
 		}
-		return [][]string{{"port"}, {"service", "http"}}
+		return [][]string{{"port"}, {"service", "http", "poc"}}
 	}
 	var options [][]string
 	if ports == 0 {
 		options = append(options, []string{"port"})
 	}
 	if fingerprints < a.fingerprintTaskLimit() {
-		options = append(options, []string{"service", "http"})
+		types := []string{"service", "http"}
+		if a.activePoCCount() == 0 {
+			types = append(types, "poc")
+		}
+		options = append(options, types)
 	}
 	return options
+}
+
+func (a *Agent) activePoCCount() int {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	count := 0
+	for _, task := range a.active {
+		if task.typeName == "poc" {
+			count++
+		}
+	}
+	return count
 }
 
 func (a *Agent) fingerprintTaskLimit() int {
@@ -477,6 +497,8 @@ func (a *Agent) executeAndReport(ctx context.Context, task Task) error {
 			err = a.runService(ctx, task, emit)
 		case "http":
 			err = a.runHTTP(ctx, task, emit)
+		case "poc":
+			err = a.runPoC(ctx, task, emit)
 		default:
 			err = &TaskError{Reason: "unsupported task type: " + task.Type, Retryable: false}
 		}

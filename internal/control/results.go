@@ -81,8 +81,8 @@ const targetResults = currentResults + `,
  count(DISTINCT observation->>'url') FILTER(WHERE observation->>'kind'='http' AND COALESCE((observation->>'status_code')::int,0)>0) http_count,
  count(*) FILTER(WHERE COALESCE(observation->>'error','')<>'') error_count,
  (array_agg(DISTINCT observation->>'ip') FILTER(WHERE COALESCE(observation->>'ip','')<>''))[1:8] ips,
- (array_agg(DISTINCT COALESCE(NULLIF(observation->>'service',''),CASE WHEN COALESCE((observation->>'status_code')::int,0)>0 THEN observation->>'protocol' END)) FILTER(WHERE observation->>'kind'<>'port'))[1:12] services,
- (array_agg(DISTINCT COALESCE(NULLIF(observation->>'product',''),NULLIF(observation->>'server',''))) FILTER(WHERE observation->>'kind'<>'port'))[1:12] products,
+ (array_agg(DISTINCT COALESCE(NULLIF(observation->>'service',''),CASE WHEN COALESCE((observation->>'status_code')::int,0)>0 THEN observation->>'protocol' END)) FILTER(WHERE observation->>'kind' IN('service','http')))[1:12] services,
+ (array_agg(DISTINCT COALESCE(NULLIF(observation->>'product',''),NULLIF(observation->>'server',''))) FILTER(WHERE observation->>'kind' IN('service','http')))[1:12] products,
  (array_agg(DISTINCT observation->>'title') FILTER(WHERE COALESCE(observation->>'title','')<>''))[1:3] titles
  FROM ob GROUP BY target_key),
  tech AS (SELECT target_key,(array_agg(DISTINCT t->>'name'))[1:12] technologies FROM ob
@@ -207,6 +207,49 @@ func (s *Server) listHTTPResults(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, 200, map[string]any{"items": items, "total": total})
+}
+
+func (s *Server) listFindings(w http.ResponseWriter, r *http.Request) {
+	if !s.requireResultRun(w, r) {
+		return
+	}
+	limit, offset, err := pagination(r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	status := r.URL.Query().Get("status")
+	if status == "" {
+		status = "all"
+	}
+	if !contains([]string{"matched", "not_matched", "error", "all"}, status) {
+		writeError(w, http.StatusBadRequest, "unknown finding status")
+		return
+	}
+	severity, err := libraryFilter(r.URL.Query().Get("severity"), "severity", "info", "low", "medium", "high", "critical")
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	query := strings.TrimSpace(r.URL.Query().Get("q"))
+	const findings = currentResults + `, findings AS (SELECT * FROM ob WHERE observation->>'kind'='poc'),
+	 filtered AS (SELECT * FROM findings WHERE ($2='all' OR observation->>'finding_status'=$2)
+	 AND ($3='' OR observation->>'severity'=$3) AND ($4='' OR
+	 (observation-'request_raw'-'response_raw'-'body_excerpt'-'headers')::text ILIKE '%'||$4||'%' OR target_key ILIKE '%'||$4||'%'))`
+	var total, matched, notMatched, failed int64
+	var items json.RawMessage
+	err = s.db.QueryRow(r.Context(), findings+`, page AS (SELECT * FROM filtered ORDER BY observed_at DESC,id DESC LIMIT $5 OFFSET $6)
+	 SELECT (SELECT count(*) FROM filtered),count(*) FILTER(WHERE observation->>'finding_status'='matched'),
+	 count(*) FILTER(WHERE observation->>'finding_status'='not_matched'),count(*) FILTER(WHERE observation->>'finding_status'='error'),
+	 COALESCE((SELECT jsonb_agg((observation-'request_raw'-'response_raw'-'body_excerpt'-'headers') ||
+	 jsonb_build_object('id',id,'run_id',$1::text,'source_target',target_key,'observed_at',observed_at) ORDER BY observed_at DESC,id DESC) FROM page),'[]'::jsonb)
+	 FROM findings`, r.PathValue("id"), status, severity, query, limit, offset).Scan(&total, &matched, &notMatched, &failed, &items)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "load findings failed")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"items": items, "total": total,
+		"summary": map[string]int64{"matched": matched, "not_matched": notMatched, "error": failed}})
 }
 
 func (s *Server) getObservation(w http.ResponseWriter, r *http.Request) {

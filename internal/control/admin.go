@@ -36,9 +36,11 @@ func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) createRun(w http.ResponseWriter, r *http.Request) {
 	var request struct {
-		Name    string   `json:"name"`
-		Targets []string `json:"targets"`
-		Modes   []string `json:"modes"`
+		Name       string   `json:"name"`
+		Targets    []string `json:"targets"`
+		Modes      []string `json:"modes"`
+		POCEnabled bool     `json:"poc_enabled"`
+		POCRuleIDs []string `json:"poc_rule_ids"`
 	}
 	if err := decodeJSON(w, r, &request); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
@@ -52,6 +54,14 @@ func (s *Server) createRun(w http.ResponseWriter, r *http.Request) {
 	modes, err := normalizeModes(request.Modes)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if request.POCEnabled && !contains(modes, "http") {
+		writeError(w, http.StatusBadRequest, "poc_enabled requires http mode")
+		return
+	}
+	if !request.POCEnabled && len(request.POCRuleIDs) != 0 {
+		writeError(w, http.StatusBadRequest, "poc_rule_ids requires poc_enabled")
 		return
 	}
 	seeds, err := buildTaskSeeds(request.Targets, modes, s.allowLocal)
@@ -80,7 +90,14 @@ func (s *Server) createRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer tx.Rollback(r.Context())
-	_, err = tx.Exec(r.Context(), `INSERT INTO runs (id,name,targets,modes,status) VALUES ($1,$2,$3,$4,'pending')`, runID, request.Name, targetJSON, modes)
+	snapshot, err := loadRuleSnapshot(r.Context(), tx, request.POCEnabled, request.POCRuleIDs)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	snapshotJSON, _ := json.Marshal(snapshot)
+	_, err = tx.Exec(r.Context(), `INSERT INTO runs (id,name,targets,modes,status,poc_enabled,rules_snapshot) VALUES ($1,$2,$3,$4,'pending',$5,$6)`,
+		runID, request.Name, targetJSON, modes, request.POCEnabled, snapshotJSON)
 	if err == nil {
 		taskRows := make([][]any, 0, len(seeds))
 		targetRows := make([][]any, 0, len(seeds))
@@ -332,13 +349,17 @@ func contains(values []string, wanted string) bool {
 func runSelect(targets, runs string) string {
 	return `SELECT r.id,r.name,` + targets + `,r.modes,r.status,r.created_at,r.updated_at,
 	 COALESCE(ts.task_total,0),COALESCE(ts.task_done,0),COALESCE(ts.task_failed,0),COALESCE(ac.asset_count,0),r.error,
-	 COALESCE(tgs.target_count,0),COALESCE(rs.open_port_count,0),COALESCE(rs.http_count,0),COALESCE(tgs.target_done,0),jsonb_array_length(r.targets)
+	 COALESCE(tgs.target_count,0),COALESCE(rs.open_port_count,0),COALESCE(rs.http_count,0),COALESCE(tgs.target_done,0),jsonb_array_length(r.targets),
+	 r.poc_enabled,COALESCE(pc.finding_count,0),COALESCE(pc.checked_count,0)
 	 FROM ` + runs + ` r
 	 LEFT JOIN LATERAL (SELECT count(*) task_total,count(*) FILTER(WHERE state='completed') task_done,
 	  count(*) FILTER(WHERE state='failed') task_failed FROM tasks WHERE run_id=r.id) ts ON true
 	 LEFT JOIN LATERAL (SELECT count(*) target_count,count(*) FILTER(WHERE finished) target_done FROM (
 	  SELECT bool_and(t.state='completed') finished FROM tasks t JOIN task_targets tt ON tt.task_id=t.id WHERE t.run_id=r.id GROUP BY tt.target_key) target_states) tgs ON true
 	 LEFT JOIN LATERAL (SELECT count(*) asset_count FROM assets WHERE run_id=r.id) ac ON true
+	 LEFT JOIN LATERAL (SELECT count(*) FILTER(WHERE a.observation->>'finding_status'='matched') finding_count,count(*) checked_count
+	  FROM assets a JOIN tasks t ON t.id=a.task_id AND t.attempt_no=a.attempt_no
+	  WHERE a.run_id=r.id AND a.observation->>'kind'='poc') pc ON true
 	 LEFT JOIN LATERAL (SELECT count(*) FILTER(WHERE kind='port') open_port_count,count(*) FILTER(WHERE kind='http') http_count FROM (
 	  SELECT a.target_key,a.observation->>'kind' kind,CASE WHEN a.observation->>'kind'='port' THEN a.observation->>'port' ELSE a.observation->>'url' END result_key
 	  FROM assets a JOIN tasks t ON t.id=a.task_id AND t.attempt_no=a.attempt_no
@@ -353,7 +374,8 @@ func scanRun(row rowScanner) (Run, error) {
 	var run Run
 	var targets []byte
 	err := row.Scan(&run.ID, &run.Name, &targets, &run.Modes, &run.Status, &run.CreatedAt, &run.UpdatedAt,
-		&run.TaskTotal, &run.TaskDone, &run.TaskFailed, &run.AssetCount, &run.Error, &run.TargetCount, &run.OpenPortCount, &run.HTTPCount, &run.TargetDone, &run.InputCount)
+		&run.TaskTotal, &run.TaskDone, &run.TaskFailed, &run.AssetCount, &run.Error, &run.TargetCount, &run.OpenPortCount, &run.HTTPCount, &run.TargetDone, &run.InputCount,
+		&run.POCEnabled, &run.FindingCount, &run.POCCheckedCount)
 	if err == nil {
 		err = json.Unmarshal(targets, &run.Targets)
 		run.CreatedAt = run.CreatedAt.UTC()

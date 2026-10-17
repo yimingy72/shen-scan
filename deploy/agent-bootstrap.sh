@@ -9,6 +9,7 @@ install_dir=/opt/scan-agent
 test -d "$source_dir"
 test -x "$source_dir/scan-agent"
 test -x "$source_dir/masscan"
+test -x "$source_dir/nuclei"
 test -s "$source_dir/ca.crt"
 test -f "$source_dir/agent.env"
 test -x "$source_dir/cloud-fixture.sh"
@@ -18,6 +19,8 @@ apt-get update -qq
 apt-get install -y --no-install-recommends masscan iproute2 python3 ca-certificates
 install -m 0755 "$source_dir/masscan" /usr/local/bin/masscan.next
 mv -f /usr/local/bin/masscan.next /usr/local/bin/masscan
+install -m 0755 "$source_dir/nuclei" /usr/local/bin/nuclei.next
+mv -f /usr/local/bin/nuclei.next /usr/local/bin/nuclei
 
 install -d -m 0755 "$install_dir"
 if [ "$source_dir" != "$install_dir" ]; then

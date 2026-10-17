@@ -6,6 +6,7 @@ require (
 	github.com/aliyun/alibaba-cloud-sdk-go v1.63.107
 	github.com/jackc/pgx/v5 v5.11.0
 	golang.org/x/sync v0.17.0
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (

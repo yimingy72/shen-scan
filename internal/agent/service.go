@@ -9,11 +9,14 @@ import (
 	"net"
 	"strconv"
 	"time"
+
+	"scanplatform/internal/rulelib"
 )
 
 type servicePayload struct {
-	Endpoints      []Endpoint `json:"endpoints"`
-	TimeoutSeconds int        `json:"timeout_seconds"`
+	Endpoints      []Endpoint     `json:"endpoints"`
+	TimeoutSeconds int            `json:"timeout_seconds"`
+	Rules          []rulelib.Rule `json:"rules"`
 }
 
 func (a *Agent) runService(ctx context.Context, task Task, emit func(Observation) error) error {
@@ -24,10 +27,38 @@ func (a *Agent) runService(ctx context.Context, task Task, emit func(Observation
 	if len(payload.Endpoints) == 0 {
 		return &TaskError{Reason: "service task has no endpoints"}
 	}
+	if err := validateTaskRules(payload.Rules, "port"); err != nil {
+		return &TaskError{Reason: "invalid port rules: " + err.Error(), Retryable: false}
+	}
 	timeout := boundedTimeout(payload.TimeoutSeconds, 90*time.Second)
 	return runEndpointsWithLimit(ctx, payload.Endpoints, a.endpointSlots, 8, func(ctx context.Context, ep Endpoint) Observation {
-		return a.probeService(ctx, ep, timeout)
+		obs := a.probeService(ctx, ep, timeout)
+		if payload.Rules != nil && obs.Error == "" {
+			applyPortRules(payload.Rules, &obs)
+		}
+		return obs
 	}, emit)
+}
+
+func applyPortRules(rules []rulelib.Rule, obs *Observation) {
+	input := rulelib.Input{Banner: obs.Banner, Service: obs.Service, Product: obs.Product, Version: obs.Version}
+	obs.Product, obs.Version = "", ""
+	for _, rule := range rules {
+		if !rule.Enabled {
+			continue
+		}
+		match, ok := rulelib.Match(rule, input)
+		if !ok {
+			continue
+		}
+		if match.Service != "" {
+			obs.Service = match.Service
+		}
+		obs.Product, obs.Version = match.Product, match.Version
+		obs.RuleID, obs.RuleName, obs.RuleRevision = rule.ID, rule.Name, rule.Revision
+		obs.Engine, obs.Severity, obs.Evidence = rule.Engine, rule.Severity, match.Evidence
+		return
+	}
 }
 
 func (a *Agent) probeService(ctx context.Context, ep Endpoint, taskTimeout time.Duration) Observation {

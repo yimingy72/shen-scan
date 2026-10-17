@@ -61,6 +61,10 @@ func New(ctx context.Context, databaseURL, adminToken, joinToken string) (*Serve
 		db.Close()
 		return nil, fmt.Errorf("migrate database: %w", err)
 	}
+	if err = seedRuleLibrary(ctx, db); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("seed rule library: %w", err)
+	}
 	if err = backfillTargetKeys(ctx, db); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("index result targets: %w", err)
@@ -84,6 +88,14 @@ func (s *Server) Close() {
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/health", s.health)
+	mux.HandleFunc("GET /api/library", s.admin(s.listLibrary))
+	mux.HandleFunc("POST /api/library", s.admin(s.createLibraryRule))
+	mux.HandleFunc("GET /api/library/export", s.admin(s.exportLibrary))
+	mux.HandleFunc("POST /api/library/import", s.admin(s.importLibrary))
+	mux.HandleFunc("GET /api/library/{id}", s.admin(s.getLibraryRule))
+	mux.HandleFunc("PUT /api/library/{id}", s.admin(s.updateLibraryRule))
+	mux.HandleFunc("PATCH /api/library/{id}", s.admin(s.patchLibraryRule))
+	mux.HandleFunc("DELETE /api/library/{id}", s.admin(s.deleteLibraryRule))
 	mux.HandleFunc("POST /api/runs", s.admin(s.createRun))
 	mux.HandleFunc("GET /api/runs", s.admin(s.listRuns))
 	mux.HandleFunc("GET /api/runs/{id}", s.admin(s.getRun))
@@ -94,6 +106,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/runs/{id}/results", s.admin(s.listTargetResults))
 	mux.HandleFunc("GET /api/runs/{id}/ports", s.admin(s.listPortResults))
 	mux.HandleFunc("GET /api/runs/{id}/http", s.admin(s.listHTTPResults))
+	mux.HandleFunc("GET /api/runs/{id}/findings", s.admin(s.listFindings))
 	mux.HandleFunc("GET /api/observations/{id}", s.admin(s.getObservation))
 	mux.HandleFunc("GET /api/cloud/aliyun", s.admin(s.handleCloudAdmin))
 	mux.HandleFunc("PUT /api/cloud/aliyun", s.admin(s.handleCloudAdmin))

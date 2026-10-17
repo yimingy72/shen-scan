@@ -58,32 +58,43 @@ type Endpoint struct {
 }
 
 type Technology struct {
-	Name     string `json:"name"`
-	Version  string `json:"version,omitempty"`
-	Evidence string `json:"evidence,omitempty"`
+	Name         string `json:"name"`
+	Version      string `json:"version,omitempty"`
+	Evidence     string `json:"evidence,omitempty"`
+	RuleID       string `json:"rule_id,omitempty"`
+	RuleRevision int    `json:"rule_revision,omitempty"`
 }
 
 type Observation struct {
-	Kind         string              `json:"kind"`
-	Target       string              `json:"target"`
-	IP           string              `json:"ip,omitempty"`
-	Port         int                 `json:"port,omitempty"`
-	Protocol     string              `json:"protocol,omitempty"`
-	Service      string              `json:"service,omitempty"`
-	Product      string              `json:"product,omitempty"`
-	Version      string              `json:"version,omitempty"`
-	URL          string              `json:"url,omitempty"`
-	StatusCode   int                 `json:"status_code,omitempty"`
-	Title        string              `json:"title,omitempty"`
-	Server       string              `json:"server,omitempty"`
-	Technologies []Technology        `json:"technologies,omitempty"`
-	Headers      map[string][]string `json:"headers,omitempty"`
-	BodyExcerpt  string              `json:"body_excerpt,omitempty"`
-	Banner       string              `json:"banner,omitempty"`
-	RequestRaw   string              `json:"request_raw,omitempty"`
-	ResponseRaw  string              `json:"response_raw,omitempty"`
-	Truncated    bool                `json:"truncated,omitempty"`
-	Error        string              `json:"error,omitempty"`
+	Kind          string              `json:"kind"`
+	Target        string              `json:"target"`
+	IP            string              `json:"ip,omitempty"`
+	Port          int                 `json:"port,omitempty"`
+	Protocol      string              `json:"protocol,omitempty"`
+	Service       string              `json:"service,omitempty"`
+	Product       string              `json:"product,omitempty"`
+	Version       string              `json:"version,omitempty"`
+	URL           string              `json:"url,omitempty"`
+	StatusCode    int                 `json:"status_code,omitempty"`
+	Title         string              `json:"title,omitempty"`
+	Server        string              `json:"server,omitempty"`
+	Technologies  []Technology        `json:"technologies,omitempty"`
+	Headers       map[string][]string `json:"headers,omitempty"`
+	BodyExcerpt   string              `json:"body_excerpt,omitempty"`
+	Banner        string              `json:"banner,omitempty"`
+	RequestRaw    string              `json:"request_raw,omitempty"`
+	ResponseRaw   string              `json:"response_raw,omitempty"`
+	Truncated     bool                `json:"truncated,omitempty"`
+	RuleID        string              `json:"rule_id,omitempty"`
+	RuleName      string              `json:"rule_name,omitempty"`
+	RuleRevision  int                 `json:"rule_revision,omitempty"`
+	Engine        string              `json:"engine,omitempty"`
+	Severity      string              `json:"severity,omitempty"`
+	FindingStatus string              `json:"finding_status,omitempty"`
+	Evidence      string              `json:"evidence,omitempty"`
+	Error         string              `json:"error,omitempty"`
+	httpBody      string
+	httpHeader    string
 }
 
 type renewResponse struct {

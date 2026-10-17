@@ -195,11 +195,11 @@ func TestAgentConcurrencyAndMasscanRateLimits(t *testing.T) {
 		t.Fatal("single-task worker disabled fingerprint claims")
 	}
 	a.active = make(map[string]activeTask)
-	if got := fmt.Sprint(a.claimOptions()); got != "[[port] [service http]]" {
+	if got := fmt.Sprint(a.claimOptions()); got != "[[port] [service http poc]]" {
 		t.Fatalf("single-task worker cannot time-share task types: %s", got)
 	}
 	a.lastTaskType = "port"
-	if got := fmt.Sprint(a.claimOptions()); got != "[[service http] [port]]" {
+	if got := fmt.Sprint(a.claimOptions()); got != "[[service http poc] [port]]" {
 		t.Fatalf("single-task worker starves fingerprint tasks: %s", got)
 	}
 	var taskErr *TaskError

@@ -46,12 +46,12 @@ SCAN_AGENT_PACKAGE_SHA256=填写真实的64位SHA256
 ## 构建与发布 Agent
 
 1. 在 Linux amd64 环境构建固定 Masscan，见 [构建说明](../deploy/masscan/README.md)。
-2. 准备公开 CA 文件；仓库不携带任何现有部署的证书。
+2. 运行 `deploy/nuclei/download.sh` 下载并校验固定 Nuclei v3.11.1 Linux amd64 引擎；详见 [引擎说明](../deploy/nuclei/README.md)。准备公开 CA 文件；仓库不携带任何现有部署的证书。
 3. 执行 `CONTROL_CA_FILE=/path/to/public-ca.crt deploy/build-release.sh`。
 4. 发布生成的 `bin/release/scan-agent-linux-amd64.tar.gz`，将输出 SHA-256 填入配置。
 5. 同时发布 `bin/masscan/masscan-source-1.3.2-scan-platform.tar.gz`，保留对应许可证。
 
-cloud-init 下载并校验固定包，安装必要依赖并启动 Agent。包不应包含 AK/SK 或管理员令牌；Worker 只获得注册所需的引导配置。
+发布包包含 Agent、Masscan、Nuclei、公开 CA，以及第三方许可证和 Masscan 对应源码。cloud-init 下载并校验固定包，安装必要依赖并启动 Agent。包不应包含 AK/SK 或管理员令牌；Worker 只获得注册所需的引导配置。
 
 更新 Agent 包地址和哈希主要影响后续新建实例；当前版本没有完整的自动滚动升级流程。应在空闲或维护窗口排空旧节点后替换，避免直接杀掉仍在回传结果的进程。
 
@@ -72,3 +72,11 @@ Agent 参数需要配置在 Worker 环境中，不是控制面 `.env` 的通用�
 备份 PostgreSQL、云凭据加密密钥和部署配置；只备份数据库而丢失密钥，会导致保存的云凭据无法恢复。运行环境文件和密钥不应进入 Git。
 
 停止节点池后等待排空，并检查云端实例已经释放。仅停止控制面或 Agent 进程不等价于停止 ECS 计费。网络资源可保留供下次复用；删除云账号或卸载程序不会自动清理所有云资源。
+
+## 指纹库与 Nuclei 升级
+
+控制面启动时迁移 `rule_library`、任务规则快照和 PoC 任务类型；内置规则按 ID 首次插入，不覆盖管理员编辑或禁用状态。升级前备份数据库及运行配置。所有执行节点需同步更新 Agent，旧 Agent 不具备 PoC 执行器；有旧节点在线时先排空再替换。启动控制面不会自动开启处于停止状态的节点池。
+
+手动 Worker 的 `NUCLEI_BINARY` 可指定引擎路径，默认从 PATH 查找 `nuclei`。云发布包安装到 `/usr/local/bin/nuclei`。缺失引擎或执行失败会记录“检测错误”，不会当作未命中。每 Worker 最多一个 PoC 任务；Nuclei 不使用用户 HOME、云账号、外部回连或自动模板下载。
+
+规则修改只影响随后创建的任务；已有任务继续使用快照。旧版历史任务没有快照时保留原识别逻辑，且不会被追溯追加 PoC。

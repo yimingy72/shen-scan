@@ -16,6 +16,8 @@
 |---|---|
 | 端口扫描 | IPv4 TCP **1–65535**，发现开放端口后继续执行服务指纹 |
 | HTTP 指纹 | HTTP / HTTPS 探测，页面标题、状态码、Server、CMS / 框架及识别依据 |
+| 指纹库 | 内置 54 条 HTTP 指纹、22 条端口指纹、7 条只读 PoC；编辑、启停、复制、导入、导出和规则版本 |
+| PoC / Nuclei | 任务显式开启；原生只读检查和 Nuclei HTTP 模板，命中 / 未命中 / 检测错误及请求响应证据 |
 | 输入 | 手动输入或导入 TXT / CSV；支持 IPv4、CIDR、域名与 HTTP(S) URL |
 | 结果查看 | 按任务 → IP / 域名 → 开放端口 / HTTP 端点查看；提供搜索、筛选和分页 |
 | 报文证据 | 查看已采集的请求、响应、Banner 和异常；超过采集上限时标注截断 |
@@ -29,6 +31,8 @@
 - **端口扫描**：对输入 IP 扫描 TCP 全端口，并执行端口服务指纹；可同时勾选 HTTP 指纹。
 - **HTTP 指纹**：包含 CMS / 框架识别。仅选择此模式时，裸 IP / 域名探测 HTTP 和 HTTPS；完整 URL 保留指定端口和路径。
 - **域名仅进入 HTTP 流程**，不会把解析出的 IP 自动加入 TCP 全端口队列。输入域名时必须选择 HTTP 指纹。
+
+**PoC / Nuclei 默认关闭**，创建任务时选择 HTTP 指纹后可勾选只读检查，并指定规则。它是 HTTP 流程的可选后续检查。指纹库中启用规则不会自动对已有任务执行检查，任务创建时固定规则快照。详见 [指纹库与只读 PoC](docs/RULE_LIBRARY.md)。
 
 原始开放端口不会因为数量多而被截断。高开放率目标会限制下游指纹的派生量，并显示“指纹受限”；未识别不等于端口关闭。没有响应也不等于端口关闭。
 
@@ -48,6 +52,7 @@ flowchart LR
 - **控制面**提供 API 和前端静态文件，保存任务、租约、结果和云资源状态。
 - **PostgreSQL**是唯一权威存储；当前没有 Redis 或独立消息队列依赖。
 - **Agent**负责认领、执行、续约、批量回传和停止；管理员令牌、引导令牌、Worker 会话令牌各自独立。
+- **Nuclei**以受限独立进程运行；只执行任务固定的只读 HTTP 模板，不自动下载模板或连接云服务。
 - **Masscan**以独立进程运行。仓库包含固定版本的接收修复补丁、构建脚本和许可证，发布包携带对应源码。
 
 ## 快速启动控制面
@@ -92,6 +97,9 @@ go run ./cmd/server
 ```sh
 go build -o bin/scan-agent ./cmd/agent
 sudo install -m 0755 bin/masscan/masscan /usr/local/bin/masscan
+# 使用 Nuclei 检查时安装固定引擎：
+deploy/nuclei/download.sh
+sudo install -m 0755 bin/nuclei/nuclei /usr/local/bin/nuclei
 ```
 
 为 Agent 设置以下环境变量，再以具备原始套接字权限的账号运行 `bin/scan-agent`：
@@ -113,6 +121,7 @@ AGENT_CA_FILE=/path/to/public-ca.crt
 2. 按 [Masscan 构建说明](deploy/masscan/README.md) 生成扫描器；准备自己的公开 CA 文件并打包：
 
    ```sh
+   deploy/nuclei/download.sh
    CONTROL_CA_FILE=/path/to/public-ca.crt deploy/build-release.sh
    ```
 
@@ -130,7 +139,9 @@ AGENT_CA_FILE=/path/to/public-ca.crt
 1. **Workers**：配置云账号和网络，设置希望维持的节点数并启动；也可接入手动 Worker。
 2. **扫描任务**：输入任务名称，手动粘贴或导入目标，选择端口扫描和 / 或 HTTP 指纹。
 3. **扫描结果**：选择任务，展开目标查看开放端口；切换 HTTP 端点查看页面与技术指纹。
-4. **详情**：查看服务 Banner、请求响应及识别依据。失败、取消、未扫描和指纹受限分别显示。
+4. **PoC 检查**：任务显式开启后，在结果页查看命中、未命中和检测错误。信息级命中不等于漏洞，超时不等于未命中。
+5. **指纹库**：按 HTTP、端口、PoC 分类管理规则。导入 JSON 或受支持的 Nuclei YAML，校验后默认禁用。
+6. **详情**：查看服务 Banner、请求响应、规则版本及识别依据。失败、取消、未扫描和指纹受限分别显示。
 
 创建任务不需要填写预算、发包速率或内部执行阶段。Worker 是全平台共享容量，任务按存活节点认领执行；云节点回收后，未完成任务可由其他节点重派。
 
@@ -144,6 +155,7 @@ AGENT_CA_FILE=/path/to/public-ca.crt
 | Masscan 并发 | 每 Worker 最多 1 个进程，预留端口任务槽 |
 | Agent 任务槽 | 默认 17 个：1 个端口槽 + 最多 16 个指纹任务槽 |
 | 全局端点并发 | 默认 16；单服务任务最多 8，单 HTTP 任务最多 2 |
+| PoC 并发 / 超时 | 每 Worker 最多 1 个 PoC；原生 60 秒，Nuclei 90 秒；每规则最多 3 个请求 |
 | 收包等待 / 任务上限 | 15 秒 / 180 秒，任务上限包含结果回传和完成确认 |
 | 高开放率处理 | 保留全部原始端口；单 IP 下游指纹最多选择 1024 个端口 |
 | 结果缓冲 | 有界内存队列；Masscan 原始输出使用临时文件解耦回传，128 MiB 监测阈值 |
@@ -157,7 +169,7 @@ PPS 是 Masscan 的发包预算，不能直接视为每秒有效 SYN 探针数�
 ## 当前边界
 
 - 当前使用单管理员令牌登录，尚无多用户、项目隔离或细粒度 RBAC。
-- TCP 全端口执行器仅支持 IPv4；指纹规则库为精简版本，不承诺识别所有产品。
+- TCP 全端口执行器仅支持 IPv4；内置指纹库不承诺识别所有产品。Nuclei 只支持经校验的静态同源 GET / HEAD 模板，不支持整个官方模板集合。
 - 网页截图、完整报告生成、完整 OSS 证据归档和高级灰度发布尚未实现。
 - 原始端口仍按行存储；没有完成密集位图、网段自动熔断和自动归档。
 - 临时文件用于解耦收包和回传，不是跨实例回收的持久检查点；实例丢失依靠租约与重试恢复。
@@ -171,6 +183,7 @@ cmd/agent/         Worker Agent 入口
 internal/control/  任务、租约、结果与 API
 internal/agent/    执行器、指纹、回传与停止
 internal/cloud/    云账号、网络准备、实例与回收事件
+internal/rulelib/  指纹定义、内置库、匹配与 Nuclei 模板校验
 deploy/            发布脚本、systemd、PostgreSQL、固定扫描器构建
 web/               React 工作台
 docs/              部署、调度、API 与使用说明
@@ -190,3 +203,5 @@ PostgreSQL 集成用例需要单独设置 `CONTROL_TEST_DATABASE_URL`；未设�
 公开仓库包含源码、必要测试、构建脚本与通用文档，不包含实际云账号、密钥、运行环境文件、部署证书、数据库或真实环境的原始报文。
 
 Masscan 及其修改使用 AGPLv3，相关许可证、固定源码与补丁说明见 [deploy/masscan](deploy/masscan/README.md)。发布脚本会将对应源码和许可证一起放入 Agent 包。其他依赖的许可见各自项目；本仓库当前尚未为平台自有代码声明单独的开源许可证。
+
+Nuclei 引擎固定为 v3.11.1（MIT），下载校验和许可见 [deploy/nuclei](deploy/nuclei/README.md)。内置规则为本项目编写，没有打包第三方模板仓库；导入自有规则时请保留其来源和许可证。

@@ -3,6 +3,9 @@ export interface Run {
   name: string
   targets: string[]
   input_count?: number
+  poc_enabled?: boolean
+  finding_count?: number
+  poc_checked_count?: number
   modes: ('port' | 'http')[]
   status: string
   created_at: string
@@ -25,11 +28,18 @@ export interface Technology {
 }
 
 export interface Asset {
+  rule_id?: string
+  rule_name?: string
+  rule_revision?: number
+  engine?: string
+  severity?: string
+  finding_status?: string
+  evidence?: string
   source_target?: string
   id: string
   run_id: string
   observed_at: string
-  kind: 'port' | 'service' | 'http'
+  kind: 'port' | 'service' | 'http' | 'poc'
   target: string
   ip: string
   port: number
@@ -149,4 +159,11 @@ export const formatTime = (value?: string) => {
   if (!value) return '—'
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString('zh-CN', { hour12: false })
+}
+
+export type RuleKind = 'http' | 'port' | 'poc'
+export interface LibraryRule {
+  id: string; kind: RuleKind; name: string; description?: string; engine: 'native' | 'nuclei'
+  severity: string; enabled: boolean; builtin: boolean; revision: number; tags?: string[]; source?: string
+  definition?: Record<string, unknown>; template?: string; match_summary?: string
 }

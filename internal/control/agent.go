@@ -8,12 +8,16 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"net"
 	"net/http"
+	"net/url"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"scanplatform/internal/rulelib"
 )
 
 const (
@@ -328,7 +332,7 @@ func (s *Server) claimTask(w http.ResponseWriter, r *http.Request) {
 				AND active_port.state='leased' AND active_port.lease_until > now()))
 			OR (t.type<>'port' AND NOT EXISTS (SELECT 1 FROM tasks active_target
 				WHERE active_target.worker_id=$2 AND active_target.session_id=$3
-				AND active_target.type IN ('service','http') AND active_target.target_key=t.target_key
+				AND active_target.type IN ('service','http','poc') AND active_target.target_key=t.target_key
 				AND active_target.state='leased' AND active_target.lease_until > now()))))
 		ORDER BY r.last_claim_at,r.created_at,r.id FOR UPDATE OF r SKIP LOCKED LIMIT 1`,
 		types, request.WorkerID, request.SessionID).Scan(&runID, &lastTargetKey)
@@ -360,7 +364,7 @@ func (s *Server) claimTask(w http.ResponseWriter, r *http.Request) {
 				AND active_port.state='leased' AND active_port.lease_until > now()))
 			OR (t.type<>'port' AND NOT EXISTS (SELECT 1 FROM tasks active_target
 				WHERE active_target.worker_id=$3 AND active_target.session_id=$4
-				AND active_target.type IN ('service','http') AND active_target.target_key=t.target_key
+				AND active_target.type IN ('service','http','poc') AND active_target.target_key=t.target_key
 				AND active_target.state='leased' AND active_target.lease_until > now())))
 			ORDER BY t.target_key,t.created_at,t.id FOR UPDATE OF t SKIP LOCKED LIMIT 1`,
 			runID, types, request.WorkerID, request.SessionID, candidate.retry, candidate.afterCursor, lastTargetKey).Scan(
@@ -391,6 +395,9 @@ func (s *Server) claimTask(w http.ResponseWriter, r *http.Request) {
 		_, err = tx.Exec(r.Context(), `UPDATE runs SET status='running',last_claim_at=now(),
 			last_claim_target_key=$2,updated_at=CASE WHEN status='pending' THEN now() ELSE updated_at END WHERE id=$1`, runID, targetKey)
 	}
+	if err == nil {
+		payload, err = attachClaimRules(r.Context(), tx, runID, typeName, payload)
+	}
 	task := Task{ID: taskID, RunID: runID, Type: typeName, AttemptNo: attempt, Payload: payload,
 		LeaseUntil: leaseUntil, RateUntil: rateUntil, ServerTime: serverTime, ControlGeneration: generation}
 	if err == nil {
@@ -411,7 +418,7 @@ func normalizeTaskTypes(input []string) ([]string, error) {
 	seen := make(map[string]bool)
 	result := make([]string, 0, len(input))
 	for _, value := range input {
-		if value != "port" && value != "service" && value != "http" {
+		if value != "port" && value != "service" && value != "http" && value != "poc" {
 			return nil, fmt.Errorf("unsupported task type %q", value)
 		}
 		if !seen[value] {
@@ -420,7 +427,7 @@ func normalizeTaskTypes(input []string) ([]string, error) {
 		}
 	}
 	if len(result) == 0 {
-		return nil, errors.New("types must contain port, service, or http")
+		return nil, errors.New("types must contain port, service, http, or poc")
 	}
 	return result, nil
 }
@@ -438,6 +445,9 @@ func loadTask(ctx context.Context, tx pgx.Tx, id string, attempt int) (Task, err
 		task.RateUntil = rate.UTC()
 	}
 	task.ServerTime = task.ServerTime.UTC()
+	if err == nil {
+		task.Payload, err = attachClaimRules(ctx, tx, task.RunID, task.Type, task.Payload)
+	}
 	return task, err
 }
 
@@ -556,7 +566,7 @@ func (s *Server) submitBatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	for index, item := range request.Items {
-		if item.Kind != "port" && item.Kind != "service" && item.Kind != "http" {
+		if item.Kind != "port" && item.Kind != "service" && item.Kind != "http" && item.Kind != "poc" {
 			writeError(w, http.StatusBadRequest, fmt.Sprintf("items[%d].kind is invalid", index))
 			return
 		}
@@ -695,13 +705,13 @@ func (s *Server) completeTask(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "complete task failed")
 		return
 	}
-	var typeName, state string
+	var typeName, state, sourceTarget string
 	var payload json.RawMessage
 	var attempt int
 	var leaseUntil *time.Time
-	err = tx.QueryRow(r.Context(), `SELECT type,state,attempt_no,payload,lease_until FROM tasks
+	err = tx.QueryRow(r.Context(), `SELECT type,state,attempt_no,payload,target_key,lease_until FROM tasks
 		WHERE id=$1 AND run_id=$2 AND worker_id=$3 AND session_id=$4 FOR UPDATE`,
-		r.PathValue("id"), runID, request.WorkerID, request.SessionID).Scan(&typeName, &state, &attempt, &payload, &leaseUntil)
+		r.PathValue("id"), runID, request.WorkerID, request.SessionID).Scan(&typeName, &state, &attempt, &payload, &sourceTarget, &leaseUntil)
 	if errors.Is(err, pgx.ErrNoRows) {
 		writeError(w, http.StatusNotFound, "task not found")
 		return
@@ -733,6 +743,12 @@ func (s *Server) completeTask(w http.ResponseWriter, r *http.Request) {
 	}
 	if typeName == "port" {
 		if err := derivePortTasks(r.Context(), tx, r.PathValue("id"), runID, request.AttemptNo, payload); err != nil {
+			writeError(w, http.StatusUnprocessableEntity, err.Error())
+			return
+		}
+	}
+	if typeName == "http" {
+		if err := derivePOCTasks(r.Context(), tx, r.PathValue("id"), runID, request.AttemptNo, sourceTarget, payload); err != nil {
 			writeError(w, http.StatusUnprocessableEntity, err.Error())
 			return
 		}
@@ -825,6 +841,173 @@ func derivePortTasks(ctx context.Context, tx pgx.Tx, taskID, runID string, attem
 		}
 	}
 	return nil
+}
+
+type taskEndpoint struct {
+	IP   string `json:"ip,omitempty"`
+	Port int    `json:"port,omitempty"`
+	Host string `json:"host,omitempty"`
+	URL  string `json:"url,omitempty"`
+}
+
+func endpointBaseURL(endpoint taskEndpoint) (*url.URL, error) {
+	if endpoint.URL != "" {
+		u, err := url.Parse(endpoint.URL)
+		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" {
+			return nil, errors.New("invalid HTTP endpoint URL")
+		}
+		return u, nil
+	}
+	host := endpoint.Host
+	if host == "" {
+		host = endpoint.IP
+	}
+	if host == "" {
+		return nil, errors.New("HTTP endpoint has no host")
+	}
+	scheme := "http"
+	if endpoint.Port == 443 || endpoint.Port == 8443 || endpoint.Port == 9443 {
+		scheme = "https"
+	}
+	if endpoint.Port > 0 {
+		host = net.JoinHostPort(host, strconv.Itoa(endpoint.Port))
+	}
+	return url.Parse(scheme + "://" + host + "/")
+}
+
+func origin(u *url.URL) string {
+	return strings.ToLower(u.Scheme) + "://" + strings.ToLower(u.Hostname()) + ":" + strconv.Itoa(urlPortNumber(u))
+}
+
+func urlPortNumber(u *url.URL) int {
+	if port, err := strconv.Atoi(u.Port()); err == nil && port > 0 {
+		return port
+	}
+	if u.Scheme == "https" {
+		return 443
+	}
+	return 80
+}
+
+func sameOriginURL(base *url.URL, raw string) (*url.URL, bool) {
+	u, err := url.Parse(raw)
+	return u, err == nil && (u.Scheme == "http" || u.Scheme == "https") && u.Hostname() != "" && origin(base) == origin(u)
+}
+
+func observedEndpoint(endpoint taskEndpoint, raw string) (*url.URL, bool) {
+	if endpoint.URL != "" {
+		base, err := endpointBaseURL(endpoint)
+		if err != nil {
+			return nil, false
+		}
+		return sameOriginURL(base, raw)
+	}
+	u, err := url.Parse(raw)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" {
+		return nil, false
+	}
+	host := endpoint.Host
+	if host == "" {
+		host = endpoint.IP
+	}
+	if canonicalTarget(host) != canonicalTarget(u.Hostname()) {
+		return nil, false
+	}
+	if endpoint.Port > 0 {
+		if urlPortNumber(u) != endpoint.Port {
+			return nil, false
+		}
+	}
+	return u, true
+}
+
+func derivePOCTasks(ctx context.Context, tx pgx.Tx, parentID, runID string, attempt int, sourceTarget string, payload json.RawMessage) error {
+	var snapshotRaw []byte
+	var enabled bool
+	if err := tx.QueryRow(ctx, `SELECT poc_enabled,rules_snapshot FROM runs WHERE id=$1`, runID).Scan(&enabled, &snapshotRaw); err != nil {
+		return fmt.Errorf("load PoC snapshot: %w", err)
+	}
+	if !enabled {
+		return nil
+	}
+	var snapshot ruleSnapshot
+	if err := json.Unmarshal(snapshotRaw, &snapshot); err != nil {
+		return errors.New("invalid persisted PoC snapshot")
+	}
+	if len(snapshot.POC) == 0 {
+		return nil
+	}
+	var config struct {
+		Endpoints []taskEndpoint `json:"endpoints"`
+	}
+	if err := json.Unmarshal(payload, &config); err != nil || len(config.Endpoints) == 0 {
+		return errors.New("invalid persisted HTTP task payload")
+	}
+	rows, err := tx.Query(ctx, `SELECT observation FROM assets WHERE task_id=$1 AND attempt_no=$2
+		AND observation->>'kind'='http' AND COALESCE((observation->>'status_code')::int,0)>0 ORDER BY batch_seq,item_index`, parentID, attempt)
+	if err != nil {
+		return fmt.Errorf("load HTTP observations: %w", err)
+	}
+	defer rows.Close()
+	endpoints := make(map[string]taskEndpoint)
+	for rows.Next() {
+		var raw []byte
+		var observation Observation
+		if err := rows.Scan(&raw); err != nil || json.Unmarshal(raw, &observation) != nil {
+			return errors.New("invalid persisted HTTP observation")
+		}
+		for _, endpoint := range config.Endpoints {
+			observedURL, ok := observedEndpoint(endpoint, observation.URL)
+			if !ok {
+				continue
+			}
+			endpointTarget := endpoint.URL
+			if endpointTarget == "" {
+				endpointTarget = endpoint.Host
+			}
+			if endpointTarget == "" {
+				endpointTarget = endpoint.IP
+			}
+			if observation.Target != "" && canonicalTarget(observation.Target) != canonicalTarget(endpointTarget) {
+				continue
+			}
+			observedURL.Path, observedURL.RawPath, observedURL.RawQuery, observedURL.Fragment = "/", "", "", ""
+			derivedEndpoint := endpoint
+			derivedEndpoint.URL = observedURL.String()
+			endpoints[origin(observedURL)] = derivedEndpoint
+			break
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("load HTTP observations: %w", err)
+	}
+	rows.Close()
+	keys := make([]string, 0, len(endpoints))
+	for key := range endpoints {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, endpointKey := range keys {
+		for _, rule := range snapshot.POC {
+			if err := insertPOCTask(ctx, tx, runID, parentID, attempt, endpointKey, sourceTarget, endpoints[endpointKey], rule); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func insertPOCTask(ctx context.Context, tx pgx.Tx, runID, parentID string, attempt int, endpointKey, targetKey string, endpoint taskEndpoint, rule rulelib.Rule) error {
+	payload, _ := json.Marshal(map[string]any{"endpoint": endpoint, "rules": []rulelib.Rule{rule}, "execution_timeout_seconds": 90})
+	taskID := newID()
+	derivedKey := fmt.Sprintf("poc:%s:%d:%s:%s", parentID, attempt, endpointKey, rule.ID)
+	result, err := tx.Exec(ctx, `INSERT INTO tasks(id,run_id,type,payload,derived_key,target_key) VALUES($1,$2,'poc',$3,$4,$5)
+		ON CONFLICT(run_id,derived_key) DO NOTHING`, taskID, runID, payload, derivedKey, targetKey)
+	if err != nil || result.RowsAffected() == 0 {
+		return err
+	}
+	_, err = tx.Exec(ctx, `INSERT INTO task_targets(task_id,target_key) VALUES($1,$2)`, taskID, targetKey)
+	return err
 }
 
 func insertDerivedTask(ctx context.Context, tx pgx.Tx, runID, parentID, typeName, targetKey string, chunk, timeout int, endpoints []map[string]any) error {

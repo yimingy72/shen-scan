@@ -11,6 +11,10 @@ CREATE TABLE IF NOT EXISTS runs (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
+ALTER TABLE runs ADD COLUMN IF NOT EXISTS poc_enabled boolean NOT NULL DEFAULT false;
+ALTER TABLE runs ADD COLUMN IF NOT EXISTS rules_snapshot jsonb;
+ALTER TABLE runs ALTER COLUMN rules_snapshot DROP NOT NULL;
+ALTER TABLE runs ALTER COLUMN rules_snapshot DROP DEFAULT;
 
 CREATE TABLE IF NOT EXISTS workers (
   id text PRIMARY KEY,
@@ -50,7 +54,7 @@ INSERT INTO worker_pool (singleton) VALUES (true) ON CONFLICT DO NOTHING;
 CREATE TABLE IF NOT EXISTS tasks (
   id text PRIMARY KEY,
   run_id text NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
-  type text NOT NULL CHECK (type IN ('port','service','http')),
+  type text NOT NULL CHECK (type IN ('port','service','http','poc')),
   payload jsonb NOT NULL,
   state text NOT NULL DEFAULT 'queued' CHECK (state IN ('queued','leased','completed','failed','cancelled')),
   attempt_no integer NOT NULL DEFAULT 0,
@@ -66,6 +70,21 @@ CREATE TABLE IF NOT EXISTS tasks (
   completed_at timestamptz,
   UNIQUE (run_id, derived_key)
 );
+DO $$ BEGIN
+ IF EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='tasks'::regclass AND conname='tasks_type_check'
+  AND position('poc' in pg_get_constraintdef(oid))=0) THEN
+  ALTER TABLE tasks DROP CONSTRAINT tasks_type_check;
+ END IF;
+ IF EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='tasks'::regclass AND conname='typeCheck') THEN
+  ALTER TABLE tasks DROP CONSTRAINT "typeCheck";
+ END IF;
+	IF EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='tasks'::regclass AND conname='typecheck') THEN
+	  ALTER TABLE tasks DROP CONSTRAINT typecheck;
+	 END IF;
+ IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='tasks'::regclass AND conname='tasks_type_check') THEN
+  ALTER TABLE tasks ADD CONSTRAINT tasks_type_check CHECK (type IN ('port','service','http','poc'));
+ END IF;
+END $$;
 CREATE INDEX IF NOT EXISTS tasks_claim_idx ON tasks (type, created_at)
   WHERE state IN ('queued','leased');
 CREATE INDEX IF NOT EXISTS tasks_run_idx ON tasks (run_id);
@@ -136,5 +155,14 @@ DO $$ BEGIN
   ANALYZE assets;
  END IF;
 END $$;
+
+CREATE TABLE IF NOT EXISTS rule_library (
+  id text PRIMARY KEY,
+  rule jsonb NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS rule_library_kind_idx ON rule_library((rule->>'kind'));
+CREATE INDEX IF NOT EXISTS rule_library_enabled_idx ON rule_library(((rule->>'enabled')::boolean));
 
 `

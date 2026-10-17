@@ -17,6 +17,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"scanplatform/internal/rulelib"
 )
 
 const (
@@ -29,8 +31,9 @@ const (
 var titlePattern = regexp.MustCompile(`(?is)<title[^>]*>(.*?)</title>`)
 
 type httpPayload struct {
-	Endpoints      []Endpoint `json:"endpoints"`
-	TimeoutSeconds int        `json:"timeout_seconds"`
+	Endpoints      []Endpoint     `json:"endpoints"`
+	TimeoutSeconds int            `json:"timeout_seconds"`
+	Rules          []rulelib.Rule `json:"rules"`
 }
 
 type targetSlots struct {
@@ -46,6 +49,9 @@ func (a *Agent) runHTTP(ctx context.Context, task Task, emit func(Observation) e
 	if len(payload.Endpoints) == 0 {
 		return &TaskError{Reason: "http task has no endpoints"}
 	}
+	if err := validateTaskRules(payload.Rules, "http"); err != nil {
+		return &TaskError{Reason: "invalid http rules: " + err.Error(), Retryable: false}
+	}
 	timeout := minDuration(boundedTimeout(payload.TimeoutSeconds, 12*time.Second), 12*time.Second)
 	return runEndpointsWithLimit(ctx, payload.Endpoints, a.endpointSlots, 2, func(ctx context.Context, ep Endpoint) Observation {
 		release, err := a.acquireHTTPTarget(ctx, httpTargetKey(ep))
@@ -53,8 +59,75 @@ func (a *Agent) runHTTP(ctx context.Context, task Task, emit func(Observation) e
 			return Observation{Kind: "http", Target: endpointTarget(ep), Error: context.Cause(ctx).Error()}
 		}
 		defer release()
-		return a.fetchHTTP(ctx, ep, timeout)
+		obs := a.fetchHTTP(ctx, ep, timeout)
+		if payload.Rules != nil && obs.StatusCode > 0 {
+			obs.Technologies = matchHTTPRules(payload.Rules, obs)
+		}
+		obs.httpBody, obs.httpHeader = "", ""
+		return obs
 	}, emit)
+}
+
+func validateTaskRules(rules []rulelib.Rule, kind string) error {
+	for i, rule := range rules {
+		if rule.Kind != kind || rule.Engine != "native" {
+			return fmt.Errorf("rule %d must be a native %s rule", i+1, kind)
+		}
+		if err := rulelib.Validate(rule); err != nil {
+			return fmt.Errorf("rule %q: %w", rule.ID, err)
+		}
+	}
+	return nil
+}
+
+func matchHTTPRules(rules []rulelib.Rule, obs Observation) []Technology {
+	if obs.StatusCode == 0 {
+		return nil
+	}
+	input := rulelib.Input{Body: obs.httpBody, Header: obs.httpHeader, Title: obs.Title, Status: obs.StatusCode}
+	technologies := make([]Technology, 0, len(rules))
+	seen := make(map[string]int)
+	for _, rule := range rules {
+		if !rule.Enabled {
+			continue
+		}
+		incompleteNegative := false
+		if obs.Truncated || obs.Error != "" {
+			for _, matcher := range rule.Definition.Matchers {
+				if matcher.Negative && (matcher.Part == "body" || matcher.Part == "title") {
+					incompleteNegative = true
+				}
+			}
+		}
+		if incompleteNegative {
+			continue
+		}
+		match, ok := rulelib.Match(rule, input)
+		if !ok {
+			continue
+		}
+		name := match.Product
+		if name == "" {
+			name = match.Service
+		}
+		if name == "" {
+			name = rule.Name
+		}
+		technology := Technology{
+			Name: name, Version: match.Version, Evidence: match.Evidence,
+			RuleID: rule.ID, RuleRevision: rule.Revision,
+		}
+		key := strings.ToLower(name)
+		if index, exists := seen[key]; exists {
+			if technologies[index].Version == "" && technology.Version != "" {
+				technologies[index] = technology
+			}
+		} else {
+			seen[key] = len(technologies)
+			technologies = append(technologies, technology)
+		}
+	}
+	return technologies
 }
 
 func (a *Agent) acquireHTTPTarget(ctx context.Context, key string) (func(), error) {
@@ -195,6 +268,9 @@ func (a *Agent) fetchHTTPOnce(ctx context.Context, ep Endpoint, timeout time.Dur
 	obs.Truncated = obs.Truncated || reqTruncated
 	obs.StatusCode = resp.StatusCode
 	obs.Headers = resp.Header.Clone()
+	var header bytes.Buffer
+	_ = resp.Header.Write(&header)
+	obs.httpBody, obs.httpHeader = string(body), header.String()
 	obs.Server = resp.Header.Get("Server")
 	obs.BodyExcerpt, _ = truncateBytes(body, maxBodyExcerpt)
 	obs.Title = htmlTitle(body)

@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5"
+	"scanplatform/internal/rulelib"
 )
 
 func canonicalTarget(value string) string {
@@ -27,6 +28,7 @@ func taskTargetKeys(payload []byte) []string {
 	var p struct {
 		Targets   []string                         `json:"targets"`
 		Endpoints []struct{ IP, Host, URL string } `json:"endpoints"`
+		Endpoint  *struct{ IP, Host, URL string }  `json:"endpoint"`
 	}
 	if json.Unmarshal(payload, &p) != nil {
 		return nil
@@ -44,6 +46,18 @@ func taskTargetKeys(payload []byte) []string {
 		}
 		if value == "" {
 			value = ep.IP
+		}
+		if key := canonicalTarget(value); key != "" {
+			keys[key] = true
+		}
+	}
+	if p.Endpoint != nil {
+		value := p.Endpoint.Host
+		if value == "" {
+			value = p.Endpoint.URL
+		}
+		if value == "" {
+			value = p.Endpoint.IP
 		}
 		if key := canonicalTarget(value); key != "" {
 			keys[key] = true
@@ -73,6 +87,15 @@ func insertTaskTargets(ctx context.Context, tx pgx.Tx, taskID string, payload []
 func observationTarget(typeName string, payload []byte, source string, item Observation) (string, error) {
 	if item.Kind != typeName {
 		return "", errors.New("observation kind does not match task type")
+	}
+	if typeName == "poc" {
+		if err := validatePOCObservation(payload, item); err != nil {
+			return "", err
+		}
+		if source == "" {
+			return "", errors.New("PoC task has no source target")
+		}
+		return source, nil
 	}
 	keys := taskTargetKeys(payload)
 	if len(keys) == 0 {
@@ -120,4 +143,46 @@ func observationTarget(typeName string, payload []byte, source string, item Obse
 		}
 	}
 	return key, nil
+}
+
+func validatePOCObservation(payload []byte, item Observation) error {
+	var assignment struct {
+		Endpoint taskEndpoint   `json:"endpoint"`
+		Rules    []rulelib.Rule `json:"rules"`
+	}
+	if json.Unmarshal(payload, &assignment) != nil || len(assignment.Rules) != 1 {
+		return errors.New("invalid PoC task payload")
+	}
+	rule := assignment.Rules[0]
+	if item.RuleID != rule.ID || item.RuleRevision != rule.Revision || item.Engine != rule.Engine {
+		return errors.New("PoC observation rule identity does not match assigned rule")
+	}
+	if item.RuleName != rule.Name || item.Severity != rule.Severity {
+		return errors.New("PoC observation rule metadata does not match assigned rule")
+	}
+	if item.FindingStatus != "matched" && item.FindingStatus != "not_matched" && item.FindingStatus != "error" {
+		return errors.New("PoC observation finding_status is invalid")
+	}
+	base, err := endpointBaseURL(assignment.Endpoint)
+	if err != nil {
+		return errors.New("invalid assigned PoC endpoint")
+	}
+	observed, ok := sameOriginURL(base, item.URL)
+	if !ok {
+		return errors.New("PoC observation URL is outside the assigned origin")
+	}
+	if observed.RawQuery != "" || observed.Fragment != "" {
+		return errors.New("PoC observation URL query or fragment was not assigned")
+	}
+	allowedPath := observed.EscapedPath() == "" || observed.EscapedPath() == "/"
+	for _, request := range rule.Definition.Requests {
+		if observed.EscapedPath() == request.Path {
+			allowedPath = true
+			break
+		}
+	}
+	if !allowedPath {
+		return errors.New("PoC observation URL path was not assigned")
+	}
+	return nil
 }

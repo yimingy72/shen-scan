@@ -17,6 +17,15 @@ API 前缀为 `/api`，请求及响应使用 JSON。除健康检查外，管理�
 | `GET /api/runs/{id}/ports?target=...` | 单目标开放端口和关联 HTTP |
 | `GET /api/runs/{id}/http?status=responded` | HTTP 端点；支持 `responded` / `no_response` / `all` |
 | `GET /api/observations/{id}` | 完整已存储的观测与报文 |
+| `GET /api/runs/{id}/findings` | PoC 结果；`status=matched/not_matched/error/all`、`severity`、`q`、分页 |
+| `GET /api/library` | 规则列表；`kind=http/port/poc`、`q`、`enabled`、`engine`、分页 |
+| `GET /api/library/{id}` | 完整规则定义 |
+| `POST /api/library` | 创建规则 |
+| `PUT /api/library/{id}` | 修改规则，必须携带 `expected_revision` |
+| `PATCH /api/library/{id}` | 启停，提交 `enabled` 与 `expected_revision` |
+| `DELETE /api/library/{id}?expected_revision=N` | 删除自定义规则，内置规则只能修改或禁用 |
+| `POST /api/library/import` | 原子导入 JSON / Nuclei YAML，默认禁用 |
+| `GET /api/library/export?kind=http` | 导出完整规则 JSON |
 | `GET /api/workers` | Worker、指标和当前任务 |
 | `GET /api/worker-pool` | 节点池状态及配置版本 |
 | `PATCH /api/worker-pool` | 设置目标数量、启停池，需提供 `expected_generation` |
@@ -32,7 +41,8 @@ API 前缀为 `/api`，请求及响应使用 JSON。除健康检查外，管理�
 {
   "name": "example-discovery",
   "targets": ["192.0.2.10", "192.0.2.0/28", "example.com"],
-  "modes": ["port", "http"]
+  "modes": ["port", "http"],
+  "poc_enabled": false
 }
 ```
 
@@ -45,3 +55,11 @@ Agent 以引导令牌调用 `POST /api/workers/register`，获得独立会话令
 `request_id` 保证认领重试幂等；`attempt_no` 隔离旧执行；`batch_seq` 和内容校验防止重复批次污染数据。任务在完成结果排空、批次确认和完成确认后才算完成。
 
 租约 120 秒、发包许可 60 秒，Agent 每 15 秒续约。心跳与续约可携带停止动作；无有效许可不能继续发包。详细请求结构以 `internal/control` 和 `internal/agent` 的类型及处理器为准。
+
+## 规则与 PoC 数据
+
+创建任务可设置 `poc_enabled:true`（必须包含 HTTP 模式）及 `poc_rule_ids:["poc-security-txt"]`。省略或空数组表示使用全部已启用 PoC；默认 `poc_enabled:false` 不创建 PoC 任务。创建时保存 HTTP / 端口 / 所选 PoC 的规则快照。
+
+规则更新采用 `expected_revision` 乐观并发控制，冲突返回 409；详情和列表都有 `revision`。列表包含精简的 `match_summary`；完整定义从详情或导出接口获取。导入提交 `{ "format": "json" | "nuclei", "content": "原始文件内容" }`，一次最多 100 条。JSON 采用导出的 `{ "items": [Rule] }` 格式。
+
+PoC 观测包含 `rule_id`、`rule_name`、`rule_revision`、`engine`、`severity`、`finding_status`、`evidence`；详情包含 `request_raw`、`response_raw`、`error`、`truncated`。`finding_status` 为 `matched`、`not_matched` 或 `error`。`findings` 接口返回 `{items,total,summary:{matched,not_matched,error}}`，只统计当前执行版本。任务的 `finding_count` 仅计命中，`poc_checked_count` 计全部检查结果。模板格式和执行边界见 [规则库说明](RULE_LIBRARY.md)。

@@ -1,20 +1,21 @@
 import { useEffect, useMemo, useState } from 'react'
-import { App as AntApp, Button, Checkbox, Drawer, Form, Input, Segmented, Space, Table, Tag, Tooltip, Upload } from 'antd'
-import { ArrowRightOutlined, CloudServerOutlined, DatabaseOutlined, FileSearchOutlined, ImportOutlined, LogoutOutlined, PlusOutlined, SafetyOutlined, SearchOutlined } from '@ant-design/icons'
+import { App as AntApp, Button, Checkbox, Drawer, Form, Input, Segmented, Select, Space, Table, Tag, Tooltip, Upload } from 'antd'
+import { ArrowRightOutlined, CloudServerOutlined, DatabaseOutlined, FileSearchOutlined, ImportOutlined, LogoutOutlined, PlusOutlined, SafetyOutlined, SearchOutlined, BookOutlined } from '@ant-design/icons'
 import { ApiClient, type Run, formatTime } from './api'
 import { Brand, LoadError, NoData, Refresh, Status, number, shortTime, useLoad } from './ui'
 import { ResultsPage } from './Results'
 import { WorkersPage } from './Workers'
+import { LibraryPage, type LibraryPageData } from './Library'
 
 const AUTH_KEY = 'scan-platform-connection'
 type Connection = { base: string; token: string }
-type Route = { page: 'runs' | 'results' | 'workers'; runId: string }
+type Route = { page: 'runs' | 'results' | 'workers' | 'library'; runId: string }
 function readConnection(): Connection | null {
   try { const c = JSON.parse(sessionStorage.getItem(AUTH_KEY) || 'null'); return c && typeof c.base === 'string' && typeof c.token === 'string' ? c : null } catch { return null }
 }
 function readRoute(): Route {
   const [path, query] = location.hash.slice(1).split('?')
-  return { page: path === 'results' || path === 'workers' ? path : 'runs', runId: new URLSearchParams(query).get('run') || '' }
+  return { page: path === 'results' || path === 'workers' || path === 'library' ? path : 'runs', runId: new URLSearchParams(query).get('run') || '' }
 }
 function go(page: Route['page'], runId = '') { location.hash = page + (runId ? `?run=${encodeURIComponent(runId)}` : '') }
 
@@ -36,17 +37,19 @@ export function parseTargets(text: string) {
 }
 
 function CreateRun({ open, api, close, created }: { open: boolean; api: ApiClient; close: () => void; created: (run: Run) => void }) {
-  const [form] = Form.useForm<{ name: string; targets: string; modes: string[] }>()
+  const [form] = Form.useForm<{ name: string; targets: string; modes: string[]; poc_enabled: boolean; poc_rule_ids: string[] }>()
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const text = Form.useWatch('targets', form) || ''
   const targets = parseTargets(text)
   const domainCount = targets.filter(item => !/^\d{1,3}(\.\d{1,3}){3}(\/\d+)?$/.test(item)).length
   const modes = Form.useWatch('modes', form) || []
-  const submit = async (values: { name: string; targets: string; modes: string[] }) => {
+  const pocEnabled = !!Form.useWatch('poc_enabled', form)
+  const pocRules = useLoad<LibraryPageData>(api, open ? '/library?kind=poc&enabled=true&limit=200' : null)
+  const submit = async (values: { name: string; targets: string; modes: string[]; poc_enabled?: boolean; poc_rule_ids?: string[] }) => {
     setSaving(true); setError('')
     try {
-      const result = await api.request<Run>('/runs', { method: 'POST', body: JSON.stringify({ name: values.name.trim(), targets: parseTargets(values.targets), modes: values.modes }) })
+      const result = await api.request<Run>('/runs', { method: 'POST', body: JSON.stringify({ name: values.name.trim(), targets: parseTargets(values.targets), modes: values.modes, poc_enabled: !!values.poc_enabled, poc_rule_ids: values.poc_enabled ? values.poc_rule_ids || [] : [] }) })
       form.resetFields(); created(result)
     } catch (reason) { setError(reason instanceof Error ? reason.message : '创建任务失败') } finally { setSaving(false) }
   }
@@ -55,7 +58,7 @@ function CreateRun({ open, api, close, created }: { open: boolean; api: ApiClien
     try { form.setFieldValue('targets', await file.text()); setError('') } catch { setError('读取文件失败') }
     return false
   }
-  return <Drawer title="新建扫描任务" open={open} onClose={close} size={480} destroyOnHidden><LoadError error={error} /><Form form={form} layout="vertical" onFinish={submit} initialValues={{ modes: ['port', 'http'] }} requiredMark={false}><Form.Item name="name" label="任务名称" rules={[{ required: true, whitespace: true, message: '请输入任务名称' }]}><Input maxLength={120} placeholder="例如：生产环境巡检" /></Form.Item><div className="field-heading"><span>扫描目标</span><Upload accept=".txt,.csv" showUploadList={false} beforeUpload={importFile}><Button type="text" size="small" icon={<ImportOutlined />}>导入 TXT / CSV</Button></Upload></div><Form.Item name="targets" rules={[{ required: true, whitespace: true, message: '请输入扫描目标' }]}><Input.TextArea className="mono" rows={8} placeholder={'192.0.2.10\n192.0.2.0/24\nexample.com\nhttps://example.com:8443/'} /></Form.Item><div className="form-summary">{targets.length ? `${number(targets.length)} 条输入 · ${number(domainCount)} 个域名 / URL` : '支持 IP、CIDR、域名和 URL，每行一个'}</div><Form.Item name="modes" label="扫描模式" rules={[{ required: true, message: '请选择至少一种扫描模式' }]}><Checkbox.Group className="mode-options"><Checkbox value="port"><strong>端口扫描</strong><span>TCP 1–65535 · 包含服务指纹</span></Checkbox><Checkbox value="http"><strong>HTTP 指纹</strong><span>包含 CMS / 框架识别</span></Checkbox></Checkbox.Group></Form.Item>{domainCount > 0 && <div className={modes.includes('http') ? 'form-summary' : 'form-validation'}>{modes.includes('http') ? '域名仅执行 HTTP 指纹识别' : '输入包含域名 / URL，请选择 HTTP 指纹'}</div>}<div className="drawer-actions"><Button onClick={close}>取消</Button><Button type="primary" htmlType="submit" loading={saving} disabled={domainCount > 0 && !modes.includes('http')}>创建任务</Button></div></Form></Drawer>
+  return <Drawer title="新建扫描任务" open={open} onClose={close} size={480} destroyOnHidden><LoadError error={error} /><Form form={form} layout="vertical" onFinish={submit} initialValues={{ modes: ['port', 'http'], poc_enabled: false, poc_rule_ids: [] }} onValuesChange={changed => { if (changed.modes && !changed.modes.includes('http')) form.setFieldsValue({ poc_enabled: false, poc_rule_ids: [] }) }} requiredMark={false}><Form.Item name="name" label="任务名称" rules={[{ required: true, whitespace: true, message: '请输入任务名称' }]}><Input maxLength={120} placeholder="例如：生产环境巡检" /></Form.Item><div className="field-heading"><span>扫描目标</span><Upload accept=".txt,.csv" showUploadList={false} beforeUpload={importFile}><Button type="text" size="small" icon={<ImportOutlined />}>导入 TXT / CSV</Button></Upload></div><Form.Item name="targets" rules={[{ required: true, whitespace: true, message: '请输入扫描目标' }]}><Input.TextArea className="mono" rows={8} placeholder={'192.0.2.10\n192.0.2.0/24\nexample.com\nhttps://example.com:8443/'} /></Form.Item><div className="form-summary">{targets.length ? `${number(targets.length)} 条输入 · ${number(domainCount)} 个域名 / URL` : '支持 IP、CIDR、域名和 URL，每行一个'}</div><Form.Item name="modes" label="扫描模式" rules={[{ required: true, message: '请选择至少一种扫描模式' }]}><Checkbox.Group className="mode-options"><Checkbox value="port"><strong>端口扫描</strong><span>TCP 1–65535 · 包含服务指纹</span></Checkbox><Checkbox value="http"><strong>HTTP 指纹</strong><span>包含 CMS / 框架识别</span></Checkbox></Checkbox.Group></Form.Item><div className="poc-choice"><Form.Item name="poc_enabled" valuePropName="checked" noStyle><Checkbox disabled={!modes.includes('http')}>PoC / Nuclei · 只读检查</Checkbox></Form.Item>{pocEnabled && <><LoadError error={pocRules.error} retry={() => void pocRules.reload()} /><Form.Item name="poc_rule_ids" noStyle><Select mode="multiple" aria-label="选择 PoC 规则" placeholder="全部已启用规则" loading={pocRules.loading} maxTagCount={3} optionFilterProp="label" options={pocRules.data?.items.map(r => ({ value: r.id, label: `${r.name}${r.engine === 'nuclei' ? ' · Nuclei' : ''}` })) || []} /></Form.Item><div className="form-summary">仅对本任务发现的同源 HTTP 端点执行</div></>}</div>{domainCount > 0 && <div className={modes.includes('http') ? 'form-summary' : 'form-validation'}>{modes.includes('http') ? '域名仅执行 HTTP 指纹识别' : '输入包含域名 / URL，请选择 HTTP 指纹'}</div>}<div className="drawer-actions"><Button onClick={close}>取消</Button><Button type="primary" htmlType="submit" loading={saving} disabled={(domainCount > 0 && !modes.includes('http')) || (pocEnabled && (!!pocRules.error || pocRules.loading))}>创建任务</Button></div></Form></Drawer>
 }
 
 export function RunActions({ api, run, changed }: { api: ApiClient; run: Run; changed: () => void }) {
@@ -91,13 +94,13 @@ function Workspace({ connection, logout }: { connection: Connection; logout: () 
   const [route, setRoute] = useState<Route>(readRoute)
   const [createOpen, setCreateOpen] = useState(false)
   const [runPoll, setRunPoll] = useState(10000)
-  const runsData = useLoad<{ items: Run[] }>(api, route.page === 'workers' ? null : '/runs?summary=true', runPoll)
+  const runsData = useLoad<{ items: Run[] }>(api, ['workers', 'library'].includes(route.page) ? null : '/runs?summary=true', runPoll)
   const runs = runsData.data?.items || []
   useEffect(() => {
     if (runsData.data) setRunPoll(runsData.data.items.some(r => ['pending', 'running', 'paused'].includes(r.status)) ? 10000 : 60000)
   }, [runsData.data])
   useEffect(() => { const listener = () => setRoute(readRoute()); window.addEventListener('hashchange', listener); return () => window.removeEventListener('hashchange', listener) }, [])
-  return <div className="app-shell"><aside className="sidebar"><Brand /><nav aria-label="主导航">{[{ key: 'runs', label: '扫描任务', icon: <FileSearchOutlined /> }, { key: 'results', label: '扫描结果', icon: <DatabaseOutlined /> }, { key: 'workers', label: 'Workers', icon: <CloudServerOutlined /> }].map(item => <button key={item.key} className={`nav-item ${route.page === item.key ? 'active' : ''}`} onClick={() => go(item.key as Route['page'], item.key === 'results' ? route.runId : '')} aria-current={route.page === item.key ? 'page' : undefined} aria-label={item.label}>{item.icon}<span>{item.label}</span></button>)}</nav><div className="sidebar-footer"><Status value={runsData.error ? 'offline' : 'ready'} label={runsData.error ? '连接异常' : '控制面在线'} /><a className="scanner-source" href="/downloads/masscan-source-1.3.2-scan-platform.tar.gz">扫描器源码 · AGPLv3</a><button className="user-button" onClick={logout}><span className="avatar">AD</span><span>管理员</span><LogoutOutlined /></button></div></aside><main className="workspace"><LoadError error={runsData.error} retry={() => void runsData.reload()} />{route.page === 'runs' && <RunsPage runs={runs} loading={runsData.loading} reload={() => void runsData.reload()} openCreate={() => setCreateOpen(true)} />}{route.page === 'results' && <ResultsPage api={api} runs={runs} runId={route.runId} selectRun={id => go('results', id)} reloadRuns={() => void runsData.reload()} />}{route.page === 'workers' && <WorkersPage api={api} openRun={id => go('results', id)} />}</main><CreateRun api={api} open={createOpen} close={() => setCreateOpen(false)} created={run => { setCreateOpen(false); void runsData.reload(); go('results', run.id) }} /></div>
+  return <div className="app-shell"><aside className="sidebar"><Brand /><nav aria-label="主导航">{[{ key: 'runs', label: '扫描任务', icon: <FileSearchOutlined /> }, { key: 'results', label: '扫描结果', icon: <DatabaseOutlined /> }, { key: 'workers', label: 'Workers', icon: <CloudServerOutlined /> }, { key: 'library', label: '指纹库', icon: <BookOutlined /> }].map(item => <button key={item.key} className={`nav-item ${route.page === item.key ? 'active' : ''}`} onClick={() => go(item.key as Route['page'], item.key === 'results' ? route.runId : '')} aria-current={route.page === item.key ? 'page' : undefined} aria-label={item.label}>{item.icon}<span>{item.label}</span></button>)}</nav><div className="sidebar-footer"><Status value={runsData.error ? 'offline' : 'ready'} label={runsData.error ? '连接异常' : '控制面在线'} /><a className="scanner-source" href="/downloads/masscan-source-1.3.2-scan-platform.tar.gz">扫描器源码 · AGPLv3</a><button className="user-button" onClick={logout}><span className="avatar">AD</span><span>管理员</span><LogoutOutlined /></button></div></aside><main className="workspace"><LoadError error={runsData.error} retry={() => void runsData.reload()} />{route.page === 'runs' && <RunsPage runs={runs} loading={runsData.loading} reload={() => void runsData.reload()} openCreate={() => setCreateOpen(true)} />}{route.page === 'results' && <ResultsPage api={api} runs={runs} runId={route.runId} selectRun={id => go('results', id)} reloadRuns={() => void runsData.reload()} />}{route.page === 'workers' && <WorkersPage api={api} openRun={id => go('results', id)} />}{route.page === 'library' && <LibraryPage api={api} />}</main><CreateRun api={api} open={createOpen} close={() => setCreateOpen(false)} created={run => { setCreateOpen(false); void runsData.reload(); go('results', run.id) }} /></div>
 }
 
 export default function App() {
