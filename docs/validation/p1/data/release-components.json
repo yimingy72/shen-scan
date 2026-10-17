@@ -1,0 +1,23 @@
+{
+  "commit": "2efa9d587ea8d3cbeb13f29bd4395a598fbb58bd",
+  "package": "scan-agent-linux-amd64-p1-01a9bfb05a4b.tar.gz",
+  "package_sha256": "01a9bfb05a4b39d71e408e3332c2e32447a0292a667783585c9588fb3426392b",
+  "version": "bundle-01a9bfb05a4b",
+  "server_sha256": "ecb76ab18540bd2021e752af7239c66a1cc69d3d2185deb190a2704db0a66729",
+  "server_download": "scan-server-p1-ecb76ab18540",
+  "checker_sha256": "5d3aeae538176d37880f282c6576fbda6a99b2e49d27dea431487a0983e3c73b",
+  "web_sha256": "e979e757b205fbd07e1fcacd037e33d61fe2d4ec8ccb403355249f224ef25be3",
+  "ca_sha256": "66ca56b4066d979e6c07abe9251c1212868ff462a22040388c2189b1aa803f77",
+  "masscan_sha256": "6882bfaafb68e98974aba5159056867563652dfd0188be82f06bf2e380830ab9",
+  "masscan_source_sha256": "dfeeeae6d0abeebaa1224c1c38cc776e4bba7a819cbb41fe060f8e366bcf23c7",
+  "tested_go_component_sha256": {
+    "scan-agent": "ab0d375d352ebaf220703b723a7b4782f060cdb15b83c2e4086515cef427c95c",
+    "web-probe-worker": "26b88299977c9817eb1240cf4558d9705304fa391c7bc3409382db56fe411c5f",
+    "fingerprint-worker": "5d3aeae538176d37880f282c6576fbda6a99b2e49d27dea431487a0983e3c73b",
+    "httpx": "6d78b83b4da452a7e0bd3613c4fae04cbf523209f083904b563f4d4406a680b0",
+    "nuclei": "c49588140f357cbdddd5436dec11201953a4c5390faeec90777f9ee2cfd70251"
+  },
+  "agent_go_build_commit": "2efa9d587ea8d3cbeb13f29bd4395a598fbb58bd",
+  "server_source_commit": "caafc8207589fca7f33bf5414df8e50ad18b906c",
+  "web_helper_source_commit": "16288ed40e9bbda3fb0a69c97abea489f0e26357"
+}

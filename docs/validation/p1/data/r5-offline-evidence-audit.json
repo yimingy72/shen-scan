@@ -1,0 +1,65 @@
+{
+  "at": "2026-10-17T21:12:56.985148+00:00",
+  "functional_case_proof_and_required_evidence_complete": true,
+  "learned_case_child_returncode": 0,
+  "actual_cases": [
+    {
+      "case": "evidence/candidate/calibration/worker-0",
+      "run_id": "86c508c5-9282-4a97-a140-ac3627654ed6",
+      "critical_API_capture_complete": true,
+      "exact_SQL_quality_passed": true,
+      "full_packet_files": 8
+    },
+    {
+      "case": "evidence/candidate/calibration/worker-1",
+      "run_id": "9b87bf46-ba05-4a8c-a225-8ada497995f6",
+      "critical_API_capture_complete": true,
+      "exact_SQL_quality_passed": true,
+      "full_packet_files": 8
+    },
+    {
+      "case": "evidence/candidate/split",
+      "run_id": "7d23d5c3-f4ff-4c59-8d98-f83e5117b967",
+      "critical_API_capture_complete": true,
+      "exact_SQL_quality_passed": true,
+      "full_packet_files": 8
+    }
+  ],
+  "collections": [
+    {
+      "snapshot": "snapshot-calibration",
+      "business_DB_full_observations_and_rules_snapshot": true,
+      "all3_raw_node_archives_saved": true
+    },
+    {
+      "snapshot": "snapshot-split",
+      "business_DB_full_observations_and_rules_snapshot": true,
+      "all3_raw_node_archives_saved": true
+    },
+    {
+      "snapshot": "final",
+      "business_DB_full_observations_and_rules_snapshot": true,
+      "all3_raw_node_archives_saved": true
+    },
+    {
+      "snapshot": "snapshot-learned-flow",
+      "business_DB_full_observations_and_rules_snapshot": true,
+      "all3_raw_node_archives_saved": true
+    }
+  ],
+  "actual_start_tickets": 2,
+  "actual_quota_samples": 65,
+  "observed_max_occupied_PPS": 10000,
+  "full_fixture_SDK_request_response_pairs": 6,
+  "original_wrapper_error": "capture_case.py file missing in redundant aggregate learned-flow checkpoint; no created aggregate run existed, actual case APIs already fully captured by learned_case.py",
+  "additional_snapshot_learned_flow_complete": true,
+  "original_error_logs_and_milestone_retained": true,
+  "offline_only_no_new_scan_or_resources": true,
+  "cleanup": {
+    "at": "2026-10-17T21:10:49.364333+00:00",
+    "remaining": [],
+    "delete_errors": [],
+    "security_group_deleted": true,
+    "regional_instance_count": 0
+  }
+}

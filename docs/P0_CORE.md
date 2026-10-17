@@ -38,4 +38,4 @@ Web采集采用httpx请求/标题SDK、WappalyzerGo及有界标准库传输层�
 
 ## 后续范围
 
-共享HTTP请求许可、自适应批次、异构加权切片、阳性端口提前派生、Web进程复用及有逐模板凭证的兼容Nuclei合批已有P1实现与本地必要验证，详见[P1调度语义](P1_SCHEDULING.md)。云性能与负载验收单独记录，不从本地夹具推导容量。fingers被动数据包支持一键更新和任务快照，见[被动指纹库](FINGERPRINT_BUNDLES.md)。系统继续保留任务制。
+共享HTTP请求许可、自适应批次、异构加权切片、阳性端口提前派生、Web进程复用及有逐模板凭证的兼容Nuclei合批已有P1实现与本地必要验证，详见[P1调度语义](P1_SCHEDULING.md)。云端全TCP对比与功能验收见[P1验收记录](P1_VALIDATION.md)，不从本地夹具推导容量。fingers被动数据包支持一键更新和任务快照，见[被动指纹库](FINGERPRINT_BUNDLES.md)。系统继续保留任务制。

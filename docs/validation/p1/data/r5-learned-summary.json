@@ -1,0 +1,11 @@
+{
+  "status": "completed",
+  "actual_calibration_workers": 2,
+  "actual_clean_current_session_samples": 8,
+  "actual_split_partitions": 2,
+  "sum_partition_PPS": 10000,
+  "observed_max_occupied_PPS": 10000,
+  "exact_contiguous_TCP_1_65535_SQL_passed": true,
+  "no_policy_restart": true,
+  "synthetic_measurements": false
+}

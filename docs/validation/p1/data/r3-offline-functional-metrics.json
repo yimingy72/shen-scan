@@ -1,0 +1,2533 @@
+{
+  "exact_case_evidence": {
+    "candidate/web128": {
+      "case": "candidate/web128",
+      "snapshot": "evidence/candidate/snapshot-web128/database.json",
+      "database_available": true,
+      "requested_run_ids": [
+        "522ca81f-08a8-42ca-93b3-8f2d68984436"
+      ],
+      "matched_run_ids": [
+        "522ca81f-08a8-42ca-93b3-8f2d68984436"
+      ],
+      "all_run_ids_in_exact_snapshot": true,
+      "run_rules_snapshot_present": {
+        "522ca81f-08a8-42ca-93b3-8f2d68984436": true
+      },
+      "poc_task_rule_payloads": [],
+      "raw_assets_count": 128,
+      "raw_assets_observation_retained": true,
+      "checkpoint": {
+        "complete": true,
+        "errors": [],
+        "emergency": false
+      },
+      "collection": {
+        "at": "2026-10-17T20:15:57.512081+00:00",
+        "database": true,
+        "raw_asset_observations": true,
+        "nodes": [
+          "i-bp15jolsb5hw88kg51yq",
+          "i-bp15jolsb5hw88kg51yo",
+          "i-bp15jolsb5hw88kg51yp",
+          "i-bp1ixzsfe9cm2waerb9d",
+          "i-bp15jolsb5hw88kg51ym",
+          "i-bp15jolsb5hw88kg51yn",
+          "i-bp15jolsb5hw88kg51yl",
+          "i-bp15jolsb5hw88kg51yk",
+          "i-bp15jolsb5hw88kg51yj",
+          "i-bp15jolsb5hw88kg51yi"
+        ],
+        "errors": [],
+        "complete": true
+      },
+      "api_capture": {
+        "run_id": "522ca81f-08a8-42ca-93b3-8f2d68984436",
+        "at": "2026-10-17T20:15:56.668800+00:00",
+        "saved": [
+          "final-run.json",
+          "final-results.json",
+          "final-http-page.json",
+          "scheduler-policy.json"
+        ],
+        "errors": [],
+        "complete": true,
+        "results_count": 128,
+        "http_count_all_statuses": 128
+      },
+      "cumulative_database_statistics": {
+        "bytes": 14945627,
+        "blks_hit": 729349,
+        "blks_read": 1119,
+        "stats_reset": "2026-10-18T04:14:42.58205+08:00",
+        "tup_deleted": 8,
+        "tup_fetched": 527581,
+        "tup_updated": 5809,
+        "xact_commit": 14661,
+        "tup_inserted": 6913,
+        "tup_returned": 3197316,
+        "xact_rollback": 0
+      },
+      "worker_session_metrics": [
+        {
+          "instance_id": "i-bp15jolsb5hw88kg51yi",
+          "session_id": "e6afe0e626995188abdab9ce2b8bdcc6",
+          "metrics": {
+            "cpu_percent": 0.5025125628140703,
+            "active_tasks": 0,
+            "agent_rss_mib": 22.45703125,
+            "mem_total_mib": 1736.90234375,
+            "masscan_rss_mib": 0,
+            "peak_cpu_percent": 44.44444444444444,
+            "mem_available_mib": 923.27734375,
+            "peak_agent_rss_mib": 30.09765625,
+            "peak_masscan_rss_mib": 0,
+            "min_mem_available_mib": 923.27734375
+          }
+        },
+        {
+          "instance_id": "i-bp15jolsb5hw88kg51yj",
+          "session_id": "1818884e289db984b82d700396a65a85",
+          "metrics": {
+            "cpu_percent": 55.32994923857868,
+            "active_tasks": 0,
+            "agent_rss_mib": 25.61328125,
+            "mem_total_mib": 1736.8984375,
+            "masscan_rss_mib": 0,
+            "peak_cpu_percent": 100,
+            "mem_available_mib": 813.1796875,
+            "peak_agent_rss_mib": 27.5390625,
+            "peak_masscan_rss_mib": 0,
+            "min_mem_available_mib": 778.41015625
+          }
+        },
+        {
+          "instance_id": "i-bp15jolsb5hw88kg51yn",
+          "session_id": "5cfdb65bb6cc62425396132f4abe9865",
+          "metrics": {
+            "cpu_percent": 0.5,
+            "active_tasks": 0,
+            "agent_rss_mib": 20.7109375,
+            "mem_total_mib": 1736.8984375,
+            "masscan_rss_mib": 0,
+            "peak_cpu_percent": 48.24120603015076,
+            "mem_available_mib": 939.9296875,
+            "peak_agent_rss_mib": 32.16015625,
+            "peak_masscan_rss_mib": 0,
+            "min_mem_available_mib": 938.62109375
+          }
+        },
+        {
+          "instance_id": "i-bp15jolsb5hw88kg51yl",
+          "session_id": "8c746dc232df8780cd64c822e1d000f4",
+          "metrics": {
+            "cpu_percent": 50,
+            "active_tasks": 0,
+            "agent_rss_mib": 23.453125,
+            "mem_total_mib": 1736.8984375,
+            "masscan_rss_mib": 0,
+            "peak_cpu_percent": 89.8989898989899,
+            "mem_available_mib": 866.109375,
+            "peak_agent_rss_mib": 27.7734375,
+            "peak_masscan_rss_mib": 0,
+            "min_mem_available_mib": 866.109375
+          }
+        },
+        {
+          "instance_id": "i-bp15jolsb5hw88kg51yk",
+          "session_id": "1ae74a23b61517b4cdc82cf6fad6f20f",
+          "metrics": {
+            "cpu_percent": 0,
+            "active_tasks": 0,
+            "agent_rss_mib": 24.67578125,
+            "mem_total_mib": 1736.90234375,
+            "masscan_rss_mib": 0,
+            "peak_cpu_percent": 53.768844221105525,
+            "mem_available_mib": 924.80859375,
+            "peak_agent_rss_mib": 32.06640625,
+            "peak_masscan_rss_mib": 0,
+            "min_mem_available_mib": 915.1328125
+          }
+        },
+        {
+          "instance_id": "i-bp15jolsb5hw88kg51yo",
+          "session_id": "63d2a5aef427290be287da0b014fc398",
+          "metrics": {
+            "cpu_percent": 0.5,
+            "active_tasks": 0,
+            "agent_rss_mib": 23.96875,
+            "mem_total_mib": 1736.8984375,
+            "masscan_rss_mib": 0,
+            "peak_cpu_percent": 100,
+            "mem_available_mib": 935.3125,
+            "peak_agent_rss_mib": 31.40234375,
+            "peak_masscan_rss_mib": 0,
+            "min_mem_available_mib": 903.44140625
+          }
+        },
+        {
+          "instance_id": "i-bp15jolsb5hw88kg51ym",
+          "session_id": "87f868587c5182a2e93a3b36bd8072f1",
+          "metrics": {
+            "cpu_percent": 0,
+            "active_tasks": 0,
+            "agent_rss_mib": 22.13671875,
+            "mem_total_mib": 1736.89453125,
+            "masscan_rss_mib": 0,
+            "peak_cpu_percent": 31.5,
+            "mem_available_mib": 941.79296875,
+            "peak_agent_rss_mib": 30.15234375,
+            "peak_masscan_rss_mib": 0,
+            "min_mem_available_mib": 936.57421875
+          }
+        },
+        {
+          "instance_id": "i-bp15jolsb5hw88kg51yq",
+          "session_id": "1a3188af3060c83526a5eee4f4cb6dc9",
+          "metrics": {
+            "cpu_percent": 0.5,
+            "active_tasks": 0,
+            "agent_rss_mib": 22.3359375,
+            "mem_total_mib": 1736.8984375,
+            "masscan_rss_mib": 0,
+            "peak_cpu_percent": 37.244897959183675,
+            "mem_available_mib": 947.84375,
+            "peak_agent_rss_mib": 30.01953125,
+            "peak_masscan_rss_mib": 0,
+            "min_mem_available_mib": 944.765625
+          }
+        },
+        {
+          "instance_id": "i-bp15jolsb5hw88kg51yp",
+          "session_id": "d449fb4a1245bcff448f8c05a8279ef4",
+          "metrics": {
+            "cpu_percent": 0,
+            "active_tasks": 0,
+            "agent_rss_mib": 30.96875,
+            "mem_total_mib": 1736.8984375,
+            "masscan_rss_mib": 0,
+            "peak_cpu_percent": 42.5,
+            "mem_available_mib": 938.12890625,
+            "peak_agent_rss_mib": 32.01953125,
+            "peak_masscan_rss_mib": 0,
+            "min_mem_available_mib": 936.99609375
+          }
+        }
+      ],
+      "resource_metric_caveat": "per-case checkpoint but session cumulative peaks; use timestamp-filtered metrics for case-level host CPU/RSS, not normalized mean cost",
+      "per_run_manifests": [],
+      "sampled_case_resources": {
+        "available": true,
+        "case_window_start_ns": 1792268141188723200,
+        "case_window_end_ns": 1792268147663954944,
+        "nodes": [
+          {
+            "source": "evidence/candidate/snapshot-web128/i-bp15jolsb5hw88kg51yi.tar.gz",
+            "instance_id": "i-bp15jolsb5hw88kg51yi",
+            "role": "worker",
+            "samples": 3,
+            "first_sample_ns": 1792268141987416507,
+            "last_sample_ns": 1792268145998088031,
+            "host_cpu_busy_percent": 1.8867924528301887,
+            "host_cpu_steal_percent": 0.0,
+            "minimum_available_mib": 930.94921875,
+            "maximum_combined_scanner_rss_mib": 441.921875
+          },
+          {
+            "source": "evidence/candidate/snapshot-web128/i-bp15jolsb5hw88kg51yj.tar.gz",
+            "instance_id": "i-bp15jolsb5hw88kg51yj",
+            "role": "worker",
+            "samples": 3,
+            "first_sample_ns": 1792268142492342502,
+            "last_sample_ns": 1792268146506731338,
+            "host_cpu_busy_percent": 53.55329949238579,
+            "host_cpu_steal_percent": 0.0,
+            "minimum_available_mib": 853.78515625,
+            "maximum_combined_scanner_rss_mib": 425.63671875
+          },
+          {
+            "source": "evidence/candidate/snapshot-web128/i-bp15jolsb5hw88kg51yk.tar.gz",
+            "instance_id": "i-bp15jolsb5hw88kg51yk",
+            "role": "worker",
+            "samples": 3,
+            "first_sample_ns": 1792268142228128975,
+            "last_sample_ns": 1792268146239756022,
+            "host_cpu_busy_percent": 3.2663316582914574,
+            "host_cpu_steal_percent": 0.0,
+            "minimum_available_mib": 921.44140625,
+            "maximum_combined_scanner_rss_mib": 441.3515625
+          },
+          {
+            "source": "evidence/candidate/snapshot-web128/i-bp15jolsb5hw88kg51yl.tar.gz",
+            "instance_id": "i-bp15jolsb5hw88kg51yl",
+            "role": "worker",
+            "samples": 3,
+            "first_sample_ns": 1792268142322546376,
+            "last_sample_ns": 1792268146336901220,
+            "host_cpu_busy_percent": 52.19573400250941,
+            "host_cpu_steal_percent": 0.0,
+            "minimum_available_mib": 908.2890625,
+            "maximum_combined_scanner_rss_mib": 433.88671875
+          },
+          {
+            "source": "evidence/candidate/snapshot-web128/i-bp15jolsb5hw88kg51ym.tar.gz",
+            "instance_id": "i-bp15jolsb5hw88kg51ym",
+            "role": "worker",
+            "samples": 3,
+            "first_sample_ns": 1792268142052868813,
+            "last_sample_ns": 1792268146064706983,
+            "host_cpu_busy_percent": 2.641509433962264,
+            "host_cpu_steal_percent": 0.0,
+            "minimum_available_mib": 936.71875,
+            "maximum_combined_scanner_rss_mib": 424.26171875
+          },
+          {
+            "source": "evidence/candidate/snapshot-web128/i-bp15jolsb5hw88kg51yn.tar.gz",
+            "instance_id": "i-bp15jolsb5hw88kg51yn",
+            "role": "worker",
+            "samples": 3,
+            "first_sample_ns": 1792268141923704035,
+            "last_sample_ns": 1792268145935607724,
+            "host_cpu_busy_percent": 0.875,
+            "host_cpu_steal_percent": 0.0,
+            "minimum_available_mib": 939.55859375,
+            "maximum_combined_scanner_rss_mib": 428.96484375
+          },
+          {
+            "source": "evidence/candidate/snapshot-web128/i-bp15jolsb5hw88kg51yo.tar.gz",
+            "instance_id": "i-bp15jolsb5hw88kg51yo",
+            "role": "worker",
+            "samples": 4,
+            "first_sample_ns": 1792268141634335108,
+            "last_sample_ns": 1792268147650734106,
+            "host_cpu_busy_percent": 1.8379281537176273,
+            "host_cpu_steal_percent": 0.0,
+            "minimum_available_mib": 932.73828125,
+            "maximum_combined_scanner_rss_mib": 434.296875
+          },
+          {
+            "source": "evidence/candidate/snapshot-web128/i-bp15jolsb5hw88kg51yp.tar.gz",
+            "instance_id": "i-bp15jolsb5hw88kg51yp",
+            "role": "worker",
+            "samples": 3,
+            "first_sample_ns": 1792268142173602298,
+            "last_sample_ns": 1792268146183194794,
+            "host_cpu_busy_percent": 3.262233375156838,
+            "host_cpu_steal_percent": 0.0,
+            "minimum_available_mib": 940.2109375,
+            "maximum_combined_scanner_rss_mib": 442.078125
+          },
+          {
+            "source": "evidence/candidate/snapshot-web128/i-bp15jolsb5hw88kg51yq.tar.gz",
+            "instance_id": "i-bp15jolsb5hw88kg51yq",
+            "role": "worker",
+            "samples": 3,
+            "first_sample_ns": 1792268141909924858,
+            "last_sample_ns": 1792268145921202560,
+            "host_cpu_busy_percent": 1.2594458438287153,
+            "host_cpu_steal_percent": 0.0,
+            "minimum_available_mib": 946.03125,
+            "maximum_combined_scanner_rss_mib": 425.85546875
+          },
+          {
+            "source": "evidence/candidate/snapshot-web128/i-bp1ixzsfe9cm2waerb9d.tar.gz",
+            "instance_id": "i-bp1ixzsfe9cm2waerb9d",
+            "role": "control_fixture",
+            "samples": 3,
+            "first_sample_ns": 1792268142433624566,
+            "last_sample_ns": 1792268146457619542,
+            "host_cpu_busy_percent": 44.07216494845361,
+            "host_cpu_steal_percent": 0.0,
+            "minimum_available_mib": 3011.99609375,
+            "maximum_combined_scanner_rss_mib": 26.59375
+          }
+        ],
+        "interpretation": "2s host/process samples from the exact case archive and timestamp window; combined RSS can double-count shared mappings, is not cgroup peak, and excludes postgres/fixture processes; multi-run calibration uses its combined case window"
+      },
+      "task_states": {
+        "http:completed": 128
+      },
+      "task_coverage": {
+        "http:complete": 128
+      },
+      "all_accepted_current_attempts": true,
+      "all_quotas_released": true
+    },
+    "candidate/nuclei-smoke": {
+      "case": "candidate/nuclei-smoke",
+      "snapshot": "evidence/candidate/snapshot-nuclei-smoke/database.json",
+      "database_available": true,
+      "requested_run_ids": [
+        "34fe77b3-353d-456a-a687-b43a3d5a5f38"
+      ],
+      "matched_run_ids": [
+        "34fe77b3-353d-456a-a687-b43a3d5a5f38"
+      ],
+      "all_run_ids_in_exact_snapshot": true,
+      "run_rules_snapshot_present": {
+        "34fe77b3-353d-456a-a687-b43a3d5a5f38": true
+      },
+      "poc_task_rule_payloads": [
+        {
+          "task_id": "6b464dbb-fec7-4d58-96cd-85b2621aab46",
+          "run_id": "34fe77b3-353d-456a-a687-b43a3d5a5f38",
+          "rule_id": "nuclei-p1-cloud-batch-negative-575501c5",
+          "revision": 2,
+          "template_sha256": "575501c5413c219a8d077dcfc2b76844f9468588c447fe945c7e3dedabde5ff2",
+          "rule_payload_sha256": "7118f33bf16ab751482d74d2f80f66adce757d5b5f42d206c78bcd8c26174594"
+        },
+        {
+          "task_id": "6b464dbb-fec7-4d58-96cd-85b2621aab46",
+          "run_id": "34fe77b3-353d-456a-a687-b43a3d5a5f38",
+          "rule_id": "nuclei-p1-cloud-batch-positive-688fb06c",
+          "revision": 2,
+          "template_sha256": "688fb06caf6fe8e49aef45c27acc6dce2dd73b38e01f6b83c51f5bc53d65a14e",
+          "rule_payload_sha256": "41bd0ff0efad1a705edf1b3333d753b64d77c2bf806debff7b82f5976f096c3a"
+        }
+      ],
+      "raw_assets_count": 3,
+      "raw_assets_observation_retained": true,
+      "checkpoint": {
+        "complete": true,
+        "errors": [],
+        "emergency": false
+      },
+      "collection": {
+        "at": "2026-10-17T20:16:23.563352+00:00",
+        "database": true,
+        "raw_asset_observations": true,
+        "nodes": [
+          "i-bp15jolsb5hw88kg51yo",
+          "i-bp15jolsb5hw88kg51yp",
+          "i-bp15jolsb5hw88kg51yq",
+          "i-bp1ixzsfe9cm2waerb9d",
+          "i-bp15jolsb5hw88kg51yn",
+          "i-bp15jolsb5hw88kg51ym",
+          "i-bp15jolsb5hw88kg51yk",
+          "i-bp15jolsb5hw88kg51yl",
+          "i-bp15jolsb5hw88kg51yj",
+          "i-bp15jolsb5hw88kg51yi"
+        ],
+        "errors": [],
+        "complete": true
+      },
+      "api_capture": {
+        "run_id": "34fe77b3-353d-456a-a687-b43a3d5a5f38",
+        "at": "2026-10-17T20:16:22.226959+00:00",
+        "saved": [
+          "final-run.json",
+          "final-results.json",
+          "final-http-page.json",
+          "scheduler-policy.json"
+        ],
+        "errors": [],
+        "complete": true,
+        "results_count": 1,
+        "http_count_all_statuses": 1
+      },
+      "cumulative_database_statistics": {
+        "bytes": 15199579,
+        "blks_hit": 774852,
+        "blks_read": 1154,
+        "stats_reset": "2026-10-18T04:14:42.58205+08:00",
+        "tup_deleted": 10,
+        "tup_fetched": 539989,
+        "tup_updated": 5868,
+        "xact_commit": 16293,
+        "tup_inserted": 7411,
+        "tup_returned": 3243160,
+        "xact_rollback": 0
+      },
+      "worker_session_metrics": [
+        {
+          "instance_id": "i-bp15jolsb5hw88kg51yi",
+          "session_id": "e6afe0e626995188abdab9ce2b8bdcc6",
+          "metrics": {
+            "cpu_percent": 0,
+            "active_tasks": 0,
+            "agent_rss_mib": 23.73046875,
+            "mem_total_mib": 1736.90234375,
+            "masscan_rss_mib": 0,
+            "peak_cpu_percent": 44.44444444444444,
+            "mem_available_mib": 922.09375,
+            "peak_agent_rss_mib": 30.09765625,
+            "peak_masscan_rss_mib": 0,
+            "min_mem_available_mib": 922.02734375
+          }
+        },
+        {
+          "instance_id": "i-bp15jolsb5hw88kg51yj",
+          "session_id": "1818884e289db984b82d700396a65a85",
+          "metrics": {
+            "cpu_percent": 53.5,
+            "active_tasks": 0,
+            "agent_rss_mib": 25.61328125,
+            "mem_total_mib": 1736.8984375,
+            "masscan_rss_mib": 0,
+            "peak_cpu_percent": 100,
+            "mem_available_mib": 811.46875,
+            "peak_agent_rss_mib": 27.5390625,
+            "peak_masscan_rss_mib": 0,
+            "min_mem_available_mib": 778.41015625
+          }
+        },
+        {
+          "instance_id": "i-bp15jolsb5hw88kg51yn",
+          "session_id": "5cfdb65bb6cc62425396132f4abe9865",
+          "metrics": {
+            "cpu_percent": 0,
+            "active_tasks": 0,
+            "agent_rss_mib": 21.73046875,
+            "mem_total_mib": 1736.8984375,
+            "masscan_rss_mib": 0,
+            "peak_cpu_percent": 48.24120603015076,
+            "mem_available_mib": 937.9921875,
+            "peak_agent_rss_mib": 32.16015625,
+            "peak_masscan_rss_mib": 0,
+            "min_mem_available_mib": 937.6953125
+          }
+        },
+        {
+          "instance_id": "i-bp15jolsb5hw88kg51yl",
+          "session_id": "8c746dc232df8780cd64c822e1d000f4",
+          "metrics": {
+            "cpu_percent": 97.96954314720813,
+            "active_tasks": 0,
+            "agent_rss_mib": 23.9453125,
+            "mem_total_mib": 1736.8984375,
+            "masscan_rss_mib": 0,
+            "peak_cpu_percent": 97.96954314720813,
+            "mem_available_mib": 646.5703125,
+            "peak_agent_rss_mib": 27.7734375,
+            "peak_masscan_rss_mib": 0,
+            "min_mem_available_mib": 646.5703125
+          }
+        },
+        {
+          "instance_id": "i-bp15jolsb5hw88kg51yk",
+          "session_id": "1ae74a23b61517b4cdc82cf6fad6f20f",
+          "metrics": {
+            "cpu_percent": 0,
+            "active_tasks": 0,
+            "agent_rss_mib": 16.69921875,
+            "mem_total_mib": 1736.90234375,
+            "masscan_rss_mib": 0,
+            "peak_cpu_percent": 53.768844221105525,
+            "mem_available_mib": 920.30859375,
+            "peak_agent_rss_mib": 32.06640625,
+            "peak_masscan_rss_mib": 0,
+            "min_mem_available_mib": 915.1328125
+          }
+        },
+        {
+          "instance_id": "i-bp15jolsb5hw88kg51yo",
+          "session_id": "63d2a5aef427290be287da0b014fc398",
+          "metrics": {
+            "cpu_percent": 0,
+            "active_tasks": 0,
+            "agent_rss_mib": 25.26171875,
+            "mem_total_mib": 1736.8984375,
+            "masscan_rss_mib": 0,
+            "peak_cpu_percent": 100,
+            "mem_available_mib": 934.15234375,
+            "peak_agent_rss_mib": 31.40234375,
+            "peak_masscan_rss_mib": 0,
+            "min_mem_available_mib": 903.44140625
+          }
+        },
+        {
+          "instance_id": "i-bp15jolsb5hw88kg51ym",
+          "session_id": "87f868587c5182a2e93a3b36bd8072f1",
+          "metrics": {
+            "cpu_percent": 0,
+            "active_tasks": 0,
+            "agent_rss_mib": 23.421875,
+            "mem_total_mib": 1736.89453125,
+            "masscan_rss_mib": 0,
+            "peak_cpu_percent": 31.5,
+            "mem_available_mib": 941.53125,
+            "peak_agent_rss_mib": 30.15234375,
+            "peak_masscan_rss_mib": 0,
+            "min_mem_available_mib": 936.57421875
+          }
+        },
+        {
+          "instance_id": "i-bp15jolsb5hw88kg51yq",
+          "session_id": "1a3188af3060c83526a5eee4f4cb6dc9",
+          "metrics": {
+            "cpu_percent": 0,
+            "active_tasks": 0,
+            "agent_rss_mib": 23.2734375,
+            "mem_total_mib": 1736.8984375,
+            "masscan_rss_mib": 0,
+            "peak_cpu_percent": 37.244897959183675,
+            "mem_available_mib": 956.09375,
+            "peak_agent_rss_mib": 30.01953125,
+            "peak_masscan_rss_mib": 0,
+            "min_mem_available_mib": 944.765625
+          }
+        },
+        {
+          "instance_id": "i-bp15jolsb5hw88kg51yp",
+          "session_id": "d449fb4a1245bcff448f8c05a8279ef4",
+          "metrics": {
+            "cpu_percent": 0,
+            "active_tasks": 0,
+            "agent_rss_mib": 20.4296875,
+            "mem_total_mib": 1736.8984375,
+            "masscan_rss_mib": 0,
+            "peak_cpu_percent": 42.5,
+            "mem_available_mib": 938.3359375,
+            "peak_agent_rss_mib": 32.01953125,
+            "peak_masscan_rss_mib": 0,
+            "min_mem_available_mib": 933.05859375
+          }
+        }
+      ],
+      "resource_metric_caveat": "per-case checkpoint but session cumulative peaks; use timestamp-filtered metrics for case-level host CPU/RSS, not normalized mean cost",
+      "per_run_manifests": [],
+      "sampled_case_resources": {
+        "available": false,
+        "case_window_start_ns": 1792268172655104000,
+        "case_window_end_ns": 1792268173286533120,
+        "nodes": [],
+        "interpretation": "2s host/process samples from the exact case archive and timestamp window; combined RSS can double-count shared mappings, is not cgroup peak, and excludes postgres/fixture processes; multi-run calibration uses its combined case window"
+      },
+      "task_states": {
+        "http:completed": 1,
+        "poc:completed": 1
+      },
+      "task_coverage": {
+        "http:complete": 1,
+        "poc:complete": 1
+      },
+      "all_accepted_current_attempts": true,
+      "all_quotas_released": true
+    },
+    "candidate/quiet": {
+      "case": "candidate/quiet",
+      "snapshot": "evidence/candidate/snapshot-quiet/database.json",
+      "database_available": true,
+      "requested_run_ids": [
+        "3fb7b415-c654-4fe2-b0cd-d6429f1c1d97"
+      ],
+      "matched_run_ids": [
+        "3fb7b415-c654-4fe2-b0cd-d6429f1c1d97"
+      ],
+      "all_run_ids_in_exact_snapshot": true,
+      "run_rules_snapshot_present": {
+        "3fb7b415-c654-4fe2-b0cd-d6429f1c1d97": true
+      },
+      "poc_task_rule_payloads": [],
+      "raw_assets_count": 0,
+      "raw_assets_observation_retained": null,
+      "checkpoint": {
+        "complete": true,
+        "errors": [],
+        "emergency": false
+      },
+      "collection": {
+        "at": "2026-10-17T20:17:28.646395+00:00",
+        "database": true,
+        "raw_asset_observations": true,
+        "nodes": [
+          "i-bp15jolsb5hw88kg51yq",
+          "i-bp15jolsb5hw88kg51yo",
+          "i-bp15jolsb5hw88kg51yp",
+          "i-bp1ixzsfe9cm2waerb9d",
+          "i-bp15jolsb5hw88kg51yn",
+          "i-bp15jolsb5hw88kg51ym",
+          "i-bp15jolsb5hw88kg51yl",
+          "i-bp15jolsb5hw88kg51yk",
+          "i-bp15jolsb5hw88kg51yi",
+          "i-bp15jolsb5hw88kg51yj"
+        ],
+        "errors": [],
+        "complete": true
+      },
+      "api_capture": {
+        "run_id": "3fb7b415-c654-4fe2-b0cd-d6429f1c1d97",
+        "at": "2026-10-17T20:17:27.298913+00:00",
+        "saved": [
+          "final-run.json",
+          "final-results.json",
+          "final-http-page.json",
+          "scheduler-policy.json"
+        ],
+        "errors": [],
+        "complete": true,
+        "results_count": 1,
+        "http_count_all_statuses": 0
+      },
+      "cumulative_database_statistics": {
+        "bytes": 15666523,
+        "blks_hit": 877058,
+        "blks_read": 1216,
+        "stats_reset": "2026-10-18T04:14:42.58205+08:00",
+        "tup_deleted": 20,
+        "tup_fetched": 578207,
+        "tup_updated": 6018,
+        "xact_commit": 20334,
+        "tup_inserted": 8609,
+        "tup_returned": 3386058,
+        "xact_rollback": 0
+      },
+      "worker_session_metrics": [
+        {
+          "instance_id": "i-bp15jolsb5hw88kg51yi",
+          "session_id": "e6afe0e626995188abdab9ce2b8bdcc6",
+          "metrics": {
+            "cpu_percent": 0,
+            "active_tasks": 0,
+            "agent_rss_mib": 22.1015625,
+            "mem_total_mib": 1736.90234375,
+            "masscan_rss_mib": 0,
+            "peak_cpu_percent": 44.44444444444444,
+            "mem_available_mib": 930.66015625,
+            "peak_agent_rss_mib": 30.09765625,
+            "peak_masscan_rss_mib": 0,
+            "min_mem_available_mib": 920.609375
+          }
+        },
+        {
+          "instance_id": "i-bp15jolsb5hw88kg51yj",
+          "session_id": "1818884e289db984b82d700396a65a85",
+          "metrics": {
+            "cpu_percent": 57.57575757575758,
+            "active_tasks": 0,
+            "agent_rss_mib": 16.20703125,
+            "mem_total_mib": 1736.8984375,
+            "masscan_rss_mib": 0,
+            "peak_cpu_percent": 100,
+            "mem_available_mib": 873.1953125,
+            "peak_agent_rss_mib": 27.5390625,
+            "peak_masscan_rss_mib": 0,
+            "min_mem_available_mib": 775.29296875
+          }
+        },
+        {
+          "instance_id": "i-bp15jolsb5hw88kg51yn",
+          "session_id": "5cfdb65bb6cc62425396132f4abe9865",
+          "metrics": {
+            "cpu_percent": 0,
+            "active_tasks": 0,
+            "agent_rss_mib": 17.82421875,
+            "mem_total_mib": 1736.8984375,
+            "masscan_rss_mib": 0,
+            "peak_cpu_percent": 48.24120603015076,
+            "mem_available_mib": 943.13671875,
+            "peak_agent_rss_mib": 32.16015625,
+            "peak_masscan_rss_mib": 0,
+            "min_mem_available_mib": 932.07421875
+          }
+        },
+        {
+          "instance_id": "i-bp15jolsb5hw88kg51yl",
+          "session_id": "8c746dc232df8780cd64c822e1d000f4",
+          "metrics": {
+            "cpu_percent": 54.08163265306123,
+            "active_tasks": 0,
+            "agent_rss_mib": 12.453125,
+            "mem_total_mib": 1736.8984375,
+            "masscan_rss_mib": 0,
+            "peak_cpu_percent": 97.96954314720813,
+            "mem_available_mib": 649.5703125,
+            "peak_agent_rss_mib": 27.7734375,
+            "peak_masscan_rss_mib": 0,
+            "min_mem_available_mib": 630.3359375
+          }
+        },
+        {
+          "instance_id": "i-bp15jolsb5hw88kg51yk",
+          "session_id": "1ae74a23b61517b4cdc82cf6fad6f20f",
+          "metrics": {
+            "cpu_percent": 50,
+            "active_tasks": 0,
+            "agent_rss_mib": 15.87109375,
+            "mem_total_mib": 1736.90234375,
+            "masscan_rss_mib": 0,
+            "peak_cpu_percent": 53.768844221105525,
+            "mem_available_mib": 920.2265625,
+            "peak_agent_rss_mib": 32.06640625,
+            "peak_masscan_rss_mib": 0,
+            "min_mem_available_mib": 915.1328125
+          }
+        },
+        {
+          "instance_id": "i-bp15jolsb5hw88kg51yo",
+          "session_id": "63d2a5aef427290be287da0b014fc398",
+          "metrics": {
+            "cpu_percent": 0,
+            "active_tasks": 0,
+            "agent_rss_mib": 25.15234375,
+            "mem_total_mib": 1736.8984375,
+            "masscan_rss_mib": 0,
+            "peak_cpu_percent": 100,
+            "mem_available_mib": 954.39453125,
+            "peak_agent_rss_mib": 31.40234375,
+            "peak_masscan_rss_mib": 101.60546875,
+            "min_mem_available_mib": 837.3203125
+          }
+        },
+        {
+          "instance_id": "i-bp15jolsb5hw88kg51ym",
+          "session_id": "87f868587c5182a2e93a3b36bd8072f1",
+          "metrics": {
+            "cpu_percent": 0.5025125628140703,
+            "active_tasks": 0,
+            "agent_rss_mib": 16.7734375,
+            "mem_total_mib": 1736.89453125,
+            "masscan_rss_mib": 0,
+            "peak_cpu_percent": 31.5,
+            "mem_available_mib": 948.81640625,
+            "peak_agent_rss_mib": 30.15234375,
+            "peak_masscan_rss_mib": 0,
+            "min_mem_available_mib": 936.57421875
+          }
+        },
+        {
+          "instance_id": "i-bp15jolsb5hw88kg51yq",
+          "session_id": "1a3188af3060c83526a5eee4f4cb6dc9",
+          "metrics": {
+            "cpu_percent": 0.5,
+            "active_tasks": 0,
+            "agent_rss_mib": 15.55078125,
+            "mem_total_mib": 1736.8984375,
+            "masscan_rss_mib": 0,
+            "peak_cpu_percent": 37.244897959183675,
+            "mem_available_mib": 958.9921875,
+            "peak_agent_rss_mib": 30.01953125,
+            "peak_masscan_rss_mib": 0,
+            "min_mem_available_mib": 944.6015625
+          }
+        },
+        {
+          "instance_id": "i-bp15jolsb5hw88kg51yp",
+          "session_id": "d449fb4a1245bcff448f8c05a8279ef4",
+          "metrics": {
+            "cpu_percent": 1,
+            "active_tasks": 0,
+            "agent_rss_mib": 15.796875,
+            "mem_total_mib": 1736.8984375,
+            "masscan_rss_mib": 0,
+            "peak_cpu_percent": 42.5,
+            "mem_available_mib": 940.4609375,
+            "peak_agent_rss_mib": 32.01953125,
+            "peak_masscan_rss_mib": 0,
+            "min_mem_available_mib": 933.05859375
+          }
+        }
+      ],
+      "resource_metric_caveat": "per-case checkpoint but session cumulative peaks; use timestamp-filtered metrics for case-level host CPU/RSS, not normalized mean cost",
+      "per_run_manifests": [
+        {
+          "run_id": "3fb7b415-c654-4fe2-b0cd-d6429f1c1d97",
+          "expected_targets": 1,
+          "manifest_targets": 1,
+          "exact_manifest_targets": 1,
+          "fully_covered_targets": 1,
+          "manifest_set_matches_inputs": true,
+          "all_expected_targets_exact_and_covered": true,
+          "logical_planned_tcp_port_work": 65535,
+          "logical_covered_tcp_port_work": 65535,
+          "tcp_work_excludes_retransmissions": true
+        }
+      ],
+      "sampled_case_resources": {
+        "available": true,
+        "case_window_start_ns": 1792268198307971840,
+        "case_window_end_ns": 1792268240626885888,
+        "nodes": [
+          {
+            "source": "evidence/candidate/snapshot-quiet/i-bp15jolsb5hw88kg51yi.tar.gz",
+            "instance_id": "i-bp15jolsb5hw88kg51yi",
+            "role": "worker",
+            "samples": 21,
+            "first_sample_ns": 1792268200137097652,
+            "last_sample_ns": 1792268240240217510,
+            "host_cpu_busy_percent": 0.3752814610958219,
+            "host_cpu_steal_percent": 0.0,
+            "minimum_available_mib": 922.50390625,
+            "maximum_combined_scanner_rss_mib": 439.92578125
+          },
+          {
+            "source": "evidence/candidate/snapshot-quiet/i-bp15jolsb5hw88kg51yj.tar.gz",
+            "instance_id": "i-bp15jolsb5hw88kg51yj",
+            "role": "worker",
+            "samples": 21,
+            "first_sample_ns": 1792268198737957105,
+            "last_sample_ns": 1792268238888223957,
+            "host_cpu_busy_percent": 51.71980918905348,
+            "host_cpu_steal_percent": 0.0,
+            "minimum_available_mib": 803.1484375,
+            "maximum_combined_scanner_rss_mib": 418.1875
+          },
+          {
+            "source": "evidence/candidate/snapshot-quiet/i-bp15jolsb5hw88kg51yk.tar.gz",
+            "instance_id": "i-bp15jolsb5hw88kg51yk",
+            "role": "worker",
+            "samples": 22,
+            "first_sample_ns": 1792268198378147180,
+            "last_sample_ns": 1792268240492678072,
+            "host_cpu_busy_percent": 0.33377041363690546,
+            "host_cpu_steal_percent": 0.0,
+            "minimum_available_mib": 931.76171875,
+            "maximum_combined_scanner_rss_mib": 432.1953125
+          },
+          {
+            "source": "evidence/candidate/snapshot-quiet/i-bp15jolsb5hw88kg51yl.tar.gz",
+            "instance_id": "i-bp15jolsb5hw88kg51yl",
+            "role": "worker",
+            "samples": 21,
+            "first_sample_ns": 1792268198549313000,
+            "last_sample_ns": 1792268238707457819,
+            "host_cpu_busy_percent": 50.85324232081911,
+            "host_cpu_steal_percent": 0.0,
+            "minimum_available_mib": 669.328125,
+            "maximum_combined_scanner_rss_mib": 429.0234375
+          },
+          {
+            "source": "evidence/candidate/snapshot-quiet/i-bp15jolsb5hw88kg51ym.tar.gz",
+            "instance_id": "i-bp15jolsb5hw88kg51ym",
+            "role": "worker",
+            "samples": 21,
+            "first_sample_ns": 1792268200212135817,
+            "last_sample_ns": 1792268240319072952,
+            "host_cpu_busy_percent": 0.27548209366391185,
+            "host_cpu_steal_percent": 0.0,
+            "minimum_available_mib": 947.81640625,
+            "maximum_combined_scanner_rss_mib": 416.3125
+          },
+          {
+            "source": "evidence/candidate/snapshot-quiet/i-bp15jolsb5hw88kg51yn.tar.gz",
+            "instance_id": "i-bp15jolsb5hw88kg51yn",
+            "role": "worker",
+            "samples": 21,
+            "first_sample_ns": 1792268200077856425,
+            "last_sample_ns": 1792268240185567972,
+            "host_cpu_busy_percent": 0.31304783370899075,
+            "host_cpu_steal_percent": 0.0,
+            "minimum_available_mib": 943.26953125,
+            "maximum_combined_scanner_rss_mib": 418.4453125
+          },
+          {
+            "source": "evidence/candidate/snapshot-quiet/i-bp15jolsb5hw88kg51yo.tar.gz",
+            "instance_id": "i-bp15jolsb5hw88kg51yo",
+            "role": "worker",
+            "samples": 21,
+            "first_sample_ns": 1792268199789899248,
+            "last_sample_ns": 1792268239899836908,
+            "host_cpu_busy_percent": 1.9461645393656009,
+            "host_cpu_steal_percent": 0.0,
+            "minimum_available_mib": 836.390625,
+            "maximum_combined_scanner_rss_mib": 537.8046875
+          },
+          {
+            "source": "evidence/candidate/snapshot-quiet/i-bp15jolsb5hw88kg51yp.tar.gz",
+            "instance_id": "i-bp15jolsb5hw88kg51yp",
+            "role": "worker",
+            "samples": 22,
+            "first_sample_ns": 1792268198327254891,
+            "last_sample_ns": 1792268240431401129,
+            "host_cpu_busy_percent": 0.3218116805721097,
+            "host_cpu_steal_percent": 0.0,
+            "minimum_available_mib": 937.953125,
+            "maximum_combined_scanner_rss_mib": 431.03125
+          },
+          {
+            "source": "evidence/candidate/snapshot-quiet/i-bp15jolsb5hw88kg51yq.tar.gz",
+            "instance_id": "i-bp15jolsb5hw88kg51yq",
+            "role": "worker",
+            "samples": 21,
+            "first_sample_ns": 1792268200077923647,
+            "last_sample_ns": 1792268240188098978,
+            "host_cpu_busy_percent": 0.3128519584532599,
+            "host_cpu_steal_percent": 0.0,
+            "minimum_available_mib": 944.61328125,
+            "maximum_combined_scanner_rss_mib": 420.9375
+          },
+          {
+            "source": "evidence/candidate/snapshot-quiet/i-bp1ixzsfe9cm2waerb9d.tar.gz",
+            "instance_id": "i-bp1ixzsfe9cm2waerb9d",
+            "role": "control_fixture",
+            "samples": 21,
+            "first_sample_ns": 1792268198721611601,
+            "last_sample_ns": 1792268238912192029,
+            "host_cpu_busy_percent": 5.398972817236628,
+            "host_cpu_steal_percent": 0.0,
+            "minimum_available_mib": 3004.21875,
+            "maximum_combined_scanner_rss_mib": 25.01171875
+          }
+        ],
+        "interpretation": "2s host/process samples from the exact case archive and timestamp window; combined RSS can double-count shared mappings, is not cgroup peak, and excludes postgres/fixture processes; multi-run calibration uses its combined case window"
+      },
+      "task_states": {
+        "port:completed": 1
+      },
+      "task_coverage": {
+        "port:complete": 1
+      },
+      "all_accepted_current_attempts": true,
+      "all_quotas_released": true
+    },
+    "candidate/http128": {
+      "case": "candidate/http128",
+      "snapshot": "evidence/candidate/snapshot-http128/database.json",
+      "database_available": true,
+      "requested_run_ids": [
+        "d4dec402-24b4-4b40-a3c7-ff76221c835e"
+      ],
+      "matched_run_ids": [
+        "d4dec402-24b4-4b40-a3c7-ff76221c835e"
+      ],
+      "all_run_ids_in_exact_snapshot": true,
+      "run_rules_snapshot_present": {
+        "d4dec402-24b4-4b40-a3c7-ff76221c835e": true
+      },
+      "poc_task_rule_payloads": [],
+      "raw_assets_count": 128,
+      "raw_assets_observation_retained": true,
+      "checkpoint": {
+        "complete": true,
+        "errors": [],
+        "emergency": false
+      },
+      "collection": {
+        "at": "2026-10-17T20:15:27.217987+00:00",
+        "database": true,
+        "raw_asset_observations": true,
+        "nodes": [
+          "i-bp1ixzsfe9cm2waerb9d",
+          "i-bp15jolsb5hw88kg51yo",
+          "i-bp15jolsb5hw88kg51yq",
+          "i-bp15jolsb5hw88kg51yp",
+          "i-bp15jolsb5hw88kg51yn",
+          "i-bp15jolsb5hw88kg51ym",
+          "i-bp15jolsb5hw88kg51yk",
+          "i-bp15jolsb5hw88kg51yl",
+          "i-bp15jolsb5hw88kg51yj",
+          "i-bp15jolsb5hw88kg51yi"
+        ],
+        "errors": [],
+        "complete": true
+      },
+      "api_capture": {
+        "run_id": "d4dec402-24b4-4b40-a3c7-ff76221c835e",
+        "at": "2026-10-17T20:15:26.468779+00:00",
+        "saved": [
+          "final-run.json",
+          "final-results.json",
+          "final-http-page.json",
+          "scheduler-policy.json"
+        ],
+        "errors": [],
+        "complete": true,
+        "results_count": 128,
+        "http_count_all_statuses": 128
+      },
+      "cumulative_database_statistics": {
+        "bytes": 12840283,
+        "blks_hit": 420392,
+        "blks_read": 846,
+        "stats_reset": "2026-10-18T04:14:42.58205+08:00",
+        "tup_deleted": 1,
+        "tup_fetched": 328960,
+        "tup_updated": 3977,
+        "xact_commit": 10079,
+        "tup_inserted": 4557,
+        "tup_returned": 1140610,
+        "xact_rollback": 0
+      },
+      "worker_session_metrics": [
+        {
+          "instance_id": "i-bp15jolsb5hw88kg51yk",
+          "session_id": "1ae74a23b61517b4cdc82cf6fad6f20f",
+          "metrics": {
+            "cpu_percent": 3.0150753768844223,
+            "active_tasks": 0,
+            "agent_rss_mib": 31.56640625,
+            "mem_total_mib": 1736.90234375,
+            "masscan_rss_mib": 0,
+            "peak_cpu_percent": 53.768844221105525,
+            "mem_available_mib": 953.453125,
+            "peak_agent_rss_mib": 31.56640625,
+            "peak_masscan_rss_mib": 0,
+            "min_mem_available_mib": 928.25
+          }
+        },
+        {
+          "instance_id": "i-bp15jolsb5hw88kg51yi",
+          "session_id": "e6afe0e626995188abdab9ce2b8bdcc6",
+          "metrics": {
+            "cpu_percent": 0,
+            "active_tasks": 0,
+            "agent_rss_mib": 29.09765625,
+            "mem_total_mib": 1736.90234375,
+            "masscan_rss_mib": 0,
+            "peak_cpu_percent": 44.44444444444444,
+            "mem_available_mib": 955.1953125,
+            "peak_agent_rss_mib": 29.09765625,
+            "peak_masscan_rss_mib": 0,
+            "min_mem_available_mib": 954.1015625
+          }
+        },
+        {
+          "instance_id": "i-bp15jolsb5hw88kg51yo",
+          "session_id": "63d2a5aef427290be287da0b014fc398",
+          "metrics": {
+            "cpu_percent": 1.5,
+            "active_tasks": 0,
+            "agent_rss_mib": 31.40234375,
+            "mem_total_mib": 1736.8984375,
+            "masscan_rss_mib": 0,
+            "peak_cpu_percent": 100,
+            "mem_available_mib": 923.84375,
+            "peak_agent_rss_mib": 31.40234375,
+            "peak_masscan_rss_mib": 0,
+            "min_mem_available_mib": 903.44140625
+          }
+        },
+        {
+          "instance_id": "i-bp15jolsb5hw88kg51yp",
+          "session_id": "d449fb4a1245bcff448f8c05a8279ef4",
+          "metrics": {
+            "cpu_percent": 0,
+            "active_tasks": 0,
+            "agent_rss_mib": 27.89453125,
+            "mem_total_mib": 1736.8984375,
+            "masscan_rss_mib": 0,
+            "peak_cpu_percent": 42.5,
+            "mem_available_mib": 958.03515625,
+            "peak_agent_rss_mib": 28.6015625,
+            "peak_masscan_rss_mib": 0,
+            "min_mem_available_mib": 957.9921875
+          }
+        },
+        {
+          "instance_id": "i-bp15jolsb5hw88kg51yj",
+          "session_id": "1818884e289db984b82d700396a65a85",
+          "metrics": {
+            "cpu_percent": 52.76381909547739,
+            "active_tasks": 0,
+            "agent_rss_mib": 23.36328125,
+            "mem_total_mib": 1736.8984375,
+            "masscan_rss_mib": 0,
+            "peak_cpu_percent": 100,
+            "mem_available_mib": 814.8046875,
+            "peak_agent_rss_mib": 23.3671875,
+            "peak_masscan_rss_mib": 0,
+            "min_mem_available_mib": 811.16796875
+          }
+        },
+        {
+          "instance_id": "i-bp15jolsb5hw88kg51yl",
+          "session_id": "8c746dc232df8780cd64c822e1d000f4",
+          "metrics": {
+            "cpu_percent": 2.0202020202020203,
+            "active_tasks": 0,
+            "agent_rss_mib": 27.58984375,
+            "mem_total_mib": 1736.8984375,
+            "masscan_rss_mib": 0,
+            "peak_cpu_percent": 60.5,
+            "mem_available_mib": 945.4296875,
+            "peak_agent_rss_mib": 27.640625,
+            "peak_masscan_rss_mib": 0,
+            "min_mem_available_mib": 945.4296875
+          }
+        },
+        {
+          "instance_id": "i-bp15jolsb5hw88kg51yq",
+          "session_id": "1a3188af3060c83526a5eee4f4cb6dc9",
+          "metrics": {
+            "cpu_percent": 0.5,
+            "active_tasks": 0,
+            "agent_rss_mib": 27.6328125,
+            "mem_total_mib": 1736.8984375,
+            "masscan_rss_mib": 0,
+            "peak_cpu_percent": 37.244897959183675,
+            "mem_available_mib": 965.8359375,
+            "peak_agent_rss_mib": 28.57421875,
+            "peak_masscan_rss_mib": 0,
+            "min_mem_available_mib": 965.78125
+          }
+        },
+        {
+          "instance_id": "i-bp15jolsb5hw88kg51ym",
+          "session_id": "87f868587c5182a2e93a3b36bd8072f1",
+          "metrics": {
+            "cpu_percent": 0,
+            "active_tasks": 0,
+            "agent_rss_mib": 29.41015625,
+            "mem_total_mib": 1736.89453125,
+            "masscan_rss_mib": 0,
+            "peak_cpu_percent": 31.5,
+            "mem_available_mib": 969.94921875,
+            "peak_agent_rss_mib": 29.41015625,
+            "peak_masscan_rss_mib": 0,
+            "min_mem_available_mib": 969.890625
+          }
+        },
+        {
+          "instance_id": "i-bp15jolsb5hw88kg51yn",
+          "session_id": "5cfdb65bb6cc62425396132f4abe9865",
+          "metrics": {
+            "cpu_percent": 0.5025125628140703,
+            "active_tasks": 0,
+            "agent_rss_mib": 32.16015625,
+            "mem_total_mib": 1736.8984375,
+            "masscan_rss_mib": 0,
+            "peak_cpu_percent": 48.24120603015076,
+            "mem_available_mib": 966.58203125,
+            "peak_agent_rss_mib": 32.16015625,
+            "peak_masscan_rss_mib": 0,
+            "min_mem_available_mib": 966.421875
+          }
+        }
+      ],
+      "resource_metric_caveat": "per-case checkpoint but session cumulative peaks; use timestamp-filtered metrics for case-level host CPU/RSS, not normalized mean cost",
+      "per_run_manifests": [],
+      "sampled_case_resources": {
+        "available": true,
+        "case_window_start_ns": 1792268090913760000,
+        "case_window_end_ns": 1792268118143569920,
+        "nodes": [
+          {
+            "source": "evidence/candidate/snapshot-http128/i-bp15jolsb5hw88kg51yi.tar.gz",
+            "instance_id": "i-bp15jolsb5hw88kg51yi",
+            "role": "worker",
+            "samples": 14,
+            "first_sample_ns": 1792268091843499567,
+            "last_sample_ns": 1792268117919641186,
+            "host_cpu_busy_percent": 4.243471582181259,
+            "host_cpu_steal_percent": 0.0,
+            "minimum_available_mib": 954.125,
+            "maximum_combined_scanner_rss_mib": 439.22265625
+          },
+          {
+            "source": "evidence/candidate/snapshot-http128/i-bp15jolsb5hw88kg51yj.tar.gz",
+            "instance_id": "i-bp15jolsb5hw88kg51yj",
+            "role": "worker",
+            "samples": 13,
+            "first_sample_ns": 1792268092275674618,
+            "last_sample_ns": 1792268116387649721,
+            "host_cpu_busy_percent": 76.50375939849624,
+            "host_cpu_steal_percent": 0.0,
+            "minimum_available_mib": 856.32421875,
+            "maximum_combined_scanner_rss_mib": 420.65625
+          },
+          {
+            "source": "evidence/candidate/snapshot-http128/i-bp15jolsb5hw88kg51yk.tar.gz",
+            "instance_id": "i-bp15jolsb5hw88kg51yk",
+            "role": "worker",
+            "samples": 13,
+            "first_sample_ns": 1792268092079546168,
+            "last_sample_ns": 1792268116158909126,
+            "host_cpu_busy_percent": 24.401511969760605,
+            "host_cpu_steal_percent": 0.0,
+            "minimum_available_mib": 939.16796875,
+            "maximum_combined_scanner_rss_mib": 443.78125
+          },
+          {
+            "source": "evidence/candidate/snapshot-http128/i-bp15jolsb5hw88kg51yl.tar.gz",
+            "instance_id": "i-bp15jolsb5hw88kg51yl",
+            "role": "worker",
+            "samples": 13,
+            "first_sample_ns": 1792268092170842565,
+            "last_sample_ns": 1792268116234723523,
+            "host_cpu_busy_percent": 6.8922305764411025,
+            "host_cpu_steal_percent": 0.0,
+            "minimum_available_mib": 946.35546875,
+            "maximum_combined_scanner_rss_mib": 437.046875
+          },
+          {
+            "source": "evidence/candidate/snapshot-http128/i-bp15jolsb5hw88kg51ym.tar.gz",
+            "instance_id": "i-bp15jolsb5hw88kg51ym",
+            "role": "worker",
+            "samples": 14,
+            "first_sample_ns": 1792268091919117566,
+            "last_sample_ns": 1792268117989341595,
+            "host_cpu_busy_percent": 3.9869029275808936,
+            "host_cpu_steal_percent": 0.0,
+            "minimum_available_mib": 969.87890625,
+            "maximum_combined_scanner_rss_mib": 426.671875
+          },
+          {
+            "source": "evidence/candidate/snapshot-http128/i-bp15jolsb5hw88kg51yn.tar.gz",
+            "instance_id": "i-bp15jolsb5hw88kg51yn",
+            "role": "worker",
+            "samples": 14,
+            "first_sample_ns": 1792268091786066499,
+            "last_sample_ns": 1792268117859463832,
+            "host_cpu_busy_percent": 4.186764422149334,
+            "host_cpu_steal_percent": 0.0,
+            "minimum_available_mib": 966.421875,
+            "maximum_combined_scanner_rss_mib": 428.453125
+          },
+          {
+            "source": "evidence/candidate/snapshot-http128/i-bp15jolsb5hw88kg51yo.tar.gz",
+            "instance_id": "i-bp15jolsb5hw88kg51yo",
+            "role": "worker",
+            "samples": 14,
+            "first_sample_ns": 1792268091476670615,
+            "last_sample_ns": 1792268117574394413,
+            "host_cpu_busy_percent": 36.80555555555556,
+            "host_cpu_steal_percent": 0.0,
+            "minimum_available_mib": 903.44140625,
+            "maximum_combined_scanner_rss_mib": 436.30078125
+          },
+          {
+            "source": "evidence/candidate/snapshot-http128/i-bp15jolsb5hw88kg51yp.tar.gz",
+            "instance_id": "i-bp15jolsb5hw88kg51yp",
+            "role": "worker",
+            "samples": 14,
+            "first_sample_ns": 1792268092044070031,
+            "last_sample_ns": 1792268118112714003,
+            "host_cpu_busy_percent": 3.6780281147698823,
+            "host_cpu_steal_percent": 0.0,
+            "minimum_available_mib": 958.00390625,
+            "maximum_combined_scanner_rss_mib": 438.66015625
+          },
+          {
+            "source": "evidence/candidate/snapshot-http128/i-bp15jolsb5hw88kg51yq.tar.gz",
+            "instance_id": "i-bp15jolsb5hw88kg51yq",
+            "role": "worker",
+            "samples": 14,
+            "first_sample_ns": 1792268091763136927,
+            "last_sample_ns": 1792268117845335767,
+            "host_cpu_busy_percent": 4.14985590778098,
+            "host_cpu_steal_percent": 0.0,
+            "minimum_available_mib": 965.78125,
+            "maximum_combined_scanner_rss_mib": 424.01171875
+          },
+          {
+            "source": "evidence/candidate/snapshot-http128/i-bp1ixzsfe9cm2waerb9d.tar.gz",
+            "instance_id": "i-bp1ixzsfe9cm2waerb9d",
+            "role": "control_fixture",
+            "samples": 13,
+            "first_sample_ns": 1792268092197602144,
+            "last_sample_ns": 1792268116308688280,
+            "host_cpu_busy_percent": 22.86797220467467,
+            "host_cpu_steal_percent": 0.0,
+            "minimum_available_mib": 3018.87109375,
+            "maximum_combined_scanner_rss_mib": 26.76953125
+          }
+        ],
+        "interpretation": "2s host/process samples from the exact case archive and timestamp window; combined RSS can double-count shared mappings, is not cgroup peak, and excludes postgres/fixture processes; multi-run calibration uses its combined case window"
+      },
+      "task_states": {
+        "http:completed": 128
+      },
+      "task_coverage": {
+        "http:complete": 128
+      },
+      "all_accepted_current_attempts": true,
+      "all_quotas_released": true
+    },
+    "baseline/smoke": {
+      "case": "baseline/smoke",
+      "snapshot": "evidence/baseline/snapshot-smoke/database.json",
+      "database_available": true,
+      "requested_run_ids": [
+        "f3bb9504-ad1b-4c63-bf3b-4862b4e9de96"
+      ],
+      "matched_run_ids": [
+        "f3bb9504-ad1b-4c63-bf3b-4862b4e9de96"
+      ],
+      "all_run_ids_in_exact_snapshot": true,
+      "run_rules_snapshot_present": {
+        "f3bb9504-ad1b-4c63-bf3b-4862b4e9de96": true
+      },
+      "poc_task_rule_payloads": [],
+      "raw_assets_count": 9,
+      "raw_assets_observation_retained": true,
+      "checkpoint": {
+        "complete": false,
+        "errors": [
+          {
+            "step": "capture_case.py",
+            "error": "capture_case-baseline-smoke failed; see its complete private driver log"
+          }
+        ],
+        "emergency": false
+      },
+      "collection": {
+        "at": "2026-10-17T20:19:00.058661+00:00",
+        "database": true,
+        "raw_asset_observations": true,
+        "nodes": [
+          "i-bp15jolsb5hw88kg51yq",
+          "i-bp15jolsb5hw88kg51yo",
+          "i-bp1ixzsfe9cm2waerb9d",
+          "i-bp15jolsb5hw88kg51yp",
+          "i-bp15jolsb5hw88kg51ym",
+          "i-bp15jolsb5hw88kg51yl",
+          "i-bp15jolsb5hw88kg51yn",
+          "i-bp15jolsb5hw88kg51yk",
+          "i-bp15jolsb5hw88kg51yj",
+          "i-bp15jolsb5hw88kg51yi"
+        ],
+        "errors": [],
+        "complete": true
+      },
+      "api_capture": {
+        "run_id": "f3bb9504-ad1b-4c63-bf3b-4862b4e9de96",
+        "at": "2026-10-17T20:18:58.430205+00:00",
+        "saved": [
+          "final-run.json",
+          "final-results.json",
+          "final-http-page.json"
+        ],
+        "errors": [
+          {
+            "file": "scheduler-policy.json",
+            "error": "RuntimeError: GET /api/scheduler/status: HTTP 404; see packet file"
+          }
+        ],
+        "complete": false,
+        "results_count": 1,
+        "http_count_all_statuses": 3
+      },
+      "cumulative_database_statistics": {
+        "bytes": 11152731,
+        "blks_hit": 94666,
+        "blks_read": 651,
+        "stats_reset": "2026-10-18T04:17:54.848203+08:00",
+        "tup_deleted": 1,
+        "tup_fetched": 36863,
+        "tup_updated": 405,
+        "xact_commit": 3865,
+        "tup_inserted": 3117,
+        "tup_returned": 49418,
+        "xact_rollback": 0
+      },
+      "worker_session_metrics": [
+        {
+          "instance_id": "i-bp15jolsb5hw88kg51yo",
+          "session_id": "bae0ad674ae09b7549a023c13dbbaac2",
+          "metrics": {
+            "cpu_percent": 0,
+            "active_tasks": 0,
+            "agent_rss_mib": 12.3125,
+            "mem_total_mib": 1736.8984375,
+            "masscan_rss_mib": 0,
+            "peak_cpu_percent": 28.78787878787879,
+            "mem_available_mib": 1348.81640625,
+            "peak_agent_rss_mib": 12.3125,
+            "peak_masscan_rss_mib": 0,
+            "min_mem_available_mib": 1326.8125
+          }
+        },
+        {
+          "instance_id": "i-bp15jolsb5hw88kg51yp",
+          "session_id": "88569cf09b3d829f180f1197056f5fd0",
+          "metrics": {
+            "cpu_percent": 55.32994923857868,
+            "active_tasks": 0,
+            "agent_rss_mib": 12.4921875,
+            "mem_total_mib": 1736.8984375,
+            "masscan_rss_mib": 0,
+            "peak_cpu_percent": 95.47738693467336,
+            "mem_available_mib": 1065.19921875,
+            "peak_agent_rss_mib": 12.69921875,
+            "peak_masscan_rss_mib": 0,
+            "min_mem_available_mib": 1063.35546875
+          }
+        },
+        {
+          "instance_id": "i-bp15jolsb5hw88kg51yk",
+          "session_id": "6f4045f1cdd42015bef96c72fa6c6d89",
+          "metrics": {
+            "cpu_percent": 66.3265306122449,
+            "active_tasks": 0,
+            "agent_rss_mib": 12.6171875,
+            "mem_total_mib": 1736.90234375,
+            "masscan_rss_mib": 0,
+            "peak_cpu_percent": 97.46192893401015,
+            "mem_available_mib": 1075.203125,
+            "peak_agent_rss_mib": 12.6171875,
+            "peak_masscan_rss_mib": 0,
+            "min_mem_available_mib": 1018.5
+          }
+        },
+        {
+          "instance_id": "i-bp15jolsb5hw88kg51yq",
+          "session_id": "29cb1cc17c55d6c859b0a60c1a1503f6",
+          "metrics": {
+            "cpu_percent": 0.5,
+            "active_tasks": 0,
+            "agent_rss_mib": 13.24609375,
+            "mem_total_mib": 1736.8984375,
+            "masscan_rss_mib": 0,
+            "peak_cpu_percent": 27.77777777777778,
+            "mem_available_mib": 1343.8671875,
+            "peak_agent_rss_mib": 13.24609375,
+            "peak_masscan_rss_mib": 0,
+            "min_mem_available_mib": 1343.8046875
+          }
+        },
+        {
+          "instance_id": "i-bp15jolsb5hw88kg51yl",
+          "session_id": "1d75f0850a6c8a562e58e5c59ab270eb",
+          "metrics": {
+            "cpu_percent": 0,
+            "active_tasks": 0,
+            "agent_rss_mib": 12.5625,
+            "mem_total_mib": 1736.8984375,
+            "masscan_rss_mib": 0,
+            "peak_cpu_percent": 91.5,
+            "mem_available_mib": 1190.53515625,
+            "peak_agent_rss_mib": 12.5625,
+            "peak_masscan_rss_mib": 0,
+            "min_mem_available_mib": 1053.84375
+          }
+        },
+        {
+          "instance_id": "i-bp15jolsb5hw88kg51yi",
+          "session_id": "72537d90becf74fda1870c41f029c3a3",
+          "metrics": {
+            "cpu_percent": 0,
+            "active_tasks": 0,
+            "agent_rss_mib": 12.2734375,
+            "mem_total_mib": 1736.90234375,
+            "masscan_rss_mib": 0,
+            "peak_cpu_percent": 28.06122448979592,
+            "mem_available_mib": 1351.9765625,
+            "peak_agent_rss_mib": 12.2734375,
+            "peak_masscan_rss_mib": 0,
+            "min_mem_available_mib": 1330.15625
+          }
+        },
+        {
+          "instance_id": "i-bp15jolsb5hw88kg51yj",
+          "session_id": "7a706a96836e0a691ba45364a2250cd6",
+          "metrics": {
+            "cpu_percent": 0.5025125628140703,
+            "active_tasks": 0,
+            "agent_rss_mib": 12.64453125,
+            "mem_total_mib": 1736.8984375,
+            "masscan_rss_mib": 0,
+            "peak_cpu_percent": 78.39195979899498,
+            "mem_available_mib": 1183.84765625,
+            "peak_agent_rss_mib": 12.64453125,
+            "peak_masscan_rss_mib": 0,
+            "min_mem_available_mib": 1157.62109375
+          }
+        },
+        {
+          "instance_id": "i-bp15jolsb5hw88kg51yn",
+          "session_id": "3015b5a38606dfffa57bfef317d25055",
+          "metrics": {
+            "cpu_percent": 53.807106598984774,
+            "active_tasks": 0,
+            "agent_rss_mib": 13.11328125,
+            "mem_total_mib": 1736.8984375,
+            "masscan_rss_mib": 0,
+            "peak_cpu_percent": 84.26395939086295,
+            "mem_available_mib": 1226.8203125,
+            "peak_agent_rss_mib": 13.11328125,
+            "peak_masscan_rss_mib": 0,
+            "min_mem_available_mib": 1150.0078125
+          }
+        },
+        {
+          "instance_id": "i-bp15jolsb5hw88kg51ym",
+          "session_id": "36a1824d57f014f15aa395db0eefa0a3",
+          "metrics": {
+            "cpu_percent": 0.5,
+            "active_tasks": 0,
+            "agent_rss_mib": 21.58203125,
+            "mem_total_mib": 1736.89453125,
+            "masscan_rss_mib": 0,
+            "peak_cpu_percent": 46.464646464646464,
+            "mem_available_mib": 986.37890625,
+            "peak_agent_rss_mib": 21.58203125,
+            "peak_masscan_rss_mib": 101.6875,
+            "min_mem_available_mib": 986.37890625
+          }
+        }
+      ],
+      "resource_metric_caveat": "per-case checkpoint but session cumulative peaks; use timestamp-filtered metrics for case-level host CPU/RSS, not normalized mean cost",
+      "per_run_manifests": [
+        {
+          "run_id": "f3bb9504-ad1b-4c63-bf3b-4862b4e9de96",
+          "expected_targets": 1,
+          "manifest_targets": 1,
+          "exact_manifest_targets": 1,
+          "fully_covered_targets": 1,
+          "manifest_set_matches_inputs": true,
+          "all_expected_targets_exact_and_covered": true,
+          "logical_planned_tcp_port_work": 65535,
+          "logical_covered_tcp_port_work": 65535,
+          "tcp_work_excludes_retransmissions": true
+        }
+      ],
+      "sampled_case_resources": {
+        "available": true,
+        "case_window_start_ns": 1792268283348634112,
+        "case_window_end_ns": 1792268333475426816,
+        "nodes": [
+          {
+            "source": "evidence/baseline/snapshot-smoke/i-bp15jolsb5hw88kg51yi.tar.gz",
+            "instance_id": "i-bp15jolsb5hw88kg51yi",
+            "role": "worker",
+            "samples": 25,
+            "first_sample_ns": 1792268284356210524,
+            "last_sample_ns": 1792268332470821774,
+            "host_cpu_busy_percent": 0.46958155066263174,
+            "host_cpu_steal_percent": 0.0,
+            "minimum_available_mib": 1351.62109375,
+            "maximum_combined_scanner_rss_mib": 12.2734375
+          },
+          {
+            "source": "evidence/baseline/snapshot-smoke/i-bp15jolsb5hw88kg51yj.tar.gz",
+            "instance_id": "i-bp15jolsb5hw88kg51yj",
+            "role": "worker",
+            "samples": 25,
+            "first_sample_ns": 1792268285051184993,
+            "last_sample_ns": 1792268333176842547,
+            "host_cpu_busy_percent": 1.9282885136543673,
+            "host_cpu_steal_percent": 0.0,
+            "minimum_available_mib": 1157.62109375,
+            "maximum_combined_scanner_rss_mib": 12.64453125
+          },
+          {
+            "source": "evidence/baseline/snapshot-smoke/i-bp15jolsb5hw88kg51yk.tar.gz",
+            "instance_id": "i-bp15jolsb5hw88kg51yk",
+            "role": "worker",
+            "samples": 25,
+            "first_sample_ns": 1792268284648137181,
+            "last_sample_ns": 1792268332839459974,
+            "host_cpu_busy_percent": 54.73375876137671,
+            "host_cpu_steal_percent": 0.0,
+            "minimum_available_mib": 1025.08984375,
+            "maximum_combined_scanner_rss_mib": 12.6171875
+          },
+          {
+            "source": "evidence/baseline/snapshot-smoke/i-bp15jolsb5hw88kg51yl.tar.gz",
+            "instance_id": "i-bp15jolsb5hw88kg51yl",
+            "role": "worker",
+            "samples": 25,
+            "first_sample_ns": 1792268284902729594,
+            "last_sample_ns": 1792268333066719590,
+            "host_cpu_busy_percent": 40.15715034049241,
+            "host_cpu_steal_percent": 0.0,
+            "minimum_available_mib": 1020.80078125,
+            "maximum_combined_scanner_rss_mib": 12.5625
+          },
+          {
+            "source": "evidence/baseline/snapshot-smoke/i-bp15jolsb5hw88kg51ym.tar.gz",
+            "instance_id": "i-bp15jolsb5hw88kg51ym",
+            "role": "worker",
+            "samples": 25,
+            "first_sample_ns": 1792268284435080837,
+            "last_sample_ns": 1792268332552571790,
+            "host_cpu_busy_percent": 2.55359394703657,
+            "host_cpu_steal_percent": 0.0,
+            "minimum_available_mib": 1261.171875,
+            "maximum_combined_scanner_rss_mib": 114.80078125
+          },
+          {
+            "source": "evidence/baseline/snapshot-smoke/i-bp15jolsb5hw88kg51yn.tar.gz",
+            "instance_id": "i-bp15jolsb5hw88kg51yn",
+            "role": "worker",
+            "samples": 25,
+            "first_sample_ns": 1792268284304467212,
+            "last_sample_ns": 1792268332584440831,
+            "host_cpu_busy_percent": 50.35691790888096,
+            "host_cpu_steal_percent": 0.0,
+            "minimum_available_mib": 1198.88671875,
+            "maximum_combined_scanner_rss_mib": 13.04296875
+          },
+          {
+            "source": "evidence/baseline/snapshot-smoke/i-bp15jolsb5hw88kg51yo.tar.gz",
+            "instance_id": "i-bp15jolsb5hw88kg51yo",
+            "role": "worker",
+            "samples": 25,
+            "first_sample_ns": 1792268284025372307,
+            "last_sample_ns": 1792268332143988130,
+            "host_cpu_busy_percent": 0.44833698258784277,
+            "host_cpu_steal_percent": 0.0,
+            "minimum_available_mib": 1348.69140625,
+            "maximum_combined_scanner_rss_mib": 12.3125
+          },
+          {
+            "source": "evidence/baseline/snapshot-smoke/i-bp15jolsb5hw88kg51yp.tar.gz",
+            "instance_id": "i-bp15jolsb5hw88kg51yp",
+            "role": "worker",
+            "samples": 25,
+            "first_sample_ns": 1792268284552766795,
+            "last_sample_ns": 1792268332738525824,
+            "host_cpu_busy_percent": 53.47739431448652,
+            "host_cpu_steal_percent": 0.0,
+            "minimum_available_mib": 1085.3984375,
+            "maximum_combined_scanner_rss_mib": 12.70703125
+          },
+          {
+            "source": "evidence/baseline/snapshot-smoke/i-bp15jolsb5hw88kg51yq.tar.gz",
+            "instance_id": "i-bp15jolsb5hw88kg51yq",
+            "role": "worker",
+            "samples": 25,
+            "first_sample_ns": 1792268284308397709,
+            "last_sample_ns": 1792268332422452516,
+            "host_cpu_busy_percent": 0.4900427484099677,
+            "host_cpu_steal_percent": 0.0,
+            "minimum_available_mib": 1343.8046875,
+            "maximum_combined_scanner_rss_mib": 13.24609375
+          },
+          {
+            "source": "evidence/baseline/snapshot-smoke/i-bp1ixzsfe9cm2waerb9d.tar.gz",
+            "instance_id": "i-bp1ixzsfe9cm2waerb9d",
+            "role": "control_fixture",
+            "samples": 25,
+            "first_sample_ns": 1792268285143314064,
+            "last_sample_ns": 1792268333370803054,
+            "host_cpu_busy_percent": 5.095741341425134,
+            "host_cpu_steal_percent": 0.0,
+            "minimum_available_mib": 2882.984375,
+            "maximum_combined_scanner_rss_mib": 23.7265625
+          }
+        ],
+        "interpretation": "2s host/process samples from the exact case archive and timestamp window; combined RSS can double-count shared mappings, is not cgroup peak, and excludes postgres/fixture processes; multi-run calibration uses its combined case window"
+      },
+      "task_states": {
+        "port:completed": 1,
+        "service:completed": 1,
+        "http:completed": 3
+      },
+      "task_coverage": {
+        "port:complete": 1,
+        "service:complete": 1,
+        "http:complete": 3
+      },
+      "all_accepted_current_attempts": true,
+      "all_quotas_released": true
+    }
+  },
+  "rps": {
+    "baseline": {},
+    "candidate": {
+      "http128": {
+        "available": true,
+        "run_status": "completed",
+        "source": "evidence/candidate/snapshot-http128/i-bp1ixzsfe9cm2waerb9d.tar.gz",
+        "run_id": "d4dec402-24b4-4b40-a3c7-ff76221c835e",
+        "interval": {
+          "begin": "2026-10-17T20:14:50.91376Z",
+          "end": "2026-10-17T20:15:18.14357Z"
+        },
+        "arrival_scope": "all recorded fixture HTTP requests in this sequential HTTP-only run interval, including favicon/other paths",
+        "request_count": 256,
+        "slow_page_request_count": 128,
+        "other_http_request_count": 128,
+        "by_connect_ip": {
+          "172.28.1.1": {
+            "request_count": 256,
+            "minimum_start_gap_ms": 90.746353,
+            "max_request_starts_in_rolling_1s": 10,
+            "first_to_last_seconds": 26.625813282
+          }
+        },
+        "aggregate_cluster_observed": {
+          "request_count": 256,
+          "minimum_start_gap_ms": 90.746353,
+          "max_request_starts_in_rolling_1s": 10,
+          "first_to_last_seconds": 26.625813282
+        },
+        "claims_cluster_limit_saturation": false,
+        "interpretation": "measured fixture request starts differ from grant issuance; grants may bunch within TTL; an unsaturated workload does not establish the 250-grants/second ceiling"
+      },
+      "web128": {
+        "available": true,
+        "run_status": "completed",
+        "source": "evidence/candidate/snapshot-web128/i-bp1ixzsfe9cm2waerb9d.tar.gz",
+        "run_id": "522ca81f-08a8-42ca-93b3-8f2d68984436",
+        "interval": {
+          "begin": "2026-10-17T20:15:41.188723Z",
+          "end": "2026-10-17T20:15:47.663955Z"
+        },
+        "arrival_scope": "all recorded fixture HTTP requests in this sequential HTTP-only run interval, including favicon/other paths",
+        "request_count": 256,
+        "slow_page_request_count": 128,
+        "other_http_request_count": 128,
+        "by_connect_ip": {
+          "172.28.1.1": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 206.04903,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.20604903
+          },
+          "172.28.1.100": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 205.050245,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.205050245
+          },
+          "172.28.1.102": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 213.605195,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.213605195
+          },
+          "172.28.1.10": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 207.933838,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.207933838
+          },
+          "172.28.1.105": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 205.325106,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.205325106
+          },
+          "172.28.1.101": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 210.240808,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.210240808
+          },
+          "172.28.1.108": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 205.666184,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.205666184
+          },
+          "172.28.1.103": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 212.812914,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.212812914
+          },
+          "172.28.1.104": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 213.36905,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.21336905
+          },
+          "172.28.1.106": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 209.986133,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.209986133
+          },
+          "172.28.1.107": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 205.772085,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.205772085
+          },
+          "172.28.1.109": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 206.002225,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.206002225
+          },
+          "172.28.1.11": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 207.05097,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.20705097
+          },
+          "172.28.1.113": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 208.06211,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.20806211
+          },
+          "172.28.1.110": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 236.020382,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.236020382
+          },
+          "172.28.1.114": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 211.35458,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.21135458
+          },
+          "172.28.1.111": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 210.792236,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.210792236
+          },
+          "172.28.1.112": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 212.275456,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.212275456
+          },
+          "172.28.1.118": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 207.657996,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.207657996
+          },
+          "172.28.1.115": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 210.195352,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.210195352
+          },
+          "172.28.1.119": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 210.851108,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.210851108
+          },
+          "172.28.1.116": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 221.170119,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.221170119
+          },
+          "172.28.1.117": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 225.609384,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.225609384
+          },
+          "172.28.1.121": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 205.800019,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.205800019
+          },
+          "172.28.1.122": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 205.847111,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.205847111
+          },
+          "172.28.1.12": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 206.98034,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.20698034
+          },
+          "172.28.1.120": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 212.972046,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.212972046
+          },
+          "172.28.1.124": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 206.00654,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.20600654
+          },
+          "172.28.1.126": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 207.503004,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.207503004
+          },
+          "172.28.1.123": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 204.997969,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.204997969
+          },
+          "172.28.1.128": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 208.179606,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.208179606
+          },
+          "172.28.1.125": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 205.377972,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.205377972
+          },
+          "172.28.1.127": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 205.382596,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.205382596
+          },
+          "172.28.1.15": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 205.12187,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.20512187
+          },
+          "172.28.1.13": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 208.140626,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.208140626
+          },
+          "172.28.1.18": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 207.343462,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.207343462
+          },
+          "172.28.1.14": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 207.939994,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.207939994
+          },
+          "172.28.1.20": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 206.395976,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.206395976
+          },
+          "172.28.1.16": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 209.289596,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.209289596
+          },
+          "172.28.1.17": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 211.659718,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.211659718
+          },
+          "172.28.1.22": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 213.042727,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.213042727
+          },
+          "172.28.1.19": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 212.724802,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.212724802
+          },
+          "172.28.1.2": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 209.565351,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.209565351
+          },
+          "172.28.1.26": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 206.938292,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.206938292
+          },
+          "172.28.1.21": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 224.403189,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.224403189
+          },
+          "172.28.1.27": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 208.416332,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.208416332
+          },
+          "172.28.1.23": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 214.420346,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.214420346
+          },
+          "172.28.1.24": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 213.920876,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.213920876
+          },
+          "172.28.1.25": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 206.800416,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.206800416
+          },
+          "172.28.1.31": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 207.261541,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.207261541
+          },
+          "172.28.1.29": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 206.271381,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.206271381
+          },
+          "172.28.1.28": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 242.70306,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.24270306
+          },
+          "172.28.1.3": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 216.386798,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.216386798
+          },
+          "172.28.1.30": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 209.939529,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.209939529
+          },
+          "172.28.1.34": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 205.913912,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.205913912
+          },
+          "172.28.1.32": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 207.800983,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.207800983
+          },
+          "172.28.1.33": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 208.261515,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.208261515
+          },
+          "172.28.1.35": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 205.580264,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.205580264
+          },
+          "172.28.1.36": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 205.86097,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.20586097
+          },
+          "172.28.1.37": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 205.597586,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.205597586
+          },
+          "172.28.1.38": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 205.230052,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.205230052
+          },
+          "172.28.1.39": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 213.128118,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.213128118
+          },
+          "172.28.1.4": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 210.642306,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.210642306
+          },
+          "172.28.1.40": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 205.13122,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.20513122
+          },
+          "172.28.1.43": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 210.438734,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.210438734
+          },
+          "172.28.1.41": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 205.80509,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.20580509
+          },
+          "172.28.1.42": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 208.680746,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.208680746
+          },
+          "172.28.1.46": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 211.941677,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.211941677
+          },
+          "172.28.1.48": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 208.061564,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.208061564
+          },
+          "172.28.1.44": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 212.676099,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.212676099
+          },
+          "172.28.1.45": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 212.145203,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.212145203
+          },
+          "172.28.1.5": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 205.45481,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.20545481
+          },
+          "172.28.1.47": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 207.293802,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.207293802
+          },
+          "172.28.1.52": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 207.939288,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.207939288
+          },
+          "172.28.1.53": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 205.866654,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.205866654
+          },
+          "172.28.1.49": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 205.424111,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.205424111
+          },
+          "172.28.1.54": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 218.462551,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.218462551
+          },
+          "172.28.1.50": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 205.682597,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.205682597
+          },
+          "172.28.1.51": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 213.457325,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.213457325
+          },
+          "172.28.1.58": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 205.762161,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.205762161
+          },
+          "172.28.1.55": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 207.998402,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.207998402
+          },
+          "172.28.1.6": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 208.459973,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.208459973
+          },
+          "172.28.1.60": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 211.983025,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.211983025
+          },
+          "172.28.1.56": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 206.693722,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.206693722
+          },
+          "172.28.1.57": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 205.495862,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.205495862
+          },
+          "172.28.1.59": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 206.391561,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.206391561
+          },
+          "172.28.1.65": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 205.682188,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.205682188
+          },
+          "172.28.1.61": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 213.259597,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.213259597
+          },
+          "172.28.1.66": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 219.5375,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.2195375
+          },
+          "172.28.1.62": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 208.522736,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.208522736
+          },
+          "172.28.1.63": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 209.056943,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.209056943
+          },
+          "172.28.1.64": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 204.879652,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.204879652
+          },
+          "172.28.1.70": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 206.184039,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.206184039
+          },
+          "172.28.1.67": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 204.825189,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.204825189
+          },
+          "172.28.1.68": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 206.815464,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.206815464
+          },
+          "172.28.1.69": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 204.724468,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.204724468
+          },
+          "172.28.1.7": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 204.892925,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.204892925
+          },
+          "172.28.1.71": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 205.559776,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.205559776
+          },
+          "172.28.1.75": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 205.648522,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.205648522
+          },
+          "172.28.1.72": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 209.111501,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.209111501
+          },
+          "172.28.1.73": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 213.82577,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.21382577
+          },
+          "172.28.1.74": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 205.13506,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.20513506
+          },
+          "172.28.1.79": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 208.83657,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.20883657
+          },
+          "172.28.1.76": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 205.335874,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.205335874
+          },
+          "172.28.1.8": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 222.502494,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.222502494
+          },
+          "172.28.1.77": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 233.988149,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.233988149
+          },
+          "172.28.1.78": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 205.109802,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.205109802
+          },
+          "172.28.1.83": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 206.11291,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.20611291
+          },
+          "172.28.1.84": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 207.735672,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.207735672
+          },
+          "172.28.1.80": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 211.258199,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.211258199
+          },
+          "172.28.1.81": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 211.440647,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.211440647
+          },
+          "172.28.1.82": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 215.736029,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.215736029
+          },
+          "172.28.1.88": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 205.804994,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.205804994
+          },
+          "172.28.1.86": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 205.560806,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.205560806
+          },
+          "172.28.1.85": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 224.041245,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.224041245
+          },
+          "172.28.1.87": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 210.548658,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.210548658
+          },
+          "172.28.1.90": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 206.778427,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.206778427
+          },
+          "172.28.1.9": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 205.837464,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.205837464
+          },
+          "172.28.1.89": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 211.062167,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.211062167
+          },
+          "172.28.1.91": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 210.717244,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.210717244
+          },
+          "172.28.1.92": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 204.515556,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.204515556
+          },
+          "172.28.1.94": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 205.305404,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.205305404
+          },
+          "172.28.1.95": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 205.301773,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.205301773
+          },
+          "172.28.1.96": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 205.268813,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.205268813
+          },
+          "172.28.1.93": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 214.809816,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.214809816
+          },
+          "172.28.1.99": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 206.175237,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.206175237
+          },
+          "172.28.1.97": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 206.036779,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.206036779
+          },
+          "172.28.1.98": {
+            "request_count": 2,
+            "minimum_start_gap_ms": 204.46579,
+            "max_request_starts_in_rolling_1s": 2,
+            "first_to_last_seconds": 0.20446579
+          }
+        },
+        "aggregate_cluster_observed": {
+          "request_count": 256,
+          "minimum_start_gap_ms": 0.947136,
+          "max_request_starts_in_rolling_1s": 51,
+          "first_to_last_seconds": 6.379778131
+        },
+        "claims_cluster_limit_saturation": false,
+        "interpretation": "measured fixture request starts differ from grant issuance; grants may bunch within TTL; an unsaturated workload does not establish the 250-grants/second ceiling"
+      }
+    }
+  }
+}

@@ -1,0 +1,187 @@
+{
+  "tasks": [
+    {
+      "id": "6b464dbb-fec7-4d58-96cd-85b2621aab46",
+      "type": "poc",
+      "error": "",
+      "state": "completed",
+      "run_id": "34fe77b3-353d-456a-a687-b43a3d5a5f38",
+      "outcome": "processed",
+      "payload": {
+        "rules": [
+          {
+            "id": "nuclei-p1-cloud-batch-negative-575501c5",
+            "kind": "poc",
+            "name": "P1 harmless synthetic fixture negative",
+            "engine": "nuclei",
+            "nuclei": {
+              "info": {
+                "name": "P1 harmless synthetic fixture negative",
+                "author": "shen-validation",
+                "metadata": {
+                  "product": "P1CloudSyntheticFixture"
+                },
+                "severity": "info"
+              },
+              "protocols": [
+                "http"
+              ],
+              "template_id": "p1-cloud-batch-negative",
+              "request_count": 1,
+              "content_sha256": "575501c5413c219a8d077dcfc2b76844f9468588c447fe945c7e3dedabde5ff2",
+              "execution_profile": "http-basic-v1"
+            },
+            "source": "Imported original Nuclei HTTP YAML",
+            "builtin": false,
+            "enabled": true,
+            "purpose": "check",
+            "revision": 2,
+            "severity": "info",
+            "template": "id: p1-cloud-batch-negative\ninfo:\n  name: P1 harmless synthetic fixture negative\n  author: shen-validation\n  severity: info\n  metadata:\n    product: P1CloudSyntheticFixture\nhttp:\n  - method: GET\n    path: [\"{{BaseURL}}/p1-batch\"]\n    matchers:\n      - type: word\n        part: body\n        words: [\"p1-cloud-never-present-marker\"]\n",
+            "applies_to": [
+              "P1CloudSyntheticFixture"
+            ],
+            "definition": {}
+          },
+          {
+            "id": "nuclei-p1-cloud-batch-positive-688fb06c",
+            "kind": "poc",
+            "name": "P1 harmless synthetic fixture positive",
+            "engine": "nuclei",
+            "nuclei": {
+              "info": {
+                "name": "P1 harmless synthetic fixture positive",
+                "author": "shen-validation",
+                "metadata": {
+                  "product": "P1CloudSyntheticFixture"
+                },
+                "severity": "info"
+              },
+              "protocols": [
+                "http"
+              ],
+              "template_id": "p1-cloud-batch-positive",
+              "request_count": 1,
+              "content_sha256": "688fb06caf6fe8e49aef45c27acc6dce2dd73b38e01f6b83c51f5bc53d65a14e",
+              "execution_profile": "http-basic-v1"
+            },
+            "source": "Imported original Nuclei HTTP YAML",
+            "builtin": false,
+            "enabled": true,
+            "purpose": "check",
+            "revision": 2,
+            "severity": "info",
+            "template": "id: p1-cloud-batch-positive\ninfo:\n  name: P1 harmless synthetic fixture positive\n  author: shen-validation\n  severity: info\n  metadata:\n    product: P1CloudSyntheticFixture\nhttp:\n  - method: GET\n    path: [\"{{BaseURL}}/p1-batch\"]\n    matchers:\n      - type: word\n        part: body\n        words: [\"p1-cloud-fixture\"]\n",
+            "applies_to": [
+              "P1CloudSyntheticFixture"
+            ],
+            "definition": {}
+          }
+        ],
+        "endpoint": {
+          "url": "http://172.28.1.1:8088/",
+          "work_key": "url:0:0"
+        },
+        "rule_triggers": {
+          "nuclei-p1-cloud-batch-negative-575501c5": {
+            "trigger_reason": "http_technology",
+            "matched_products": [
+              "P1CloudSyntheticFixture"
+            ]
+          },
+          "nuclei-p1-cloud-batch-positive-688fb06c": {
+            "trigger_reason": "http_technology",
+            "matched_products": [
+              "P1CloudSyntheticFixture"
+            ]
+          }
+        },
+        "source_task_id": "b83242bd-3657-4c43-8513-37d488278c71",
+        "trigger_reason": "http_technology",
+        "matched_products": [
+          "P1CloudSyntheticFixture"
+        ],
+        "source_attempt_no": 1,
+        "nuclei_batch_profile": "nuclei-3.11.1-single-http-batch-v1",
+        "source_completion_id": "ccc5b859-08fd-4165-abb6-863ace703679",
+        "execution_timeout_seconds": 90
+      },
+      "coverage": "complete",
+      "worker_id": "6389cb1d-1468-4e84-88a8-545e3ebba286",
+      "attempt_no": 1,
+      "created_at": "2026-10-18T04:16:12.960492+08:00",
+      "rate_until": null,
+      "session_id": "1a3188af3060c83526a5eee4f4cb6dc9",
+      "target_key": "172.28.1.1",
+      "updated_at": "2026-10-18T04:16:13.286533+08:00",
+      "derived_key": "poc-fingerprint:http://172.28.1.1:8088:nuclei-p1-cloud-batch-negative-575501c5:2",
+      "lease_until": null,
+      "completed_at": "2026-10-18T04:16:13.286533+08:00",
+      "completion_id": "855aa69e-d387-4c3c-919a-2cf95b61977e",
+      "last_batch_seq": 1,
+      "reserved_until": null,
+      "first_started_at": "2026-10-18T04:16:12.985499+08:00",
+      "execution_failures": 0,
+      "accepted_attempt_no": 1,
+      "completion_manifest": [
+        {
+          "sha256": "2baaad08d27df5ea29c6d695037a21b88337654942b32e12be4bf0a221657d07",
+          "batch_seq": 0
+        },
+        {
+          "sha256": "3baaca92e1505694d6ed0bc4b552bc68219d15efaafe5f844c8fe8f9de94acc5",
+          "batch_seq": 1
+        },
+        {
+          "rule_id": "nuclei-p1-cloud-batch-negative-575501c5",
+          "batch_seq": 0,
+          "template_id": "p1-cloud-batch-negative",
+          "batch_sha256": "2baaad08d27df5ea29c6d695037a21b88337654942b32e12be4bf0a221657d07",
+          "content_sha256": "575501c5413c219a8d077dcfc2b76844f9468588c447fe945c7e3dedabde5ff2",
+          "observation_id": "e7efbdc2-8afe-4cb2-85e9-cf8ff1ac65f5",
+          "source_attempt_no": 1,
+          "template_completion_id": "8c76a516-7ebc-43c6-ace3-a3ca72027b09:nuclei-p1-cloud-batch-negative-575501c5"
+        },
+        {
+          "rule_id": "nuclei-p1-cloud-batch-positive-688fb06c",
+          "batch_seq": 1,
+          "template_id": "p1-cloud-batch-positive",
+          "batch_sha256": "3baaca92e1505694d6ed0bc4b552bc68219d15efaafe5f844c8fe8f9de94acc5",
+          "content_sha256": "688fb06caf6fe8e49aef45c27acc6dce2dd73b38e01f6b83c51f5bc53d65a14e",
+          "observation_id": "b8096596-ce37-4e69-9144-6d988e109931",
+          "source_attempt_no": 1,
+          "template_completion_id": "896d3eb3-9fb8-47fb-a912-3e1c4fd85111:nuclei-p1-cloud-batch-positive-688fb06c"
+        }
+      ],
+      "completion_scope_sha256": "c4e204068aa1c756f0524a2a4730aea3e0f1a2fd315db03163a753903edded96"
+    }
+  ],
+  "receipts": [
+    {
+      "rule_id": "nuclei-p1-cloud-batch-negative-575501c5",
+      "task_id": "6b464dbb-fec7-4d58-96cd-85b2621aab46",
+      "batch_seq": 0,
+      "accepted_at": "2026-10-18T04:16:13.179417+08:00",
+      "template_id": "p1-cloud-batch-negative",
+      "batch_digest": "\\x2baaad08d27df5ea29c6d695037a21b88337654942b32e12be4bf0a221657d07",
+      "completion_id": "8c76a516-7ebc-43c6-ace3-a3ca72027b09:nuclei-p1-cloud-batch-negative-575501c5",
+      "rule_revision": 2,
+      "content_sha256": "575501c5413c219a8d077dcfc2b76844f9468588c447fe945c7e3dedabde5ff2",
+      "observation_id": "e7efbdc2-8afe-4cb2-85e9-cf8ff1ac65f5",
+      "source_attempt_no": 1
+    },
+    {
+      "rule_id": "nuclei-p1-cloud-batch-positive-688fb06c",
+      "task_id": "6b464dbb-fec7-4d58-96cd-85b2621aab46",
+      "batch_seq": 1,
+      "accepted_at": "2026-10-18T04:16:13.280354+08:00",
+      "template_id": "p1-cloud-batch-positive",
+      "batch_digest": "\\x3baaca92e1505694d6ed0bc4b552bc68219d15efaafe5f844c8fe8f9de94acc5",
+      "completion_id": "896d3eb3-9fb8-47fb-a912-3e1c4fd85111:nuclei-p1-cloud-batch-positive-688fb06c",
+      "rule_revision": 2,
+      "content_sha256": "688fb06caf6fe8e49aef45c27acc6dce2dd73b38e01f6b83c51f5bc53d65a14e",
+      "observation_id": "b8096596-ce37-4e69-9144-6d988e109931",
+      "source_attempt_no": 1
+    }
+  ]
+}

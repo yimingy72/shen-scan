@@ -1,0 +1,109 @@
+[
+  {
+    "id": "58bad08c-1383-4db2-9cbc-015377d36b1f",
+    "type": "port",
+    "error": "",
+    "state": "completed",
+    "run_id": "7d23d5c3-f4ff-4c59-8d98-f83e5117b967",
+    "outcome": "scanned",
+    "payload": {
+      "ports": "33624-65535",
+      "targets": [
+        "172.28.1.1"
+      ],
+      "rate_pps": 5000,
+      "http_enabled": true,
+      "wait_seconds": 15,
+      "range_planned": true,
+      "partition_cost": {
+        "source": "observed_linear_cost",
+        "samples": 4,
+        "overhead_seconds": 16.963350930708774,
+        "effective_ports_per_second": 2430.5783569695636
+      },
+      "partition_count": 2,
+      "timeout_seconds": 180,
+      "partition_reason": "observed_weighted_start_reservations",
+      "execution_timeout_seconds": 180
+    },
+    "coverage": "complete",
+    "worker_id": "266dbb45-3be5-4890-b997-705bd5b31bac",
+    "attempt_no": 1,
+    "created_at": "2026-10-18T05:09:51.757136+08:00",
+    "rate_until": null,
+    "session_id": "e974ed14ddc4bf1ae9b0367ca7ae985c",
+    "target_key": "172.28.1.1",
+    "updated_at": "2026-10-18T05:10:20.711091+08:00",
+    "derived_key": "range:09dbf192-cd6f-4c01-a475-1ba64a3385ce:1",
+    "lease_until": null,
+    "completed_at": "2026-10-18T05:10:20.711091+08:00",
+    "completion_id": "32fb42ac-8812-491b-be7a-48b8a1fe5e84",
+    "last_batch_seq": -1,
+    "reserved_until": null,
+    "first_started_at": "2026-10-18T05:09:51.763215+08:00",
+    "execution_failures": 0,
+    "accepted_attempt_no": 1,
+    "completion_manifest": [],
+    "completion_scope_sha256": "6a13347e9f32bfe6d8544ac3dd38afb5482821449746ad97a5b2e488fd07fc83"
+  },
+  {
+    "id": "09dbf192-cd6f-4c01-a475-1ba64a3385ce",
+    "type": "port",
+    "error": "",
+    "state": "completed",
+    "run_id": "7d23d5c3-f4ff-4c59-8d98-f83e5117b967",
+    "outcome": "scanned",
+    "payload": {
+      "ports": "1-33623",
+      "targets": [
+        "172.28.1.1"
+      ],
+      "rate_pps": 5000,
+      "http_enabled": true,
+      "wait_seconds": 15,
+      "range_planned": true,
+      "partition_cost": {
+        "source": "observed_linear_cost",
+        "samples": 4,
+        "overhead_seconds": 16.58979500494815,
+        "effective_ports_per_second": 2490.070431293636
+      },
+      "partition_count": 2,
+      "timeout_seconds": 180,
+      "partition_reason": "observed_weighted_start_reservations",
+      "execution_timeout_seconds": 180
+    },
+    "coverage": "complete",
+    "worker_id": "1318d8ef-1f3d-41a8-882a-21687d313493",
+    "attempt_no": 1,
+    "created_at": "2026-10-18T05:09:49.921731+08:00",
+    "rate_until": null,
+    "session_id": "d26360dfaf8de0b4ac4e52642850c7f2",
+    "target_key": "172.28.1.1",
+    "updated_at": "2026-10-18T05:10:21.716456+08:00",
+    "derived_key": "ports:0",
+    "lease_until": null,
+    "completed_at": "2026-10-18T05:10:21.716456+08:00",
+    "completion_id": "fef7ef80-4b61-4fe9-9d23-87eaf1ff8fbc",
+    "last_batch_seq": 2,
+    "reserved_until": null,
+    "first_started_at": "2026-10-18T05:09:51.76376+08:00",
+    "execution_failures": 0,
+    "accepted_attempt_no": 1,
+    "completion_manifest": [
+      {
+        "sha256": "a9e5eeeb38f97c7819ee456892a17ad890bf2519fc1992abdc050e6e819972ee",
+        "batch_seq": 0
+      },
+      {
+        "sha256": "a522837d1949f664ab0ec865afb7b6cd326272949e24956c70f16ccd1510def8",
+        "batch_seq": 1
+      },
+      {
+        "sha256": "d4136fb0fd731d13e407c4835264645c7bd472902347ecc5df06d1be18c18558",
+        "batch_seq": 2
+      }
+    ],
+    "completion_scope_sha256": "07adea8e39e2de0b4b6c2550a8ccde6e30bb9778aaf3d450c05fb0370acb9120"
+  }
+]

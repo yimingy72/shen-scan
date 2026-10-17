@@ -1,0 +1,338 @@
+[
+  {
+    "id": "374cd816-3df8-4883-bcb9-10aaa99857df",
+    "type": "port",
+    "error": "",
+    "state": "completed",
+    "run_id": "86c508c5-9282-4a97-a140-ac3627654ed6",
+    "outcome": "scanned",
+    "payload": {
+      "ports": "4097-12288",
+      "targets": [
+        "172.28.1.10"
+      ],
+      "rate_pps": 5000,
+      "http_enabled": false,
+      "wait_seconds": 15,
+      "range_planned": true,
+      "timeout_seconds": 180,
+      "execution_timeout_seconds": 180
+    },
+    "coverage": "complete",
+    "worker_id": "1318d8ef-1f3d-41a8-882a-21687d313493",
+    "attempt_no": 1,
+    "created_at": "2026-10-18T05:08:03.990712+08:00",
+    "rate_until": null,
+    "session_id": "d26360dfaf8de0b4ac4e52642850c7f2",
+    "target_key": "172.28.1.10",
+    "updated_at": "2026-10-18T05:08:24.727964+08:00",
+    "derived_key": "measured-range-1",
+    "lease_until": null,
+    "completed_at": "2026-10-18T05:08:24.727964+08:00",
+    "completion_id": "8f8af75a-c0c6-4134-8b36-a61a32f77998",
+    "last_batch_seq": 1,
+    "reserved_until": null,
+    "first_started_at": "2026-10-18T05:08:05.023632+08:00",
+    "execution_failures": 0,
+    "accepted_attempt_no": 1,
+    "completion_manifest": [
+      {
+        "sha256": "bd3111372a0a4726e4899327f9ed3ce238e2ab1b306991b98f2da350c4949e2f",
+        "batch_seq": 0
+      },
+      {
+        "sha256": "e21dffc066fd964fdf88f3a8d5f28ddd606ea9a219575ee413c40efebe3fcb4d",
+        "batch_seq": 1
+      }
+    ],
+    "completion_scope_sha256": "301689f1704049a6a6e1b1b0bd5ecff1e554e5b42bee14b568103b5705928fee"
+  },
+  {
+    "id": "51af8200-cf41-410a-b9a1-3515f0a2523d",
+    "type": "port",
+    "error": "",
+    "state": "completed",
+    "run_id": "9b87bf46-ba05-4a8c-a225-8ada497995f6",
+    "outcome": "scanned",
+    "payload": {
+      "ports": "12289-28672",
+      "targets": [
+        "172.28.1.11"
+      ],
+      "rate_pps": 5000,
+      "http_enabled": false,
+      "wait_seconds": 15,
+      "range_planned": true,
+      "timeout_seconds": 180,
+      "execution_timeout_seconds": 180
+    },
+    "coverage": "complete",
+    "worker_id": "266dbb45-3be5-4890-b997-705bd5b31bac",
+    "attempt_no": 1,
+    "created_at": "2026-10-18T05:08:03.990712+08:00",
+    "rate_until": null,
+    "session_id": "e974ed14ddc4bf1ae9b0367ca7ae985c",
+    "target_key": "172.28.1.11",
+    "updated_at": "2026-10-18T05:08:27.738685+08:00",
+    "derived_key": "measured-range-2",
+    "lease_until": null,
+    "completed_at": "2026-10-18T05:08:27.738685+08:00",
+    "completion_id": "fba73c3d-1209-4b9b-89e1-6db5fa554ce9",
+    "last_batch_seq": -1,
+    "reserved_until": null,
+    "first_started_at": "2026-10-18T05:08:05.029969+08:00",
+    "execution_failures": 0,
+    "accepted_attempt_no": 1,
+    "completion_manifest": [],
+    "completion_scope_sha256": "8f73ff2412e24335e1578150be0f839f382c3ab17014f8a042dd21a0c359f57c"
+  },
+  {
+    "id": "9ff9d29d-bc52-4a7d-8260-24f2e4e5159c",
+    "type": "port",
+    "error": "",
+    "state": "completed",
+    "run_id": "86c508c5-9282-4a97-a140-ac3627654ed6",
+    "outcome": "scanned",
+    "payload": {
+      "ports": "28673-65535",
+      "targets": [
+        "172.28.1.10"
+      ],
+      "rate_pps": 5000,
+      "http_enabled": false,
+      "wait_seconds": 15,
+      "range_planned": true,
+      "timeout_seconds": 180,
+      "execution_timeout_seconds": 180
+    },
+    "coverage": "complete",
+    "worker_id": "1318d8ef-1f3d-41a8-882a-21687d313493",
+    "attempt_no": 1,
+    "created_at": "2026-10-18T05:08:03.990712+08:00",
+    "rate_until": null,
+    "session_id": "d26360dfaf8de0b4ac4e52642850c7f2",
+    "target_key": "172.28.1.10",
+    "updated_at": "2026-10-18T05:08:55.680135+08:00",
+    "derived_key": "measured-range-3",
+    "lease_until": null,
+    "completed_at": "2026-10-18T05:08:55.680135+08:00",
+    "completion_id": "efbb2cf1-cfc1-45b9-92ef-20bad0a1f78c",
+    "last_batch_seq": -1,
+    "reserved_until": null,
+    "first_started_at": "2026-10-18T05:08:24.733784+08:00",
+    "execution_failures": 0,
+    "accepted_attempt_no": 1,
+    "completion_manifest": [],
+    "completion_scope_sha256": "ba6faa3bafa7e5714080176836f00e8f24926f250d90f31bf49f49a04a24cf75"
+  },
+  {
+    "id": "c5a4a78a-ecde-4e45-8644-e049f48d9436",
+    "type": "port",
+    "error": "",
+    "state": "completed",
+    "run_id": "9b87bf46-ba05-4a8c-a225-8ada497995f6",
+    "outcome": "scanned",
+    "payload": {
+      "ports": "28673-65535",
+      "targets": [
+        "172.28.1.11"
+      ],
+      "rate_pps": 5000,
+      "http_enabled": false,
+      "wait_seconds": 15,
+      "range_planned": true,
+      "timeout_seconds": 180,
+      "execution_timeout_seconds": 180
+    },
+    "coverage": "complete",
+    "worker_id": "266dbb45-3be5-4890-b997-705bd5b31bac",
+    "attempt_no": 1,
+    "created_at": "2026-10-18T05:08:03.990712+08:00",
+    "rate_until": null,
+    "session_id": "e974ed14ddc4bf1ae9b0367ca7ae985c",
+    "target_key": "172.28.1.11",
+    "updated_at": "2026-10-18T05:08:58.690973+08:00",
+    "derived_key": "measured-range-3",
+    "lease_until": null,
+    "completed_at": "2026-10-18T05:08:58.690973+08:00",
+    "completion_id": "a79593f5-9de8-43b6-8715-46b3f7b8f5d7",
+    "last_batch_seq": -1,
+    "reserved_until": null,
+    "first_started_at": "2026-10-18T05:08:27.744907+08:00",
+    "execution_failures": 0,
+    "accepted_attempt_no": 1,
+    "completion_manifest": [],
+    "completion_scope_sha256": "1ba0f7e13efb447490a833d459cd7832f163d2cdc36a81831eb62a4890582165"
+  },
+  {
+    "id": "d7adfa24-75ed-4f04-960b-f7dbd28bac50",
+    "type": "port",
+    "error": "",
+    "state": "completed",
+    "run_id": "86c508c5-9282-4a97-a140-ac3627654ed6",
+    "outcome": "scanned",
+    "payload": {
+      "ports": "12289-28672",
+      "targets": [
+        "172.28.1.10"
+      ],
+      "rate_pps": 5000,
+      "http_enabled": false,
+      "wait_seconds": 15,
+      "range_planned": true,
+      "timeout_seconds": 180,
+      "execution_timeout_seconds": 180
+    },
+    "coverage": "complete",
+    "worker_id": "1318d8ef-1f3d-41a8-882a-21687d313493",
+    "attempt_no": 1,
+    "created_at": "2026-10-18T05:08:03.990712+08:00",
+    "rate_until": null,
+    "session_id": "d26360dfaf8de0b4ac4e52642850c7f2",
+    "target_key": "172.28.1.10",
+    "updated_at": "2026-10-18T05:09:18.640294+08:00",
+    "derived_key": "measured-range-2",
+    "lease_until": null,
+    "completed_at": "2026-10-18T05:09:18.640294+08:00",
+    "completion_id": "03262d5c-8943-477b-8c53-80116ccbe2f2",
+    "last_batch_seq": -1,
+    "reserved_until": null,
+    "first_started_at": "2026-10-18T05:08:55.686296+08:00",
+    "execution_failures": 0,
+    "accepted_attempt_no": 1,
+    "completion_manifest": [],
+    "completion_scope_sha256": "18656f42b508cdddd3a0175b0ba8da7cef87309292b520f0f12c62288100c4ab"
+  },
+  {
+    "id": "e08665bf-79dc-4731-bf03-9df3b1f19d7c",
+    "type": "port",
+    "error": "",
+    "state": "completed",
+    "run_id": "86c508c5-9282-4a97-a140-ac3627654ed6",
+    "outcome": "scanned",
+    "payload": {
+      "ports": "1-4096",
+      "targets": [
+        "172.28.1.10"
+      ],
+      "rate_pps": 5000,
+      "http_enabled": false,
+      "wait_seconds": 15,
+      "range_planned": true,
+      "timeout_seconds": 180,
+      "execution_timeout_seconds": 180
+    },
+    "coverage": "complete",
+    "worker_id": "1318d8ef-1f3d-41a8-882a-21687d313493",
+    "attempt_no": 1,
+    "created_at": "2026-10-18T05:08:03.990712+08:00",
+    "rate_until": null,
+    "session_id": "d26360dfaf8de0b4ac4e52642850c7f2",
+    "target_key": "172.28.1.10",
+    "updated_at": "2026-10-18T05:09:36.600226+08:00",
+    "derived_key": "measured-range-0",
+    "lease_until": null,
+    "completed_at": "2026-10-18T05:09:36.600226+08:00",
+    "completion_id": "36ff3ab4-dd43-4b9a-b18d-d971c64285d3",
+    "last_batch_seq": 0,
+    "reserved_until": null,
+    "first_started_at": "2026-10-18T05:09:18.645841+08:00",
+    "execution_failures": 0,
+    "accepted_attempt_no": 1,
+    "completion_manifest": [
+      {
+        "sha256": "172e4d24b98b55183ef1315fef3a60413e749ba62b80ba28751fc43df1d4e46c",
+        "batch_seq": 0
+      }
+    ],
+    "completion_scope_sha256": "7e9f84169053d1087605d95320da4b37583aa3ca0b80d19cde1a9ac9d22a75de"
+  },
+  {
+    "id": "f8aaf3f2-f5ee-48a5-a3ee-7718fbb05a21",
+    "type": "port",
+    "error": "",
+    "state": "completed",
+    "run_id": "9b87bf46-ba05-4a8c-a225-8ada497995f6",
+    "outcome": "scanned",
+    "payload": {
+      "ports": "4097-12288",
+      "targets": [
+        "172.28.1.11"
+      ],
+      "rate_pps": 5000,
+      "http_enabled": false,
+      "wait_seconds": 15,
+      "range_planned": true,
+      "timeout_seconds": 180,
+      "execution_timeout_seconds": 180
+    },
+    "coverage": "complete",
+    "worker_id": "266dbb45-3be5-4890-b997-705bd5b31bac",
+    "attempt_no": 1,
+    "created_at": "2026-10-18T05:08:03.990712+08:00",
+    "rate_until": null,
+    "session_id": "e974ed14ddc4bf1ae9b0367ca7ae985c",
+    "target_key": "172.28.1.11",
+    "updated_at": "2026-10-18T05:09:36.602911+08:00",
+    "derived_key": "measured-range-1",
+    "lease_until": null,
+    "completed_at": "2026-10-18T05:09:36.602911+08:00",
+    "completion_id": "ee275a5b-5ace-4ffb-b388-9e4355b37ce2",
+    "last_batch_seq": 0,
+    "reserved_until": null,
+    "first_started_at": "2026-10-18T05:09:16.653481+08:00",
+    "execution_failures": 0,
+    "accepted_attempt_no": 1,
+    "completion_manifest": [
+      {
+        "sha256": "c6b68c6ae9d283ce68db36b1eb8e6a8c831cd4ac80da2eb1c9bcfdcd3a1d62aa",
+        "batch_seq": 0
+      }
+    ],
+    "completion_scope_sha256": "0a3fc242483d7aa19c57707caa69f02b156fa5206233ad8ee92f6ba2dc5b3033"
+  },
+  {
+    "id": "f7fd7f15-c643-4781-9e7c-26dc3aa811bf",
+    "type": "port",
+    "error": "",
+    "state": "completed",
+    "run_id": "9b87bf46-ba05-4a8c-a225-8ada497995f6",
+    "outcome": "scanned",
+    "payload": {
+      "ports": "1-4096",
+      "targets": [
+        "172.28.1.11"
+      ],
+      "rate_pps": 5000,
+      "http_enabled": false,
+      "wait_seconds": 15,
+      "range_planned": true,
+      "timeout_seconds": 180,
+      "execution_timeout_seconds": 180
+    },
+    "coverage": "complete",
+    "worker_id": "266dbb45-3be5-4890-b997-705bd5b31bac",
+    "attempt_no": 1,
+    "created_at": "2026-10-18T05:08:03.990712+08:00",
+    "rate_until": null,
+    "session_id": "e974ed14ddc4bf1ae9b0367ca7ae985c",
+    "target_key": "172.28.1.11",
+    "updated_at": "2026-10-18T05:09:16.646898+08:00",
+    "derived_key": "measured-range-0",
+    "lease_until": null,
+    "completed_at": "2026-10-18T05:09:16.646898+08:00",
+    "completion_id": "ee96a52a-5bf8-4882-a831-e57613fdf0da",
+    "last_batch_seq": 0,
+    "reserved_until": null,
+    "first_started_at": "2026-10-18T05:08:58.698231+08:00",
+    "execution_failures": 0,
+    "accepted_attempt_no": 1,
+    "completion_manifest": [
+      {
+        "sha256": "aa69d865c7d3aedea87f45a8ae28c22874a3c66841c9221d98698d0c18c14528",
+        "batch_seq": 0
+      }
+    ],
+    "completion_scope_sha256": "85a46b2025c699d442ddf8dea1b7bcc0a65851ab1392d5304abb0148ea2ddf60"
+  }
+]

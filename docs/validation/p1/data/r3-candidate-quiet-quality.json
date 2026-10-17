@@ -1,0 +1,41 @@
+{
+  "run_id": "3fb7b415-c654-4fe2-b0cd-d6429f1c1d97",
+  "checks": {
+    "run_completed": true,
+    "no_failed_tasks": true,
+    "all_targets_present": true,
+    "http_pages_complete": true,
+    "no_open_ports_or_downstream": true
+  },
+  "passed": true,
+  "http_results": 0,
+  "run": {
+    "id": "3fb7b415-c654-4fe2-b0cd-d6429f1c1d97",
+    "name": "p1-cloud-quiet",
+    "targets": [
+      "172.28.2.1"
+    ],
+    "modes": [
+      "port"
+    ],
+    "status": "completed",
+    "created_at": "2026-10-17T20:16:38.307972Z",
+    "updated_at": "2026-10-17T20:17:20.626886Z",
+    "task_total": 1,
+    "task_done": 1,
+    "task_failed": 0,
+    "asset_count": 0,
+    "target_count": 1,
+    "target_done": 1,
+    "open_port_count": 0,
+    "http_count": 0,
+    "input_count": 1,
+    "poc_enabled": false,
+    "finding_count": 0,
+    "verification_finding_count": 0,
+    "check_match_count": 0,
+    "discovery_match_count": 0,
+    "poc_checked_count": 0,
+    "error": ""
+  }
+}

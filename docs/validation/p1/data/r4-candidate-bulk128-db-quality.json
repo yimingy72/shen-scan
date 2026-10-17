@@ -1,0 +1,50 @@
+{
+  "run_id": "0bd2309e-6792-4d55-978c-b08b4e0e8c57",
+  "checks": {
+    "all_tasks_completed": true,
+    "all_tasks_full_coverage": true,
+    "accepted_current_attempts": true,
+    "all_attempt_one": true,
+    "all_quotas_released": true,
+    "manifest_targets_equal_expected_inputs": true,
+    "all_manifests_exact_tcp_1_65535": true,
+    "each_expected_ip_has_exact_fixture_ports": true,
+    "each_expected_ip_has_exact_http_tls_ports": true,
+    "no_http_observation_errors": true
+  },
+  "passed": true,
+  "manifest_targets": 128,
+  "expected_manifest_targets": 128,
+  "logical_tcp_port_work": 8388480,
+  "stages": {
+    "http": {
+      "tasks": 384,
+      "execution_sum_seconds": 69.15626800000005,
+      "execution_median_seconds": 0.1414855,
+      "execution_max_seconds": 2.368264,
+      "first_start_seconds": 7.869152,
+      "last_finish_seconds": 461.107091
+    },
+    "port": {
+      "tasks": 43,
+      "execution_sum_seconds": 4009.8744759999986,
+      "execution_median_seconds": 93.961981,
+      "execution_max_seconds": 94.218311,
+      "first_start_seconds": 0.108214,
+      "last_finish_seconds": 471.142172
+    },
+    "service": {
+      "tasks": 374,
+      "execution_sum_seconds": 2395.341102999995,
+      "execution_median_seconds": 6.3836405,
+      "execution_max_seconds": 7.12445,
+      "first_start_seconds": 1.458287,
+      "last_finish_seconds": 460.965268
+    }
+  },
+  "accepted_positive_receipts": 384,
+  "first_stored_port_seconds": 1.441719,
+  "first_http_observed_seconds": 8.160028,
+  "first_positive_receipt_seconds": 1.441719,
+  "all_tasks_finished_seconds": 471.142172
+}

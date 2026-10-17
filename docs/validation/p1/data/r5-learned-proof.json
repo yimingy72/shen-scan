@@ -1,0 +1,196 @@
+{
+  "learned_summary": {
+    "status": "completed",
+    "actual_calibration_workers": 2,
+    "actual_clean_current_session_samples": 8,
+    "actual_split_partitions": 2,
+    "sum_partition_PPS": 10000,
+    "observed_max_occupied_PPS": 10000,
+    "exact_contiguous_TCP_1_65535_SQL_passed": true,
+    "no_policy_restart": true,
+    "synthetic_measurements": false
+  },
+  "maintenance_barrier": {
+    "both_idle_and_maintenance_verified_before_create": true,
+    "same_sessions_as_real_calibration": true,
+    "parallel_unmaintenance_seconds": 0.3273921659856569,
+    "target_quota_startup": 10000,
+    "control_restarted_or_policy_changed": false
+  },
+  "partitions": [
+    {
+      "task_id": "58bad08c-1383-4db2-9cbc-015377d36b1f",
+      "range": "33624-65535",
+      "Worker": "266dbb45-3be5-4890-b997-705bd5b31bac",
+      "session": "e974ed14ddc4bf1ae9b0367ca7ae985c",
+      "PPS": 5000,
+      "cost_model": {
+        "source": "observed_linear_cost",
+        "samples": 4,
+        "overhead_seconds": 16.963350930708774,
+        "effective_ports_per_second": 2430.5783569695636
+      },
+      "state": "completed",
+      "attempt_no": 1,
+      "accepted_attempt_no": 1,
+      "first_started_at": "2026-10-18T05:09:51.763215+08:00",
+      "completed_at": "2026-10-18T05:10:20.711091+08:00",
+      "cost_profile": "p1-cloud-2cpu-worker-1",
+      "actual_start_ticket": {
+        "profile": "p1-cloud-2cpu-worker-1",
+        "task_id": "58bad08c-1383-4db2-9cbc-015377d36b1f",
+        "worker_id": "266dbb45-3be5-4890-b997-705bd5b31bac",
+        "expires_at": "2026-10-18T05:09:54.756618+08:00",
+        "request_id": "747029cf9eff9c2a0f2747920bf4b758",
+        "session_id": "e974ed14ddc4bf1ae9b0367ca7ae985c",
+        "root_task_id": "09dbf192-cd6f-4c01-a475-1ba64a3385ce",
+        "collect_until": "2026-10-18T05:09:51.756618+08:00"
+      }
+    },
+    {
+      "task_id": "09dbf192-cd6f-4c01-a475-1ba64a3385ce",
+      "range": "1-33623",
+      "Worker": "1318d8ef-1f3d-41a8-882a-21687d313493",
+      "session": "d26360dfaf8de0b4ac4e52642850c7f2",
+      "PPS": 5000,
+      "cost_model": {
+        "source": "observed_linear_cost",
+        "samples": 4,
+        "overhead_seconds": 16.58979500494815,
+        "effective_ports_per_second": 2490.070431293636
+      },
+      "state": "completed",
+      "attempt_no": 1,
+      "accepted_attempt_no": 1,
+      "first_started_at": "2026-10-18T05:09:51.76376+08:00",
+      "completed_at": "2026-10-18T05:10:21.716456+08:00",
+      "cost_profile": "p1-cloud-2cpu-worker-0",
+      "actual_start_ticket": {
+        "profile": "p1-cloud-2cpu-worker-0",
+        "task_id": "09dbf192-cd6f-4c01-a475-1ba64a3385ce",
+        "worker_id": "1318d8ef-1f3d-41a8-882a-21687d313493",
+        "expires_at": "2026-10-18T05:09:54.756618+08:00",
+        "request_id": "52b326f37a382799b8999f67dc90bc3f",
+        "session_id": "d26360dfaf8de0b4ac4e52642850c7f2",
+        "root_task_id": "09dbf192-cd6f-4c01-a475-1ba64a3385ce",
+        "collect_until": "2026-10-18T05:09:51.756618+08:00"
+      }
+    }
+  ],
+  "actual_start_tickets": [
+    {
+      "profile": "p1-cloud-2cpu-worker-0",
+      "task_id": "09dbf192-cd6f-4c01-a475-1ba64a3385ce",
+      "worker_id": "1318d8ef-1f3d-41a8-882a-21687d313493",
+      "expires_at": "2026-10-18T05:09:54.756618+08:00",
+      "request_id": "52b326f37a382799b8999f67dc90bc3f",
+      "session_id": "d26360dfaf8de0b4ac4e52642850c7f2",
+      "root_task_id": "09dbf192-cd6f-4c01-a475-1ba64a3385ce",
+      "collect_until": "2026-10-18T05:09:51.756618+08:00"
+    },
+    {
+      "profile": "p1-cloud-2cpu-worker-1",
+      "task_id": "58bad08c-1383-4db2-9cbc-015377d36b1f",
+      "worker_id": "266dbb45-3be5-4890-b997-705bd5b31bac",
+      "expires_at": "2026-10-18T05:09:54.756618+08:00",
+      "request_id": "747029cf9eff9c2a0f2747920bf4b758",
+      "session_id": "e974ed14ddc4bf1ae9b0367ca7ae985c",
+      "root_task_id": "09dbf192-cd6f-4c01-a475-1ba64a3385ce",
+      "collect_until": "2026-10-18T05:09:51.756618+08:00"
+    }
+  ],
+  "quota_peak_observation": {
+    "at": "2026-10-18T05:09:50.862393+08:00",
+    "occupied_pps": 10000,
+    "rows": [
+      {
+        "epoch": "75ed8a3b-9076-4e18-9be3-3f753c2d519a",
+        "task_id": "09dbf192-cd6f-4c01-a475-1ba64a3385ce",
+        "attempt_no": 0,
+        "worker_id": "266dbb45-3be5-4890-b997-705bd5b31bac",
+        "instance_id": "i-bp17bwx425c8k22qs8pc",
+        "session_id": "e974ed14ddc4bf1ae9b0367ca7ae985c",
+        "scope": "172.28.1.1",
+        "dimension": "discovery_pps",
+        "amount": 5000,
+        "enforcement_class": "cooperative",
+        "state": "reserved",
+        "valid_until": "2026-10-18T05:09:54.756618+08:00",
+        "suspect_since": null,
+        "revoke_deadline": null,
+        "stop_evidence": "",
+        "released_at": null
+      },
+      {
+        "epoch": "376bbc93-9680-47f2-9b19-a602651a890f",
+        "task_id": "09dbf192-cd6f-4c01-a475-1ba64a3385ce",
+        "attempt_no": 0,
+        "worker_id": "1318d8ef-1f3d-41a8-882a-21687d313493",
+        "instance_id": "i-bp17bwx425c8k22qs8pd",
+        "session_id": "d26360dfaf8de0b4ac4e52642850c7f2",
+        "scope": "172.28.1.1",
+        "dimension": "discovery_pps",
+        "amount": 5000,
+        "enforcement_class": "cooperative",
+        "state": "reserved",
+        "valid_until": "2026-10-18T05:09:54.756618+08:00",
+        "suspect_since": null,
+        "revoke_deadline": null,
+        "stop_evidence": "",
+        "released_at": null
+      }
+    ]
+  },
+  "quota_samples": 65,
+  "all_quotas_released": true,
+  "exact_SQL_manifest": {
+    "run_id": "7d23d5c3-f4ff-4c59-8d98-f83e5117b967",
+    "checks": {
+      "all_tasks_completed": true,
+      "all_tasks_full_coverage": true,
+      "accepted_current_attempts": true,
+      "all_attempt_one": true,
+      "all_quotas_released": true,
+      "manifest_targets_equal_expected_inputs": true,
+      "all_manifests_exact_tcp_1_65535": true,
+      "each_expected_ip_has_exact_fixture_ports": true,
+      "each_expected_ip_has_exact_http_tls_ports": true,
+      "no_http_observation_errors": true
+    },
+    "passed": true,
+    "manifest_targets": 1,
+    "expected_manifest_targets": 1,
+    "logical_tcp_port_work": 65535,
+    "stages": {
+      "http": {
+        "tasks": 3,
+        "execution_sum_seconds": 2.606366,
+        "execution_median_seconds": 1.167416,
+        "execution_max_seconds": 1.179913,
+        "first_start_seconds": 10.260389,
+        "last_finish_seconds": 19.147643
+      },
+      "port": {
+        "tasks": 2,
+        "execution_sum_seconds": 58.900572,
+        "execution_median_seconds": 29.450286,
+        "execution_max_seconds": 29.952696,
+        "first_start_seconds": 1.841484,
+        "last_finish_seconds": 31.794725
+      },
+      "service": {
+        "tasks": 3,
+        "execution_sum_seconds": 19.232283,
+        "execution_median_seconds": 6.405621,
+        "execution_max_seconds": 6.432548,
+        "first_start_seconds": 3.861112,
+        "last_finish_seconds": 18.881035
+      }
+    },
+    "accepted_positive_receipts": 3,
+    "first_stored_port_seconds": 3.85276,
+    "first_http_observed_seconds": 11.436516,
+    "first_positive_receipt_seconds": 3.85276,
+    "all_tasks_finished_seconds": 31.794725
+  }
+}

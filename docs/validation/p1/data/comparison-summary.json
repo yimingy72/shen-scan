@@ -1,0 +1,144 @@
+{
+  "round": 4,
+  "paired_fullTCP128_strict_passed": true,
+  "logical_TCP_ports_each_version": 8388480,
+  "configured_PPS_each_Worker": 5000,
+  "variants": {
+    "baseline": {
+      "run_id": "c8eca0c5-f5d4-43e7-bc89-e859851847e8",
+      "status": "completed",
+      "elapsed_seconds": 505.77119145798497,
+      "first_visible_seconds": 121.92634549998911,
+      "all_exact_sql_checks_passed": true,
+      "manifest_targets": 128,
+      "tasks": 544,
+      "failed": 0,
+      "ports": 384,
+      "HTTP": 384,
+      "first_stored_port_seconds": 119.752591,
+      "first_HTTP_observed_seconds": 127.537662,
+      "stages": {
+        "http": {
+          "tasks": 384,
+          "execution_sum_seconds": 60.33176800000004,
+          "execution_median_seconds": 0.13678600000000002,
+          "execution_max_seconds": 1.784736,
+          "first_start_seconds": 126.459535,
+          "last_finish_seconds": 500.179647
+        },
+        "port": {
+          "tasks": 32,
+          "execution_sum_seconds": 3850.7330010000005,
+          "execution_median_seconds": 120.3482195,
+          "execution_max_seconds": 121.734976,
+          "first_start_seconds": 0.116153,
+          "last_finish_seconds": 481.439535
+        },
+        "service": {
+          "tasks": 128,
+          "execution_sum_seconds": 828.2985329999999,
+          "execution_median_seconds": 6.456122499999999,
+          "execution_max_seconds": 6.793797,
+          "first_start_seconds": 119.983866,
+          "last_finish_seconds": 499.929599
+        }
+      },
+      "worker_mean_host_cpu_busy_percent": 8.110076467146932,
+      "worker_max_combined_scanner_rss_mib": 578.2265625,
+      "target_host_cpu_busy_percent": 16.837981380884106,
+      "vxlan_total_errors_drops": 0,
+      "DB_snapshot_saved": true,
+      "full_API_and_all10_logs_saved": true
+    },
+    "candidate": {
+      "run_id": "0bd2309e-6792-4d55-978c-b08b4e0e8c57",
+      "status": "completed",
+      "elapsed_seconds": 477.8540005419927,
+      "first_visible_seconds": 4.746559291990707,
+      "all_exact_sql_checks_passed": true,
+      "manifest_targets": 128,
+      "tasks": 801,
+      "failed": 0,
+      "ports": 384,
+      "HTTP": 384,
+      "first_stored_port_seconds": 1.441719,
+      "first_HTTP_observed_seconds": 8.160028,
+      "stages": {
+        "http": {
+          "tasks": 384,
+          "execution_sum_seconds": 69.15626800000005,
+          "execution_median_seconds": 0.1414855,
+          "execution_max_seconds": 2.368264,
+          "first_start_seconds": 7.869152,
+          "last_finish_seconds": 461.107091
+        },
+        "port": {
+          "tasks": 43,
+          "execution_sum_seconds": 4009.8744759999986,
+          "execution_median_seconds": 93.961981,
+          "execution_max_seconds": 94.218311,
+          "first_start_seconds": 0.108214,
+          "last_finish_seconds": 471.142172
+        },
+        "service": {
+          "tasks": 374,
+          "execution_sum_seconds": 2395.341102999995,
+          "execution_median_seconds": 6.3836405,
+          "execution_max_seconds": 7.12445,
+          "first_start_seconds": 1.458287,
+          "last_finish_seconds": 460.965268
+        }
+      },
+      "worker_mean_host_cpu_busy_percent": 10.15202668851329,
+      "worker_max_combined_scanner_rss_mib": 626.44140625,
+      "target_host_cpu_busy_percent": 35.82488844182388,
+      "vxlan_total_errors_drops": 0,
+      "DB_snapshot_saved": true,
+      "full_API_and_all10_logs_saved": true
+    }
+  },
+  "delta_installation": {
+    "started_at": "2026-10-17T20:39:10.308885+00:00",
+    "finished_at": "2026-10-17T20:39:30.557677+00:00",
+    "base_bundle_sha256": "f2097dd429c782e48d55ce326b87e27504c582d5132cfac350a4c935cf3fa6d5",
+    "overlay_sha256": "dc06b731af68ce755330579fdb4290a29cd1b2cff4b3b525052c7682805f562d",
+    "final_bundle_sha256": "01a9bfb05a4b39d71e408e3332c2e32447a0292a667783585c9588fb3426392b",
+    "full_bundle_downloaded_to_nodes": false,
+    "full_bundle_sha_verified_publishing_server": true,
+    "only_replaced_component": "scan-agent",
+    "all10_components_verified": true,
+    "baseline_not_modified": true,
+    "baseline_activity_during_refresh": {
+      "case": "bulk128",
+      "variant": "baseline",
+      "elapsed_seconds": 451.4260433749878,
+      "first_result_seconds": 121.92634549998911,
+      "id": "c8eca0c5-f5d4-43e7-bc89-e859851847e8",
+      "status": "running",
+      "target_done": 108,
+      "target_count": 128,
+      "task_done": 459,
+      "task_total": 464,
+      "task_failed": 0,
+      "open_port_count": 324,
+      "http_count": 324
+    }
+  },
+  "calibration": {
+    "status": "harness_failed_before_execution",
+    "reason": "generated remote Python newline literal SyntaxError",
+    "static_codegen_fixed": true,
+    "learned_split_not_executed": true
+  },
+  "cleanup": {
+    "at": "2026-10-17T20:51:00.953733+00:00",
+    "remaining": [],
+    "delete_errors": [],
+    "security_group_deleted": true,
+    "regional_instance_count": 0
+  },
+  "observed_elapsed_reduction_percent": 5.519727376230239,
+  "observed_first_visible_ratio": 25.687311165737743,
+  "observed_first_HTTP_ratio": 15.62956181032712,
+  "performance_limits": "One paired observation, same cohort; candidate-delta install overlaps baseline20s. Service work increased; no standalone Web throughput or universal speed claim."
+}
