@@ -46,17 +46,52 @@ func TestRuleLibraryAndPOCClosure(t *testing.T) {
 	handler := server.Handler()
 
 	var listed struct {
-		Items  []ruleSummary    `json:"items"`
-		Counts map[string]int64 `json:"counts"`
+		Items         []ruleSummary    `json:"items"`
+		Counts        map[string]int64 `json:"counts"`
+		PurposeCounts map[string]int64 `json:"purpose_counts"`
 	}
 	callAPI(t, handler, http.MethodGet, "/api/library?kind=poc&enabled=true", "admin-library", nil, http.StatusOK, &listed)
 	builtinCounts := map[string]int64{}
+	purposeCounts := map[string]int64{}
 	for _, rule := range rulelib.Builtins() {
 		builtinCounts[rule.Kind]++
+		if rule.Kind == "poc" {
+			purposeCounts[rulelib.VerificationPurpose(rule)]++
+		}
 	}
 	if int64(len(listed.Items)) != builtinCounts["poc"] || listed.Counts["http"] != builtinCounts["http"] ||
-		listed.Counts["port"] != builtinCounts["port"] || listed.Counts["poc"] != builtinCounts["poc"] {
+		listed.Counts["port"] != builtinCounts["port"] || listed.Counts["poc"] != builtinCounts["poc"] ||
+		listed.PurposeCounts["discovery"] != purposeCounts["discovery"] || listed.PurposeCounts["verification"] != purposeCounts["verification"] {
 		t.Fatalf("unexpected seeded library counts: %+v items=%d", listed.Counts, len(listed.Items))
+	}
+	reviewed := rulelib.ReviewedVerifications()[0]
+	reviewedRaw, _ := json.Marshal(reviewed)
+	if _, err = server.db.Exec(ctx, `UPDATE rule_sources SET status='ready',revision=$2,license='MIT',license_text='MIT License' WHERE id=$1`,
+		reviewed.Verification.SourcePin.SourceID, reviewed.Verification.SourcePin.Revision); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = server.db.Exec(ctx, `INSERT INTO rule_library(id,rule,seed_version,source_id,upstream_hash)
+		VALUES($1,$2,$3,$4,$5)`, reviewed.ID, reviewedRaw, currentRuleSeedVersion,
+		reviewed.Verification.SourcePin.SourceID, sourceRuleHash(reviewed)); err != nil {
+		t.Fatal(err)
+	}
+	purposeCounts["verification"] = 1
+	var verifications struct {
+		Items []ruleSummary `json:"items"`
+		Total int64         `json:"total"`
+	}
+	callAPI(t, handler, http.MethodGet, "/api/library?kind=poc&purpose=verification&limit=500", "admin-library", nil, http.StatusOK, &verifications)
+	if verifications.Total != 1 || len(verifications.Items) != 1 {
+		t.Fatalf("verification library filter=%+v", verifications)
+	}
+	if len(verifications.Items) == 0 || verifications.Items[0].Purpose != "verification" || verifications.Items[0].VerificationID == "" ||
+		len(verifications.Items[0].CVEs) == 0 || verifications.Items[0].VerificationCategory == "" || verifications.Items[0].EvidenceLevel == "" {
+		t.Fatalf("verification summary is incomplete: %+v", verifications.Items)
+	}
+	var verificationExport ruleExportPackage
+	callAPI(t, handler, http.MethodGet, "/api/library/export?kind=poc&purpose=verification", "admin-library", nil, http.StatusOK, &verificationExport)
+	if len(verificationExport.Items) != 1 || len(verificationExport.Licenses) != 1 || len(verificationExport.Notices) == 0 {
+		t.Fatalf("verification export items/notices=%d/%d", len(verificationExport.Items), len(verificationExport.Notices))
 	}
 	var nuclei rulelib.Rule
 	callAPI(t, handler, http.MethodGet, "/api/library/poc-security-txt", "admin-library", nil, http.StatusOK, &nuclei)
@@ -239,8 +274,11 @@ func TestRuleLibraryAndPOCClosure(t *testing.T) {
 		Summary map[string]int64 `json:"summary"`
 	}
 	callAPI(t, handler, http.MethodGet, "/api/runs/"+run.ID+"/findings?status=matched", "admin-library", nil, http.StatusOK, &findings)
-	if findings.Total != 1 || findings.Summary["matched"] != 1 {
+	if findings.Total != 1 || findings.Summary["matched"] != 1 || findings.Summary["discovery_matched"] != 1 || findings.Summary["verification_matched"] != 0 {
 		t.Fatalf("findings included stale attempt: %+v", findings)
+	}
+	if findings.Items[0].Purpose != "discovery" || findings.Items[0].Verification != nil {
+		t.Fatalf("legacy finding was not classified as discovery: %+v", findings.Items[0])
 	}
 	if len(findings.Items) != 1 || findings.Items[0].TriggerReason != "explicit_unbound_rule" || len(findings.Items[0].MatchedProducts) != 0 {
 		t.Fatalf("finding trigger trace=%+v", findings.Items)
@@ -254,7 +292,7 @@ func TestRuleLibraryAndPOCClosure(t *testing.T) {
 		t.Fatalf("observation trigger trace=%+v", detail)
 	}
 	callAPI(t, handler, http.MethodGet, "/api/runs/"+run.ID, "admin-library", nil, http.StatusOK, &run)
-	if run.FindingCount != 1 || run.POCCheckedCount != 1 || run.Status != "completed" {
+	if run.FindingCount != 1 || run.DiscoveryMatchCount != 1 || run.VerificationFindingCount != 0 || run.POCCheckedCount != 1 || run.Status != "completed" {
 		t.Fatalf("run PoC stats=%+v", run)
 	}
 }

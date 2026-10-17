@@ -17,8 +17,8 @@ API 前缀为 `/api`，请求及响应使用 JSON。除健康检查外，管理�
 | `GET /api/runs/{id}/ports?target=...` | 单目标开放端口和关联 HTTP |
 | `GET /api/runs/{id}/http?status=responded` | HTTP 端点；支持 `responded` / `no_response` / `all` |
 | `GET /api/observations/{id}` | 完整已存储的观测与报文 |
-| `GET /api/runs/{id}/findings` | PoC 结果；`status=matched/not_matched/error/all`、`severity`、`q`、分页 |
-| `GET /api/library` | 规则列表；`kind=http/port/poc`、`q`、`enabled`、`engine`、`source_id`、分页 |
+| `GET /api/runs/{id}/findings` | PoC 结果；`status=matched/not_matched/error/all`、`purpose=discovery/verification`、`severity`、`q`、分页 |
+| `GET /api/library` | 规则列表；`kind=http/port/poc`、`purpose=discovery/verification`、`q`、`enabled`、`engine`、`source_id`、分页 |
 | `GET /api/library/{id}` | 完整规则定义 |
 | `POST /api/library` | 创建规则 |
 | `PUT /api/library/{id}` | 修改规则，必须携带 `expected_revision` |
@@ -30,7 +30,7 @@ API 前缀为 `/api`，请求及响应使用 JSON。除健康检查外，管理�
 | `GET /api/library/sources` | 固定官方源状态、版本、统计和排除样例 |
 | `POST /api/library/sources/{id}/update` | 后台检查并原子更新一个官方源 |
 | `GET /api/library/sources/{id}/license` | 来源许可证全文和成功版本 |
-| `GET /api/library/export?kind=http` | 导出完整规则 JSON |
+| `GET /api/library/export?kind=http` | 导出完整规则 JSON；支持与列表相同的 `purpose` 等筛选 |
 | `GET /api/workers` | Worker、指标和当前任务 |
 | `GET /api/worker-pool` | 节点池状态及配置版本 |
 | `PATCH /api/worker-pool` | 设置目标数量、启停池，需提供 `expected_generation` |
@@ -69,8 +69,12 @@ Agent 以引导令牌调用 `POST /api/workers/register`，获得独立会话令
 
 规则更新采用 `expected_revision` 乐观并发控制，冲突返回 409；详情和列表都有 `revision`。列表包含精简的 `match_summary`；完整定义从详情或导出接口获取。导入提交 `{ "format": "json" | "nuclei", "content": "原始文件内容" }`，JSON 一次最多 10,000 条，请求体上限 8 MiB。JSON 采用导出的 `{ "items": [Rule] }` 格式，并可携带 `licenses` / `notices` 备份元数据。
 
-PoC 观测包含 `rule_id`、`rule_name`、`rule_revision`、`engine`、`severity`、`finding_status`、`evidence`；详情包含 `request_raw`、`response_raw`、`error`、`truncated`。`finding_status` 为 `matched`、`not_matched` 或 `error`。`findings` 接口返回 `{items,total,summary:{matched,not_matched,error}}`，只统计当前执行版本。任务的 `finding_count` 仅计命中，`poc_checked_count` 计全部检查结果。模板格式和执行边界见 [规则库说明](RULE_LIBRARY.md)。
+PoC 观测包含 `rule_id`、`rule_name`、`rule_revision`、`engine`、`severity`、`finding_status`、`evidence` 和 `purpose`；详情包含 `request_raw`、`response_raw`、`error`、`truncated`。verification 另含只读的 CVE / 类别 / 证据等级 / source pin metadata，以及按定义顺序排列的 `checks:[{request_raw,response_raw}]`。分类和 metadata 由控制面从冻结任务规则写入，不信任 Worker 自行上报。
+
+`finding_status` 为 `matched`、`not_matched` 或 `error`。`findings` 接口返回 `{items,total,summary:{matched,not_matched,error,verification_matched,discovery_matched}}`，只统计当前执行版本；`purpose` 可筛选列表。Run 的 `finding_count` 保持为全部 matched 的兼容总数，`verification_finding_count` 与 `discovery_match_count` 分别计两类命中，`poc_checked_count` 计全部检查结果。模板格式和执行边界见 [规则库说明](RULE_LIBRARY.md) 与 [只读漏洞验证](READONLY_VERIFICATION.md)。
 
 规则含 `applies_to:[产品名]`，多个产品为 OR 精确归一匹配；空绑定仅在任务显式选择该规则时执行。新快照持久化 `poc_policy:"fingerprint"` 及 `explicit_poc_rule_ids`，旧快照兼容历史行为。findings 列表和观测详情包含 `matched_products`、`trigger_reason`（`http_technology`、`service_product`、`explicit_unbound_rule` 或历史策略）。
 
-导出支持 `kind`、`q`、`enabled`、`engine`、`ids`（逗号分隔，最多 1000 个）组合，返回完整定义且不分页。批量删除采用相同版本条件，任一不存在或冲突都不删除；删除的规则不会进入列表、产品候选、导出或新任务快照。同 ID 导入可恢复删除项并增加版本，恢复项仍默认禁用。
+规则列表响应的 `purpose_counts` 分别给出 PoC discovery / verification 数量；列表摘要对 verification 额外返回 verification ID、CVE、类别和证据等级，详情仍返回完整 Rule。导出支持 `kind`、`purpose`、`q`、`enabled`、`engine`、`source_id`、`ids`（逗号分隔，最多 1000 个）组合，返回完整定义且不分页。批量删除采用相同版本条件，任一不存在或冲突都不删除；删除的规则不会进入列表、产品候选、导出或新任务快照。同 ID 导入可恢复删除项并增加版本，恢复项仍默认禁用。
+
+规则源更新的 `stats.reasons.review_required` 表示 reviewed verification 的上游文件 SHA 已变化，未获得新的代码审核许可。此时该模板不进入 accepted；旧的、未本地改写的受管规则会停用并计入 `retired`，而不是继续执行变化后的内容。

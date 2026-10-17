@@ -49,10 +49,10 @@ func TestAdaptiveShardsPreserveTargets(t *testing.T) {
 		if payload.RatePPS != 5000 || payload.WaitSeconds != 15 || payload.TimeoutSeconds != 180 || payload.ExecutionTimeoutSeconds != 180 {
 			t.Fatalf("default port budget changed: %#v", payload)
 		}
-		if _, err = observationTarget("port", raw, keys[0], Observation{Kind: "port", IP: keys[3], Port: 65535}); err != nil {
+		if _, err = observationTarget("port", raw, keys[0], &Observation{Kind: "port", IP: keys[3], Port: 65535}); err != nil {
 			t.Fatal(err)
 		}
-		if _, err = observationTarget("port", raw, keys[0], Observation{Kind: "port", IP: "203.0.113.1", Port: 80}); err == nil {
+		if _, err = observationTarget("port", raw, keys[0], &Observation{Kind: "port", IP: "203.0.113.1", Port: 80}); err == nil {
 			t.Fatal("out-of-shard result accepted")
 		}
 	}

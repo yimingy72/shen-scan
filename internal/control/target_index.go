@@ -1,17 +1,25 @@
 package control
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
+	"net/http"
 	"net/netip"
 	"net/url"
+	"regexp"
 	"sort"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"scanplatform/internal/rulelib"
 )
+
+var verificationTitlePattern = regexp.MustCompile(`(?is)<title[^>]*>(.*?)</title>`)
 
 func canonicalTarget(value string) string {
 	if u, err := url.Parse(value); err == nil && u.Hostname() != "" {
@@ -84,8 +92,8 @@ func insertTaskTargets(ctx context.Context, tx pgx.Tx, taskID string, payload []
 	return err
 }
 
-func observationTarget(typeName string, payload []byte, source string, item Observation) (string, error) {
-	if item.Kind != typeName {
+func observationTarget(typeName string, payload []byte, source string, item *Observation) (string, error) {
+	if item == nil || item.Kind != typeName {
 		return "", errors.New("observation kind does not match task type")
 	}
 	if typeName == "poc" {
@@ -145,7 +153,7 @@ func observationTarget(typeName string, payload []byte, source string, item Obse
 	return key, nil
 }
 
-func validatePOCObservation(payload []byte, item Observation) error {
+func validatePOCObservation(payload []byte, item *Observation) error {
 	var assignment struct {
 		Endpoint taskEndpoint   `json:"endpoint"`
 		Rules    []rulelib.Rule `json:"rules"`
@@ -159,6 +167,11 @@ func validatePOCObservation(payload []byte, item Observation) error {
 	}
 	if item.RuleName != rule.Name || item.Severity != rule.Severity {
 		return errors.New("PoC observation rule metadata does not match assigned rule")
+	}
+	item.Purpose = rulelib.VerificationPurpose(rule)
+	item.Verification = nil
+	if item.Purpose == "verification" {
+		item.Verification = rule.Verification
 	}
 	if item.FindingStatus != "matched" && item.FindingStatus != "not_matched" && item.FindingStatus != "error" {
 		return errors.New("PoC observation finding_status is invalid")
@@ -184,5 +197,105 @@ func validatePOCObservation(payload []byte, item Observation) error {
 	if !allowedPath {
 		return errors.New("PoC observation URL path was not assigned")
 	}
+	if item.Purpose == "verification" && item.FindingStatus == "matched" {
+		if err := validateVerificationEvidence(rule, assignment.Endpoint, item); err != nil {
+			return err
+		}
+	}
 	return nil
+}
+
+func validateVerificationEvidence(rule rulelib.Rule, endpoint taskEndpoint, item *Observation) error {
+	if rule.Engine != "native" || rule.Verification == nil {
+		return errors.New("verification finding requires an assigned native verification rule")
+	}
+	if item.Truncated || item.Error != "" || item.RequestRaw == "" || item.ResponseRaw == "" || item.Evidence == "" {
+		return errors.New("verification finding has incomplete raw evidence")
+	}
+	if len(item.Checks) != len(rule.Definition.Requests) {
+		return errors.New("verification finding checks do not match assigned requests")
+	}
+	base, err := endpointBaseURL(endpoint)
+	if err != nil {
+		return errors.New("invalid assigned verification endpoint")
+	}
+	inputs := make([]rulelib.Input, len(item.Checks))
+	for index, check := range item.Checks {
+		input, err := parseVerificationCheck(check, rule.Definition.Requests[index], base)
+		if err != nil {
+			return fmt.Errorf("verification check %d: %w", index+1, err)
+		}
+		if !rulelib.MatchRequest(rule.Definition.Requests[index], input) {
+			return fmt.Errorf("verification check %d does not satisfy its assigned matcher", index+1)
+		}
+		inputs[index] = input
+	}
+	if _, matched := rulelib.NativePoCMatch(rule, inputs); !matched {
+		return errors.New("verification checks do not satisfy the assigned rule")
+	}
+	return nil
+}
+
+func parseVerificationCheck(check rulelib.CheckEvidence, definition rulelib.Request, base *url.URL) (rulelib.Input, error) {
+	if check.RequestRaw == "" || check.ResponseRaw == "" {
+		return rulelib.Input{}, errors.New("request_raw and response_raw are required")
+	}
+	request, err := http.ReadRequest(bufio.NewReader(strings.NewReader(check.RequestRaw)))
+	if err != nil {
+		return rulelib.Input{}, fmt.Errorf("parse request: %w", err)
+	}
+	defer request.Body.Close()
+	if request.Method != definition.Method || request.URL == nil {
+		return rulelib.Input{}, errors.New("request method does not match assignment")
+	}
+	requestBody, err := io.ReadAll(io.LimitReader(request.Body, 1))
+	if err != nil || len(requestBody) != 0 {
+		return rulelib.Input{}, errors.New("verification request must not contain a body")
+	}
+	assigned, err := url.ParseRequestURI(definition.Path)
+	if err != nil || assigned.IsAbs() || assigned.Host != "" || assigned.User != nil || assigned.Fragment != "" {
+		return rulelib.Input{}, errors.New("assigned verification request URI is invalid")
+	}
+	if request.URL.Fragment != "" || request.URL.EscapedPath() != assigned.EscapedPath() ||
+		request.URL.RawQuery != assigned.RawQuery || request.URL.ForceQuery != assigned.ForceQuery {
+		return rulelib.Input{}, errors.New("request URL does not match assigned request URI")
+	}
+	host := request.Host
+	if request.URL.IsAbs() {
+		if request.URL.Scheme != base.Scheme {
+			return rulelib.Input{}, errors.New("request scheme is outside assigned origin")
+		}
+		host = request.URL.Host
+	}
+	authority, err := url.Parse(base.Scheme + "://" + host)
+	if err != nil || authority.User != nil || origin(authority) != origin(base) {
+		return rulelib.Input{}, errors.New("request host is outside assigned origin")
+	}
+	for name, value := range definition.Headers {
+		if request.Header.Get(name) != value {
+			return rulelib.Input{}, fmt.Errorf("request header %q does not match assignment", name)
+		}
+	}
+	response, err := http.ReadResponse(bufio.NewReader(strings.NewReader(check.ResponseRaw)), request)
+	if err != nil {
+		return rulelib.Input{}, fmt.Errorf("parse response: %w", err)
+	}
+	defer response.Body.Close()
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		return rulelib.Input{}, fmt.Errorf("read response: %w", err)
+	}
+	var headers bytes.Buffer
+	if err := response.Header.Write(&headers); err != nil {
+		return rulelib.Input{}, fmt.Errorf("read response headers: %w", err)
+	}
+	return rulelib.Input{Body: string(body), Header: headers.String(), Title: verificationHTMLTitle(body), Status: response.StatusCode}, nil
+}
+
+func verificationHTMLTitle(body []byte) string {
+	match := verificationTitlePattern.FindSubmatch(body)
+	if len(match) != 2 {
+		return ""
+	}
+	return strings.Join(strings.Fields(string(match[1])), " ")
 }

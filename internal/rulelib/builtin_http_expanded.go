@@ -102,6 +102,8 @@ func expandedHTTPRules() []Rule {
 
 func shenProductHTTPRules() []Rule {
 	return []Rule{
+		httpPassiveRule("http-xwiki", "XWiki", "cms", wappalyzerSource, "and",
+			httpRegex("body", "and", metaNameContentPattern(`wiki`, `xwiki`), `(?is)<html\b[^>]*\bdata-xwiki-reference\s*=`)),
 		httpPassiveRule("http-keycloak", "Keycloak", "middleware", shenSource, "and",
 			httpRegex("body", "and", `(?is)\bid\s*=\s*["']kc-form-login["']`, `(?is)/login-actions/authenticate(?:\?|["'])`)),
 		withHTTPVersion(httpPassiveRule("http-squid", "Squid", "middleware", shenSource, "and",

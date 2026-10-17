@@ -109,8 +109,14 @@ func (a *Agent) runNativePoC(ctx context.Context, ep Endpoint, base *url.URL, ru
 			return obs
 		}
 		inputs = append(inputs, input)
+		obs.Checks = append(obs.Checks, rulelib.CheckEvidence{RequestRaw: requestRaw, ResponseRaw: responseRaw})
 	}
 	obs.RequestRaw, obs.ResponseRaw = requests.String(), responses.String()
+	if rule.Purpose == "verification" && (obs.Truncated || len(obs.Checks) != len(rule.Definition.Requests) || incompleteChecks(obs.Checks)) {
+		obs.FindingStatus, obs.Error = "error", "verification evidence is incomplete or truncated"
+		obs.Evidence = obs.Error
+		return obs
+	}
 	match, ok := rulelib.NativePoCMatch(rule, inputs)
 	if ok {
 		obs.FindingStatus, obs.Evidence = "matched", match.Evidence
@@ -122,14 +128,28 @@ func (a *Agent) runNativePoC(ctx context.Context, ep Endpoint, base *url.URL, ru
 	return obs
 }
 
+func incompleteChecks(checks []rulelib.CheckEvidence) bool {
+	for _, check := range checks {
+		if check.RequestRaw == "" || check.ResponseRaw == "" {
+			return true
+		}
+	}
+	return false
+}
+
 func (a *Agent) nativePoCRequest(ctx context.Context, ep Endpoint, base *url.URL, definition rulelib.Request) (rulelib.Input, string, string, bool, error) {
-	requestURL := *base
-	requestURL.Path = definition.Path
+	requestURL, err := nativeRequestURL(base, definition.Path)
+	if err != nil {
+		return rulelib.Input{}, "", "", false, err
+	}
 	requestCtx, cancel := context.WithTimeout(ctx, 8*time.Second)
 	defer cancel()
 	req, err := http.NewRequestWithContext(requestCtx, definition.Method, requestURL.String(), nil)
 	if err != nil {
 		return rulelib.Input{}, "", "", false, err
+	}
+	if req.URL.Scheme != base.Scheme || !sameAuthority(req.URL, base) {
+		return rulelib.Input{}, "", "", false, fmt.Errorf("native request URI escaped the endpoint origin")
 	}
 	req.Header.Set("User-Agent", "scanplatform-agent/1")
 	req.Header.Set("Accept-Encoding", "identity")
@@ -167,6 +187,24 @@ func (a *Agent) nativePoCRequest(ctx context.Context, ep Endpoint, base *url.URL
 	var headers bytes.Buffer
 	_ = resp.Header.Write(&headers)
 	return rulelib.Input{Body: string(body), Header: headers.String(), Title: htmlTitle(body), Status: resp.StatusCode}, requestRaw, responseRaw, truncated, nil
+}
+
+func nativeRequestURL(base *url.URL, requestURI string) (*url.URL, error) {
+	parsed, err := url.ParseRequestURI(requestURI)
+	if err != nil || parsed.Scheme != "" || parsed.Host != "" || parsed.User != nil || parsed.Fragment != "" || !strings.HasPrefix(requestURI, "/") {
+		return nil, fmt.Errorf("invalid reviewed request URI %q", requestURI)
+	}
+	requestURL := *base
+	requestURL.Path = parsed.Path
+	requestURL.RawPath = parsed.RawPath
+	requestURL.RawQuery = parsed.RawQuery
+	requestURL.ForceQuery = parsed.ForceQuery
+	requestURL.Fragment = ""
+	requestURL.RawFragment = ""
+	if requestURL.Scheme != base.Scheme || !sameAuthority(&requestURL, base) {
+		return nil, fmt.Errorf("reviewed request URI escaped the endpoint origin")
+	}
+	return &requestURL, nil
 }
 
 func appendBounded(dst *bytes.Buffer, value string, limit int) {

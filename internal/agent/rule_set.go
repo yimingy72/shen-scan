@@ -119,6 +119,12 @@ func cloneRules(rules []rulelib.Rule) []rulelib.Rule {
 		cloned[index] = rule
 		cloned[index].Tags = append([]string(nil), rule.Tags...)
 		cloned[index].AppliesTo = append([]string(nil), rule.AppliesTo...)
+		if rule.Verification != nil {
+			verification := *rule.Verification
+			verification.CVEs = append([]string(nil), rule.Verification.CVEs...)
+			verification.References = append([]string(nil), rule.Verification.References...)
+			cloned[index].Verification = &verification
+		}
 		cloned[index].Definition.Matchers = cloneMatchers(rule.Definition.Matchers)
 		cloned[index].Definition.Requests = make([]rulelib.Request, len(rule.Definition.Requests))
 		for requestIndex, request := range rule.Definition.Requests {

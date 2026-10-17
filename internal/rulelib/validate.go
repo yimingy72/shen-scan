@@ -2,9 +2,12 @@ package rulelib
 
 import (
 	"fmt"
+	"net/url"
+	"path"
 	"reflect"
 	"regexp"
 	"strings"
+	"unicode/utf8"
 )
 
 const (
@@ -14,12 +17,71 @@ const (
 )
 
 var (
-	idPattern     = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$`)
-	headerPattern = regexp.MustCompile(`^[!#$%&'*+.^_` + "`" + `|~0-9A-Za-z-]+$`)
-	pathPattern   = regexp.MustCompile(`^/[A-Za-z0-9._~/-]*$`)
+	idPattern                = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$`)
+	headerPattern            = regexp.MustCompile(`^[!#$%&'*+.^_` + "`" + `|~0-9A-Za-z-]+$`)
+	pathPattern              = regexp.MustCompile(`^/[A-Za-z0-9._~/-]*$`)
+	cvePattern               = regexp.MustCompile(`^CVE-[0-9]{4}-[0-9]{4,}$`)
+	hex40Pattern             = regexp.MustCompile(`^[a-f0-9]{40}$`)
+	hex64Pattern             = regexp.MustCompile(`^[a-f0-9]{64}$`)
+	metadataIDPattern        = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$`)
+	metadataValuePattern     = regexp.MustCompile(`^[a-z][a-z0-9._-]{0,63}$`)
+	reviewedSensitivePattern = regexp.MustCompile(`(?i)(?:^|[^a-z0-9])(?:passwd|password|credentials?|secrets?|tokens?|sessions?|users?|configs?|configurations?|settings?|wp-config|private[-_]?keys?|env)(?:$|[^a-z0-9])`)
+	reviewedActionPattern    = regexp.MustCompile(`(?i)(?:^|[^a-z0-9])(?:cmd|command|exec|execute|eval|script|payload|delete|remove|destroy|logout|signout|shutdown|restart|reboot|reset|flush|install|upgrade|update|upload|write|create)(?:$|[^a-z0-9])`)
+	reviewedExternalPattern  = regexp.MustCompile(`(?i)[a-z][a-z0-9+.-]*://([^/?#\s]+)`)
 )
 
 func Validate(rule Rule) error {
+	if err := validateRuleEnvelope(rule); err != nil {
+		return err
+	}
+	switch VerificationPurpose(rule) {
+	case "discovery":
+		if _, protected, err := reviewedVerification(rule.ID); err != nil {
+			return fmt.Errorf("load reviewed verification registry: %w", err)
+		} else if protected {
+			return fmt.Errorf("reviewed verification id %q must retain verification purpose", rule.ID)
+		}
+		if rule.Verification != nil {
+			return fmt.Errorf("discovery rules cannot contain verification metadata")
+		}
+		if err := validateDefinition(rule, false); err != nil {
+			return err
+		}
+	case "verification":
+		reviewed, ok, err := reviewedVerification(rule.ID)
+		if err != nil {
+			return fmt.Errorf("load reviewed verification registry: %w", err)
+		}
+		if !ok {
+			return fmt.Errorf("verification rule %q is not in the reviewed registry", rule.ID)
+		}
+		if err := validateVerificationCandidate(rule, reviewed); err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("invalid purpose %q", rule.Purpose)
+	}
+	if rule.Engine == "nuclei" {
+		if len(rule.Template) == 0 || len(rule.Template) > maxTemplateBytes {
+			return fmt.Errorf("nuclei template must be 1..%d bytes", maxTemplateBytes)
+		}
+		parsed, err := parseNucleiTemplate(rule.Template)
+		if err != nil {
+			return fmt.Errorf("invalid nuclei template: %w", err)
+		}
+		if parsed.ID != rule.ID {
+			return fmt.Errorf("nuclei template id does not match rule id")
+		}
+		if !reflect.DeepEqual(parsed.Definition, rule.Definition) {
+			return fmt.Errorf("nuclei definition does not match normalized template")
+		}
+	} else if rule.Template != "" {
+		return fmt.Errorf("native rules cannot contain a template")
+	}
+	return nil
+}
+
+func validateRuleEnvelope(rule Rule) error {
 	if !idPattern.MatchString(rule.ID) {
 		return fmt.Errorf("invalid rule id")
 	}
@@ -55,6 +117,10 @@ func Validate(rule Rule) error {
 			return err
 		}
 	}
+	return validateAppliesTo(rule)
+}
+
+func validateAppliesTo(rule Rule) error {
 	if rule.Kind != "poc" && len(rule.AppliesTo) != 0 {
 		return fmt.Errorf("applies_to is only valid for poc rules")
 	}
@@ -75,30 +141,10 @@ func Validate(rule Rule) error {
 		}
 		seenProducts[normalized] = true
 	}
-	if err := validateDefinition(rule); err != nil {
-		return err
-	}
-	if rule.Engine == "nuclei" {
-		if len(rule.Template) == 0 || len(rule.Template) > maxTemplateBytes {
-			return fmt.Errorf("nuclei template must be 1..%d bytes", maxTemplateBytes)
-		}
-		parsed, err := parseNucleiTemplate(rule.Template)
-		if err != nil {
-			return fmt.Errorf("invalid nuclei template: %w", err)
-		}
-		if parsed.ID != rule.ID {
-			return fmt.Errorf("nuclei template id does not match rule id")
-		}
-		if !reflect.DeepEqual(parsed.Definition, rule.Definition) {
-			return fmt.Errorf("nuclei definition does not match normalized template")
-		}
-	} else if rule.Template != "" {
-		return fmt.Errorf("native rules cannot contain a template")
-	}
 	return nil
 }
 
-func validateDefinition(rule Rule) error {
+func validateDefinition(rule Rule, reviewed bool) error {
 	d := rule.Definition
 	if err := bounded("service", d.Service, 0, 128); err != nil {
 		return err
@@ -149,24 +195,54 @@ func validateDefinition(rule Rule) error {
 			return fmt.Errorf("poc rule has no requests")
 		}
 		totalMatchers := 0
+		roles := map[string]int{"probe": 0, "control": 0}
 		for i, request := range d.Requests {
 			totalMatchers += len(request.Matchers)
-			if err := validateRequest(request); err != nil {
+			var err error
+			if reviewed {
+				err = validateReviewedRequest(request)
+				roles[request.Role]++
+			} else {
+				err = validateRequest(request)
+			}
+			if err != nil {
 				return fmt.Errorf("request %d: %w", i+1, err)
 			}
 		}
 		if totalMatchers > maxMatchers {
 			return fmt.Errorf("poc rule exceeds %d total matchers", maxMatchers)
 		}
+		if reviewed {
+			if d.Condition != "and" {
+				return fmt.Errorf("verification requests must use and condition")
+			}
+			if len(d.Requests) < 2 || roles["probe"] == 0 || roles["control"] == 0 {
+				return fmt.Errorf("verification rules require probe and control requests")
+			}
+		}
 	}
 	return nil
 }
 
 func validateRequest(request Request) error {
+	if request.Role != "" {
+		return fmt.Errorf("discovery requests cannot set role")
+	}
+	return validateRequestWithPath(request, validateStaticPath)
+}
+
+func validateReviewedRequest(request Request) error {
+	if request.Role != "probe" && request.Role != "control" {
+		return fmt.Errorf("verification request role must be probe or control")
+	}
+	return validateRequestWithPath(request, validateReviewedPath)
+}
+
+func validateRequestWithPath(request Request, validatePath func(string) error) error {
 	if request.Method != "GET" && request.Method != "HEAD" {
 		return fmt.Errorf("method must be GET or HEAD")
 	}
-	if err := validateStaticPath(request.Path); err != nil {
+	if err := validatePath(request.Path); err != nil {
 		return err
 	}
 	if !conditionOK(request.Condition) {
@@ -190,6 +266,121 @@ func validateRequest(request Request) error {
 		if err := validateMatcher(matcher, "http"); err != nil {
 			return fmt.Errorf("matcher %d: %w", i+1, err)
 		}
+	}
+	return nil
+}
+
+func validateReviewedPath(value string) error {
+	if len(value) == 0 || len(value) > 512 || !utf8.ValidString(value) || !strings.HasPrefix(value, "/") ||
+		strings.ContainsAny(value, "\\#\r\n\x00") || strings.Contains(value, "{{") {
+		return fmt.Errorf("reviewed URI must be a fixed root-relative request target")
+	}
+	parsed, err := url.ParseRequestURI(value)
+	if err != nil || parsed.IsAbs() || parsed.Host != "" {
+		return fmt.Errorf("invalid reviewed request target")
+	}
+	decoded := value
+	for range 3 {
+		next, unescapeErr := url.PathUnescape(decoded)
+		if unescapeErr != nil {
+			return fmt.Errorf("invalid reviewed URI encoding")
+		}
+		next, unescapeErr = url.QueryUnescape(next)
+		if unescapeErr != nil {
+			return fmt.Errorf("invalid reviewed query encoding")
+		}
+		if next == decoded {
+			break
+		}
+		decoded = next
+	}
+	lower := strings.ToLower(decoded)
+	if strings.ContainsAny(decoded, "`|;<>\r\n\x00") || strings.Contains(decoded, "$(") || strings.Contains(decoded, "${") ||
+		!reviewedExternalTargetsSafe(decoded) || strings.Contains(lower, "localhost") || strings.Contains(lower, "169.254.169.254") ||
+		reviewedSensitivePattern.MatchString(decoded) || reviewedActionPattern.MatchString(decoded) {
+		return fmt.Errorf("reviewed URI contains a sensitive, state-changing, command, or external-target marker")
+	}
+	return nil
+}
+
+func reviewedExternalTargetsSafe(value string) bool {
+	matches := reviewedExternalPattern.FindAllStringSubmatch(value, -1)
+	stripped := reviewedExternalPattern.ReplaceAllString(value, "")
+	if strings.Contains(stripped, "://") {
+		return false
+	}
+	for _, match := range matches {
+		if len(match) != 2 || !strings.EqualFold(match[1], "shen-verify.invalid") {
+			return false
+		}
+	}
+	return true
+}
+
+func validateVerificationMetadata(verification *Verification) error {
+	if verification == nil {
+		return fmt.Errorf("verification metadata is required")
+	}
+	if !metadataIDPattern.MatchString(verification.ID) {
+		return fmt.Errorf("invalid verification id")
+	}
+	if len(verification.CVEs) == 0 || len(verification.CVEs) > 32 {
+		return fmt.Errorf("verification cves must contain 1..32 values")
+	}
+	seenCVEs := make(map[string]bool, len(verification.CVEs))
+	for _, cve := range verification.CVEs {
+		if !cvePattern.MatchString(cve) || seenCVEs[cve] {
+			return fmt.Errorf("invalid or duplicate verification cve %q", cve)
+		}
+		seenCVEs[cve] = true
+	}
+	if !metadataValuePattern.MatchString(verification.Category) {
+		return fmt.Errorf("invalid verification category")
+	}
+	if !metadataValuePattern.MatchString(verification.EvidenceLevel) {
+		return fmt.Errorf("invalid verification evidence level")
+	}
+	if err := bounded("verification summary", verification.Summary, 1, 1024); err != nil {
+		return err
+	}
+	if len(verification.References) > 16 {
+		return fmt.Errorf("too many verification references")
+	}
+	for _, reference := range verification.References {
+		if err := validateHTTPSURL("verification reference", reference); err != nil {
+			return err
+		}
+	}
+	return validateSourcePin(verification.SourcePin)
+}
+
+func validateSourcePin(pin SourcePin) error {
+	if !metadataIDPattern.MatchString(pin.SourceID) {
+		return fmt.Errorf("invalid source pin source id")
+	}
+	if err := validateHTTPSURL("source pin repository", pin.Repository); err != nil {
+		return err
+	}
+	if !hex40Pattern.MatchString(pin.Revision) {
+		return fmt.Errorf("source pin revision must be a lowercase 40-character commit")
+	}
+	if pin.Path == "" || len(pin.Path) > 512 || strings.Contains(pin.Path, "\\") || path.IsAbs(pin.Path) ||
+		path.Clean(pin.Path) != pin.Path || pin.Path == "." || strings.HasPrefix(pin.Path, "../") {
+		return fmt.Errorf("invalid source pin path")
+	}
+	if !hex64Pattern.MatchString(pin.SHA256) {
+		return fmt.Errorf("source pin sha256 must be lowercase hex")
+	}
+	return nil
+}
+
+func validateHTTPSURL(name, value string) error {
+	if len(value) == 0 || len(value) > 2048 {
+		return fmt.Errorf("%s must be 1..2048 bytes", name)
+	}
+	parsed, err := url.Parse(value)
+	if err != nil || parsed.Scheme != "https" || parsed.Hostname() == "" || parsed.User != nil {
+		return fmt.Errorf("%s must be an absolute HTTPS URL", name)
 	}
 	return nil
 }

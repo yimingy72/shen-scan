@@ -687,7 +687,8 @@ func (s *Server) submitBatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	assetRows := make([][]any, len(request.Items))
-	for index, item := range request.Items {
+	for index := range request.Items {
+		item := &request.Items[index]
 		targetKey, err := observationTarget(typeName, payload, sourceTarget, item)
 		if err != nil {
 			writeError(w, http.StatusUnprocessableEntity, fmt.Sprintf("items[%d]: %v", index, err))
@@ -834,7 +835,7 @@ func derivePortTasks(ctx context.Context, tx pgx.Tx, taskID, runID string, attem
 		if err := rows.Scan(&raw); err != nil || json.Unmarshal(raw, &observation) != nil {
 			return errors.New("invalid persisted port observation")
 		}
-		ip, err := observationTarget("port", payload, payloadTarget(payload), observation)
+		ip, err := observationTarget("port", payload, payloadTarget(payload), &observation)
 		if err != nil {
 			return fmt.Errorf("invalid persisted port observation: %w", err)
 		}

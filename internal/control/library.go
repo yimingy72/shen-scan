@@ -26,20 +26,25 @@ const (
 )
 
 type ruleSummary struct {
-	MatchSummary string   `json:"match_summary"`
-	ID           string   `json:"id"`
-	Kind         string   `json:"kind"`
-	Name         string   `json:"name"`
-	Description  string   `json:"description,omitempty"`
-	Engine       string   `json:"engine"`
-	Severity     string   `json:"severity"`
-	Enabled      bool     `json:"enabled"`
-	Builtin      bool     `json:"builtin"`
-	Revision     int      `json:"revision"`
-	Tags         []string `json:"tags,omitempty"`
-	Source       string   `json:"source,omitempty"`
-	AppliesTo    []string `json:"applies_to,omitempty"`
-	SourceID     string   `json:"source_id,omitempty"`
+	MatchSummary         string   `json:"match_summary"`
+	ID                   string   `json:"id"`
+	Kind                 string   `json:"kind"`
+	Name                 string   `json:"name"`
+	Description          string   `json:"description,omitempty"`
+	Engine               string   `json:"engine"`
+	Severity             string   `json:"severity"`
+	Enabled              bool     `json:"enabled"`
+	Builtin              bool     `json:"builtin"`
+	Revision             int      `json:"revision"`
+	Tags                 []string `json:"tags,omitempty"`
+	Source               string   `json:"source,omitempty"`
+	AppliesTo            []string `json:"applies_to,omitempty"`
+	SourceID             string   `json:"source_id,omitempty"`
+	Purpose              string   `json:"purpose"`
+	VerificationID       string   `json:"verification_id,omitempty"`
+	CVEs                 []string `json:"cves,omitempty"`
+	VerificationCategory string   `json:"verification_category,omitempty"`
+	EvidenceLevel        string   `json:"evidence_level,omitempty"`
 }
 
 type ruleExportLicense struct {
@@ -206,9 +211,17 @@ func summarizeRule(rule rulelib.Rule, sourceID string) ruleSummary {
 	if len(summary) > 180 {
 		summary = append(summary[:180], '…')
 	}
-	return ruleSummary{MatchSummary: string(summary), ID: rule.ID, Kind: rule.Kind, Name: rule.Name, Description: rule.Description,
+	item := ruleSummary{MatchSummary: string(summary), ID: rule.ID, Kind: rule.Kind, Name: rule.Name, Description: rule.Description,
 		Engine: rule.Engine, Severity: rule.Severity, Enabled: rule.Enabled, Builtin: rule.Builtin,
-		Revision: rule.Revision, Tags: rule.Tags, Source: rule.Source, AppliesTo: rule.AppliesTo, SourceID: sourceID}
+		Revision: rule.Revision, Tags: rule.Tags, Source: rule.Source, AppliesTo: rule.AppliesTo, SourceID: sourceID,
+		Purpose: rulelib.VerificationPurpose(rule)}
+	if rule.Verification != nil {
+		item.VerificationID = rule.Verification.ID
+		item.CVEs = rule.Verification.CVEs
+		item.VerificationCategory = rule.Verification.Category
+		item.EvidenceLevel = rule.Verification.EvidenceLevel
+	}
+	return item
 }
 
 func seedRuleLibrary(ctx context.Context, db *pgxpool.Pool) error {
@@ -315,14 +328,20 @@ func (s *Server) listLibrary(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	purpose, err := libraryFilter(r.URL.Query().Get("purpose"), "purpose", "discovery", "verification")
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	const filtered = ` FROM rule_library WHERE deleted_at IS NULL AND ($1='' OR rule->>'kind'=$1) AND ($2='' OR rule->>'engine'=$2)
-	 AND ($3='' OR rule->>'enabled'=$3) AND ($4='' OR rule::text ILIKE '%'||$4||'%') AND ($5='' OR source_id=$5)`
+	 AND ($3='' OR rule->>'enabled'=$3) AND ($4='' OR rule::text ILIKE '%'||$4||'%') AND ($5='' OR source_id=$5)
+	 AND ($6='' OR CASE WHEN rule->>'purpose'='verification' THEN 'verification' ELSE 'discovery' END=$6)`
 	var total int64
-	if err = s.db.QueryRow(r.Context(), `SELECT count(*)`+filtered, kind, engine, enabled, query, sourceID).Scan(&total); err != nil {
+	if err = s.db.QueryRow(r.Context(), `SELECT count(*)`+filtered, kind, engine, enabled, query, sourceID, purpose).Scan(&total); err != nil {
 		writeError(w, http.StatusInternalServerError, "load rule library failed")
 		return
 	}
-	rows, err := s.db.Query(r.Context(), `SELECT rule,source_id`+filtered+` ORDER BY rule->>'kind',lower(rule->>'name'),id LIMIT $6 OFFSET $7`, kind, engine, enabled, query, sourceID, limit, offset)
+	rows, err := s.db.Query(r.Context(), `SELECT rule,source_id`+filtered+` ORDER BY rule->>'kind',lower(rule->>'name'),id LIMIT $7 OFFSET $8`, kind, engine, enabled, query, sourceID, purpose, limit, offset)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "load rule library failed")
 		return
@@ -364,7 +383,28 @@ func (s *Server) listLibrary(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "load rule library failed")
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"items": items, "total": total, "counts": counts})
+	purposeCounts := map[string]int64{"discovery": 0, "verification": 0}
+	purposeRows, err := s.db.Query(r.Context(), `SELECT CASE WHEN rule->>'purpose'='verification' THEN 'verification' ELSE 'discovery' END,count(*)
+		FROM rule_library WHERE deleted_at IS NULL AND rule->>'kind'='poc' GROUP BY 1`)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "load rule library failed")
+		return
+	}
+	defer purposeRows.Close()
+	for purposeRows.Next() {
+		var value string
+		var count int64
+		if err = purposeRows.Scan(&value, &count); err != nil {
+			writeError(w, http.StatusInternalServerError, "load rule library failed")
+			return
+		}
+		purposeCounts[value] = count
+	}
+	if err = purposeRows.Err(); err != nil {
+		writeError(w, http.StatusInternalServerError, "load rule library failed")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"items": items, "total": total, "counts": counts, "purpose_counts": purposeCounts})
 }
 
 func (s *Server) loadLibraryRule(ctx context.Context, id string) (rulelib.Rule, error) {
@@ -792,11 +832,18 @@ func (s *Server) exportLibrary(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	purpose, err := libraryFilter(r.URL.Query().Get("purpose"), "purpose", "discovery", "verification")
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	query := strings.TrimSpace(r.URL.Query().Get("q"))
 	rows, err := s.db.Query(r.Context(), `SELECT rule,source_id FROM rule_library WHERE deleted_at IS NULL
 		AND ($1='' OR rule->>'kind'=$1) AND ($2='' OR rule->>'engine'=$2) AND ($3='' OR rule->>'enabled'=$3)
-		AND ($4='' OR rule::text ILIKE '%'||$4||'%') AND ($5='' OR source_id=$5) AND (NOT $6 OR id=ANY($7))
-		ORDER BY rule->>'kind',lower(rule->>'name'),id`, kind, engine, enabled, query, sourceID, len(ids) != 0, ids)
+		AND ($4='' OR rule::text ILIKE '%'||$4||'%') AND ($5='' OR source_id=$5)
+		AND ($6='' OR CASE WHEN rule->>'purpose'='verification' THEN 'verification' ELSE 'discovery' END=$6)
+		AND (NOT $7 OR id=ANY($8))
+		ORDER BY rule->>'kind',lower(rule->>'name'),id`, kind, engine, enabled, query, sourceID, purpose, len(ids) != 0, ids)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "export rules failed")
 		return
@@ -809,6 +856,9 @@ func (s *Server) exportLibrary(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(strings.ToLower(builtin.Source), "projectdiscovery/wappalyzergo") {
 			bootstrapNoticeIDs[builtin.ID] = true
 		}
+	}
+	for _, verification := range rulelib.ReviewedVerifications() {
+		bootstrapNoticeIDs[verification.ID] = true
 	}
 	for rows.Next() {
 		var raw []byte

@@ -4,29 +4,33 @@ import (
 	"context"
 	"encoding/json"
 	"time"
+
+	"scanplatform/internal/rulelib"
 )
 
 type Run struct {
-	ID              string    `json:"id"`
-	Name            string    `json:"name"`
-	Targets         []string  `json:"targets"`
-	Modes           []string  `json:"modes"`
-	Status          string    `json:"status"`
-	CreatedAt       time.Time `json:"created_at"`
-	UpdatedAt       time.Time `json:"updated_at"`
-	TaskTotal       int64     `json:"task_total"`
-	TaskDone        int64     `json:"task_done"`
-	TaskFailed      int64     `json:"task_failed"`
-	AssetCount      int64     `json:"asset_count"`
-	TargetCount     int64     `json:"target_count"`
-	TargetDone      int64     `json:"target_done"`
-	OpenPortCount   int64     `json:"open_port_count"`
-	HTTPCount       int64     `json:"http_count"`
-	InputCount      int       `json:"input_count"`
-	POCEnabled      bool      `json:"poc_enabled"`
-	FindingCount    int64     `json:"finding_count"`
-	POCCheckedCount int64     `json:"poc_checked_count"`
-	Error           string    `json:"error"`
+	ID                       string    `json:"id"`
+	Name                     string    `json:"name"`
+	Targets                  []string  `json:"targets"`
+	Modes                    []string  `json:"modes"`
+	Status                   string    `json:"status"`
+	CreatedAt                time.Time `json:"created_at"`
+	UpdatedAt                time.Time `json:"updated_at"`
+	TaskTotal                int64     `json:"task_total"`
+	TaskDone                 int64     `json:"task_done"`
+	TaskFailed               int64     `json:"task_failed"`
+	AssetCount               int64     `json:"asset_count"`
+	TargetCount              int64     `json:"target_count"`
+	TargetDone               int64     `json:"target_done"`
+	OpenPortCount            int64     `json:"open_port_count"`
+	HTTPCount                int64     `json:"http_count"`
+	InputCount               int       `json:"input_count"`
+	POCEnabled               bool      `json:"poc_enabled"`
+	FindingCount             int64     `json:"finding_count"`
+	VerificationFindingCount int64     `json:"verification_finding_count"`
+	DiscoveryMatchCount      int64     `json:"discovery_match_count"`
+	POCCheckedCount          int64     `json:"poc_checked_count"`
+	Error                    string    `json:"error"`
 }
 
 type Task struct {
@@ -50,33 +54,36 @@ type Technology struct {
 }
 
 type Observation struct {
-	Kind          string              `json:"kind"`
-	Target        string              `json:"target"`
-	IP            string              `json:"ip"`
-	Port          int                 `json:"port"`
-	Protocol      string              `json:"protocol"`
-	Service       string              `json:"service,omitempty"`
-	Product       string              `json:"product,omitempty"`
-	Version       string              `json:"version,omitempty"`
-	URL           string              `json:"url,omitempty"`
-	StatusCode    int                 `json:"status_code,omitempty"`
-	Title         string              `json:"title,omitempty"`
-	Server        string              `json:"server,omitempty"`
-	Technologies  []Technology        `json:"technologies,omitempty"`
-	Headers       map[string][]string `json:"headers,omitempty"`
-	BodyExcerpt   string              `json:"body_excerpt,omitempty"`
-	Banner        string              `json:"banner,omitempty"`
-	RequestRaw    string              `json:"request_raw,omitempty"`
-	ResponseRaw   string              `json:"response_raw,omitempty"`
-	Truncated     bool                `json:"truncated,omitempty"`
-	Error         string              `json:"error,omitempty"`
-	RuleID        string              `json:"rule_id,omitempty"`
-	RuleName      string              `json:"rule_name,omitempty"`
-	RuleRevision  int                 `json:"rule_revision,omitempty"`
-	Engine        string              `json:"engine,omitempty"`
-	Severity      string              `json:"severity,omitempty"`
-	FindingStatus string              `json:"finding_status,omitempty"`
-	Evidence      string              `json:"evidence,omitempty"`
+	Kind          string                  `json:"kind"`
+	Target        string                  `json:"target"`
+	IP            string                  `json:"ip"`
+	Port          int                     `json:"port"`
+	Protocol      string                  `json:"protocol"`
+	Service       string                  `json:"service,omitempty"`
+	Product       string                  `json:"product,omitempty"`
+	Version       string                  `json:"version,omitempty"`
+	URL           string                  `json:"url,omitempty"`
+	StatusCode    int                     `json:"status_code,omitempty"`
+	Title         string                  `json:"title,omitempty"`
+	Server        string                  `json:"server,omitempty"`
+	Technologies  []Technology            `json:"technologies,omitempty"`
+	Headers       map[string][]string     `json:"headers,omitempty"`
+	BodyExcerpt   string                  `json:"body_excerpt,omitempty"`
+	Banner        string                  `json:"banner,omitempty"`
+	RequestRaw    string                  `json:"request_raw,omitempty"`
+	ResponseRaw   string                  `json:"response_raw,omitempty"`
+	Truncated     bool                    `json:"truncated,omitempty"`
+	Error         string                  `json:"error,omitempty"`
+	RuleID        string                  `json:"rule_id,omitempty"`
+	RuleName      string                  `json:"rule_name,omitempty"`
+	RuleRevision  int                     `json:"rule_revision,omitempty"`
+	Engine        string                  `json:"engine,omitempty"`
+	Severity      string                  `json:"severity,omitempty"`
+	FindingStatus string                  `json:"finding_status,omitempty"`
+	Evidence      string                  `json:"evidence,omitempty"`
+	Purpose       string                  `json:"purpose,omitempty"`
+	Verification  *rulelib.Verification   `json:"verification,omitempty"`
+	Checks        []rulelib.CheckEvidence `json:"checks,omitempty"`
 }
 
 type Asset struct {

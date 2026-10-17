@@ -277,7 +277,11 @@ func (s *Server) applyRuleSourceCatalog(ctx context.Context, sourceID string, ca
 	for index := range rules {
 		rules[index].Enabled = true
 		rules[index].Builtin = false
-		if !strings.HasPrefix(rules[index].ID, prefix) || seen[rules[index].ID] {
+		validPrefix := strings.HasPrefix(rules[index].ID, prefix)
+		if sourceID == rulesource.NucleiID && rules[index].Purpose == "verification" && strings.HasPrefix(rules[index].ID, "nv-") {
+			validPrefix = true // Validate below requires the complete reviewed registry definition.
+		}
+		if !validPrefix || seen[rules[index].ID] {
 			return fmt.Errorf("source catalog contains invalid or duplicate rule id %q", rules[index].ID)
 		}
 		if err := rulelib.Validate(rules[index]); err != nil {

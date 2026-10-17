@@ -350,14 +350,17 @@ func runSelect(targets, runs string) string {
 	return `SELECT r.id,r.name,` + targets + `,r.modes,r.status,r.created_at,r.updated_at,
 	 COALESCE(ts.task_total,0),COALESCE(ts.task_done,0),COALESCE(ts.task_failed,0),COALESCE(ac.asset_count,0),r.error,
 	 COALESCE(tgs.target_count,0),COALESCE(rs.open_port_count,0),COALESCE(rs.http_count,0),COALESCE(tgs.target_done,0),jsonb_array_length(r.targets),
-	 r.poc_enabled,COALESCE(pc.finding_count,0),COALESCE(pc.checked_count,0)
+	 r.poc_enabled,COALESCE(pc.finding_count,0),COALESCE(pc.verification_finding_count,0),COALESCE(pc.discovery_match_count,0),COALESCE(pc.checked_count,0)
 	 FROM ` + runs + ` r
 	 LEFT JOIN LATERAL (SELECT count(*) task_total,count(*) FILTER(WHERE state='completed') task_done,
 	  count(*) FILTER(WHERE state='failed') task_failed FROM tasks WHERE run_id=r.id) ts ON true
 	 LEFT JOIN LATERAL (SELECT count(*) target_count,count(*) FILTER(WHERE finished) target_done FROM (
 	  SELECT bool_and(t.state='completed') finished FROM tasks t JOIN task_targets tt ON tt.task_id=t.id WHERE t.run_id=r.id GROUP BY tt.target_key) target_states) tgs ON true
 	 LEFT JOIN LATERAL (SELECT count(*) asset_count FROM assets WHERE run_id=r.id) ac ON true
-	 LEFT JOIN LATERAL (SELECT count(*) FILTER(WHERE a.observation->>'finding_status'='matched') finding_count,count(*) checked_count
+	 LEFT JOIN LATERAL (SELECT count(*) FILTER(WHERE a.observation->>'finding_status'='matched') finding_count,
+	  count(*) FILTER(WHERE a.observation->>'finding_status'='matched' AND COALESCE(NULLIF(a.observation->>'purpose',''),'discovery')='verification') verification_finding_count,
+	  count(*) FILTER(WHERE a.observation->>'finding_status'='matched' AND COALESCE(NULLIF(a.observation->>'purpose',''),'discovery')='discovery') discovery_match_count,
+	  count(*) checked_count
 	  FROM assets a JOIN tasks t ON t.id=a.task_id AND t.attempt_no=a.attempt_no
 	  WHERE a.run_id=r.id AND a.observation->>'kind'='poc') pc ON true
 	 LEFT JOIN LATERAL (SELECT count(*) FILTER(WHERE kind='port') open_port_count,count(*) FILTER(WHERE kind='http') http_count FROM (
@@ -375,7 +378,7 @@ func scanRun(row rowScanner) (Run, error) {
 	var targets []byte
 	err := row.Scan(&run.ID, &run.Name, &targets, &run.Modes, &run.Status, &run.CreatedAt, &run.UpdatedAt,
 		&run.TaskTotal, &run.TaskDone, &run.TaskFailed, &run.AssetCount, &run.Error, &run.TargetCount, &run.OpenPortCount, &run.HTTPCount, &run.TargetDone, &run.InputCount,
-		&run.POCEnabled, &run.FindingCount, &run.POCCheckedCount)
+		&run.POCEnabled, &run.FindingCount, &run.VerificationFindingCount, &run.DiscoveryMatchCount, &run.POCCheckedCount)
 	if err == nil {
 		err = json.Unmarshal(targets, &run.Targets)
 		run.CreatedAt = run.CreatedAt.UTC()

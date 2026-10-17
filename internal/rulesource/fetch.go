@@ -23,7 +23,7 @@ import (
 const (
 	// Bump when conversion or read-only eligibility changes so a fixed upstream
 	// commit is converted again.
-	ConverterVersion   = "2"
+	ConverterVersion   = "3"
 	maxArchiveBytes    = 128 << 20
 	maxExpandedBytes   = 256 << 20
 	maxSourceFileBytes = 16 << 20

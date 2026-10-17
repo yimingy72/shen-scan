@@ -1,20 +1,22 @@
 package rulelib
 
 type Rule struct {
-	ID          string     `json:"id" yaml:"id"`
-	Kind        string     `json:"kind" yaml:"kind"`
-	Name        string     `json:"name" yaml:"name"`
-	Description string     `json:"description,omitempty" yaml:"description,omitempty"`
-	Engine      string     `json:"engine" yaml:"engine"`
-	Severity    string     `json:"severity" yaml:"severity"`
-	Enabled     bool       `json:"enabled" yaml:"enabled"`
-	Builtin     bool       `json:"builtin" yaml:"builtin"`
-	Revision    int        `json:"revision" yaml:"revision"`
-	Tags        []string   `json:"tags,omitempty" yaml:"tags,omitempty"`
-	AppliesTo   []string   `json:"applies_to,omitempty" yaml:"applies_to,omitempty"`
-	Source      string     `json:"source,omitempty" yaml:"source,omitempty"`
-	Definition  Definition `json:"definition" yaml:"definition"`
-	Template    string     `json:"template,omitempty" yaml:"template,omitempty"`
+	ID           string        `json:"id" yaml:"id"`
+	Kind         string        `json:"kind" yaml:"kind"`
+	Purpose      string        `json:"purpose,omitempty" yaml:"purpose,omitempty"`
+	Name         string        `json:"name" yaml:"name"`
+	Description  string        `json:"description,omitempty" yaml:"description,omitempty"`
+	Engine       string        `json:"engine" yaml:"engine"`
+	Severity     string        `json:"severity" yaml:"severity"`
+	Enabled      bool          `json:"enabled" yaml:"enabled"`
+	Builtin      bool          `json:"builtin" yaml:"builtin"`
+	Revision     int           `json:"revision" yaml:"revision"`
+	Tags         []string      `json:"tags,omitempty" yaml:"tags,omitempty"`
+	AppliesTo    []string      `json:"applies_to,omitempty" yaml:"applies_to,omitempty"`
+	Verification *Verification `json:"verification,omitempty" yaml:"verification,omitempty"`
+	Source       string        `json:"source,omitempty" yaml:"source,omitempty"`
+	Definition   Definition    `json:"definition" yaml:"definition"`
+	Template     string        `json:"template,omitempty" yaml:"template,omitempty"`
 }
 
 type Definition struct {
@@ -42,9 +44,33 @@ type Matcher struct {
 type Request struct {
 	Method    string            `json:"method" yaml:"method"`
 	Path      string            `json:"path" yaml:"path"`
+	Role      string            `json:"role,omitempty" yaml:"role,omitempty"`
 	Headers   map[string]string `json:"headers,omitempty" yaml:"headers,omitempty"`
 	Condition string            `json:"condition,omitempty" yaml:"condition,omitempty"`
 	Matchers  []Matcher         `json:"matchers" yaml:"matchers"`
+}
+
+type Verification struct {
+	ID            string    `json:"id" yaml:"id"`
+	CVEs          []string  `json:"cves" yaml:"cves"`
+	Category      string    `json:"category" yaml:"category"`
+	EvidenceLevel string    `json:"evidence_level" yaml:"evidence_level"`
+	Summary       string    `json:"summary" yaml:"summary"`
+	References    []string  `json:"references,omitempty" yaml:"references,omitempty"`
+	SourcePin     SourcePin `json:"source_pin" yaml:"source_pin"`
+}
+
+type SourcePin struct {
+	SourceID   string `json:"source_id" yaml:"source_id"`
+	Repository string `json:"repository" yaml:"repository"`
+	Revision   string `json:"revision" yaml:"revision"`
+	Path       string `json:"path" yaml:"path"`
+	SHA256     string `json:"sha256" yaml:"sha256"`
+}
+
+type CheckEvidence struct {
+	RequestRaw  string `json:"request_raw"`
+	ResponseRaw string `json:"response_raw"`
 }
 
 type Input struct {

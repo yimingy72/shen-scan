@@ -5,6 +5,8 @@ export interface Run {
   input_count?: number
   poc_enabled?: boolean
   finding_count?: number
+  verification_finding_count?: number
+  discovery_match_count?: number
   poc_checked_count?: number
   modes: ('port' | 'http')[]
   status: string
@@ -27,7 +29,15 @@ export interface Technology {
   evidence?: string
 }
 
+export interface Verification {
+  id: string; cves: string[]; category: string; evidence_level: string; summary: string; references?: string[]
+  source_pin: { source_id: string; repository: string; revision: string; path: string; sha256: string }
+}
+
 export interface Asset {
+  purpose?: string
+  verification?: Verification
+  checks?: { request_raw: string; response_raw: string }[]
   matched_products?: string[]
   trigger_reason?: string
   rule_id?: string
@@ -165,6 +175,7 @@ export const formatTime = (value?: string) => {
 
 export type RuleKind = 'http' | 'port' | 'poc'
 export interface LibraryRule {
+  purpose?: string; verification?: Verification
   id: string; kind: RuleKind; name: string; description?: string; engine: 'native' | 'nuclei'
   severity: string; enabled: boolean; builtin: boolean; revision: number; tags?: string[]; source?: string
   definition?: Record<string, unknown>; template?: string; match_summary?: string; applies_to?: string[]; source_id?: string

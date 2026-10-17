@@ -74,8 +74,25 @@ func ConvertNuclei(files map[string][]byte) (Catalog, error) {
 	catalog.Total = len(paths)
 	seenIDs := make(map[string]bool)
 	sampleCounts := make(map[string]int)
+	reviewed := make(map[string]rulelib.Rule)
+	for _, rule := range rulelib.ReviewedVerifications() {
+		reviewed[rule.Verification.SourcePin.Path] = rule
+	}
 	for _, filePath := range paths {
 		data := files[filePath]
+		if rule, ok := reviewed[filePath]; ok {
+			digest := sha256.Sum256(data)
+			if hex.EncodeToString(digest[:]) != rule.Verification.SourcePin.SHA256 {
+				reject(&catalog, sampleCounts, filePath, "review_required", "upstream template changed since the read-only verification review")
+				continue
+			}
+			if err := rulelib.Validate(rule); err != nil {
+				return Catalog{}, fmt.Errorf("invalid reviewed verification %s: %w", rule.ID, err)
+			}
+			seenIDs[rule.ID] = true
+			catalog.Rules = append(catalog.Rules, rule)
+			continue
+		}
 		if !inNucleiScope(filePath) {
 			reject(&catalog, sampleCounts, filePath, "outside_scope", "outside selected HTTP source directories")
 			continue

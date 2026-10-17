@@ -231,27 +231,37 @@ func (s *Server) listFindings(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	purpose, err := libraryFilter(r.URL.Query().Get("purpose"), "purpose", "discovery", "verification")
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 	query := strings.TrimSpace(r.URL.Query().Get("q"))
 	const findings = currentResults + `, findings AS (SELECT * FROM ob WHERE observation->>'kind'='poc'),
 	 filtered AS (SELECT * FROM findings WHERE ($2='all' OR observation->>'finding_status'=$2)
 	 AND ($3='' OR observation->>'severity'=$3) AND ($4='' OR
-	 (observation-'request_raw'-'response_raw'-'body_excerpt'-'headers')::text ILIKE '%'||$4||'%' OR target_key ILIKE '%'||$4||'%'))`
-	var total, matched, notMatched, failed int64
+	 (observation-'request_raw'-'response_raw'-'body_excerpt'-'headers')::text ILIKE '%'||$4||'%' OR target_key ILIKE '%'||$4||'%')
+	 AND ($5='' OR COALESCE(NULLIF(observation->>'purpose',''),'discovery')=$5))`
+	var total, matched, notMatched, failed, verificationMatched, discoveryMatched int64
 	var items json.RawMessage
-	err = s.db.QueryRow(r.Context(), findings+`, page AS (SELECT * FROM filtered ORDER BY observed_at DESC,id DESC LIMIT $5 OFFSET $6)
+	err = s.db.QueryRow(r.Context(), findings+`, page AS (SELECT * FROM filtered ORDER BY observed_at DESC,id DESC LIMIT $6 OFFSET $7)
 	 SELECT (SELECT count(*) FROM filtered),count(*) FILTER(WHERE observation->>'finding_status'='matched'),
 	 count(*) FILTER(WHERE observation->>'finding_status'='not_matched'),count(*) FILTER(WHERE observation->>'finding_status'='error'),
+	 count(*) FILTER(WHERE observation->>'finding_status'='matched' AND COALESCE(NULLIF(observation->>'purpose',''),'discovery')='verification'),
+	 count(*) FILTER(WHERE observation->>'finding_status'='matched' AND COALESCE(NULLIF(observation->>'purpose',''),'discovery')='discovery'),
 	 COALESCE((SELECT jsonb_agg((observation-'request_raw'-'response_raw'-'body_excerpt'-'headers') ||
 	 jsonb_build_object('id',id,'run_id',$1::text,'source_target',target_key,'observed_at',observed_at,
 	 'matched_products',COALESCE(task_payload->'matched_products','[]'::jsonb),'trigger_reason',COALESCE(task_payload->>'trigger_reason',''))
 	 ORDER BY observed_at DESC,id DESC) FROM page),'[]'::jsonb)
-	 FROM findings`, r.PathValue("id"), status, severity, query, limit, offset).Scan(&total, &matched, &notMatched, &failed, &items)
+	 FROM findings`, r.PathValue("id"), status, severity, query, purpose, limit, offset).Scan(
+		&total, &matched, &notMatched, &failed, &verificationMatched, &discoveryMatched, &items)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "load findings failed")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"items": items, "total": total,
-		"summary": map[string]int64{"matched": matched, "not_matched": notMatched, "error": failed}})
+		"summary": map[string]int64{"matched": matched, "not_matched": notMatched, "error": failed,
+			"verification_matched": verificationMatched, "discovery_matched": discoveryMatched}})
 }
 
 func (s *Server) getObservation(w http.ResponseWriter, r *http.Request) {

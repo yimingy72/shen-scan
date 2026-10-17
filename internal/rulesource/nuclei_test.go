@@ -246,3 +246,14 @@ func sumSkipped(skipped map[string]int) int {
 	}
 	return total
 }
+
+func TestChangedReviewedTemplateRequiresReview(t *testing.T) {
+	approved := rulelib.ReviewedVerifications()[0]
+	catalog, err := ConvertNuclei(map[string][]byte{
+		"LICENSE.md":                         []byte(rulelib.ThirdPartyNotices()),
+		approved.Verification.SourcePin.Path: []byte("changed upstream template"),
+	})
+	if err != nil || len(catalog.Rules) != 0 || catalog.Skipped["review_required"] != 1 {
+		t.Fatalf("changed template was not withheld: catalog=%+v err=%v", catalog, err)
+	}
+}

