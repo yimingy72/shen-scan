@@ -46,9 +46,9 @@ Wapp 规则遵循现有本地修改保护：用户禁用不会被重新开启，
 
 ### Nuclei 上游原库
 
-Nuclei 原始规则统一以 `catalog_only` 保存，初始 `enabled:false` 并带运行能力原因。原始 YAML、分类、capabilities 和默认风险提示可查看或导出；enabled 只是目录管理信息，不使规则可执行。
+从官方源同步的 Nuclei 规则以 `catalog_only` 保存，初始 `enabled:false` 并带运行能力原因；原库条目可查看或导出，但不会自动进入执行快照。需要执行时，管理员可通过 `POST /api/library/import` 使用 `execution_profile:"http-basic-v1"` 导入受支持的原始 YAML，导入后仍需显式启用、绑定产品并在任务中开启 PoC。
 
-Nuclei 更新不会写入、覆盖、退役或重新启用当前 907 条 PoC 执行规则。全量原始执行器和主动 HTTP 发现迁移尚未接入，因此一键更新成功只表示原库已同步，不表示新模板会运行。
+Nuclei 源更新不会写入、覆盖、退役或重新启用当前执行库中的 PoC；也不会把全量目录自动转为执行规则。`http-basic-v1` 只覆盖静态 GET / HEAD 子集，DSL、extractor、raw、payload、fuzz、race、flow、重定向和其他协议仍不执行。
 
 ## 原库 API 与导出
 
