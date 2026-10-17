@@ -201,6 +201,8 @@ docs/              部署、调度、API 与使用说明
 
 ## 开发检查
 
+后续开发计划：[原始 Nuclei YAML 兼容性适配方案](docs/NUCLEI_MIGRATION_PLAN.md)（仅文档规划，尚未实现或部署）。
+
 ```sh
 go test ./...
 npm run build --prefix web
