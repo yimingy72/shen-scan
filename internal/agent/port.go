@@ -121,8 +121,8 @@ func (a *Agent) runMasscan(ctx context.Context, payload portPayload, emit func(O
 	if err := cmd.Start(); err != nil {
 		return err
 	}
-	a.resources.addMasscanPID(cmd.Process.Pid)
-	defer a.resources.removeMasscanPID(cmd.Process.Pid)
+	releaseProcess := a.resources.trackTool(toolMasscan, cmd.Process.Pid)
+	defer releaseProcess()
 	processDone := make(chan struct{})
 	go func() {
 		select {
@@ -133,7 +133,9 @@ func (a *Agent) runMasscan(ctx context.Context, payload portPayload, emit func(O
 	}()
 	waitDone := make(chan error, 1)
 	go func() {
-		waitDone <- cmd.Wait()
+		waitErr := cmd.Wait()
+		releaseProcess()
+		waitDone <- waitErr
 		_ = spool.Close()
 		close(processDone)
 	}()

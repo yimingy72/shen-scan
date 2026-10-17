@@ -163,6 +163,12 @@ func (s *Server) heartbeat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response := map[string]any{"action": action, "control_generation": pool.Generation, "reason": reason, "stop_task_ids": stopTaskIDs}
+	response["prefer_service"] = false
+	if action == "continue" {
+		pressure := s.servicePressureSnapshot(r.Context())
+		response["prefer_service"] = pressure.Available && pressure.PreferService
+	}
+	response["preference_ttl_seconds"] = servicePreferenceTTL
 	if request.TerminationAt != nil {
 		response["stop_deadline"] = request.TerminationAt.UTC()
 	} else if forcedDeadline != "" {
@@ -174,16 +180,34 @@ func (s *Server) heartbeat(w http.ResponseWriter, r *http.Request) {
 }
 
 var workerMetricLimits = map[string]float64{
-	"active_tasks":          1000,
-	"cpu_percent":           100,
-	"mem_total_mib":         1_000_000_000,
-	"mem_available_mib":     1_000_000_000,
-	"agent_rss_mib":         1_000_000_000,
-	"masscan_rss_mib":       1_000_000_000,
-	"peak_cpu_percent":      100,
-	"peak_agent_rss_mib":    1_000_000_000,
-	"peak_masscan_rss_mib":  1_000_000_000,
-	"min_mem_available_mib": 1_000_000_000,
+	"active_tasks":           1000,
+	"cpu_percent":            100,
+	"mem_total_mib":          1_000_000_000,
+	"mem_available_mib":      1_000_000_000,
+	"agent_rss_mib":          1_000_000_000,
+	"masscan_rss_mib":        1_000_000_000,
+	"peak_cpu_percent":       100,
+	"peak_agent_rss_mib":     1_000_000_000,
+	"peak_masscan_rss_mib":   1_000_000_000,
+	"min_mem_available_mib":  1_000_000_000,
+	"tools_rss_mib":          1_000_000_000,
+	"peak_tools_rss_mib":     1_000_000_000,
+	"nmap_rss_mib":           1_000_000_000,
+	"httpx_rss_mib":          1_000_000_000,
+	"web_probe_rss_mib":      1_000_000_000,
+	"fingerprint_rss_mib":    1_000_000_000,
+	"nuclei_rss_mib":         1_000_000_000,
+	"tools_processes":        1000,
+	"masscan_processes":      1000,
+	"nmap_processes":         1000,
+	"httpx_processes":        1000,
+	"web_probe_processes":    1000,
+	"fingerprint_processes":  1000,
+	"nuclei_processes":       1000,
+	"connection_slots_used":  1_000_000,
+	"connection_slots_limit": 1_000_000,
+	"upload_queued_bytes":    1_000_000_000,
+	"admission_paused":       1,
 }
 
 func validateWorkerMetrics(raw json.RawMessage) (map[string]float64, error) {
@@ -205,8 +229,10 @@ func validateWorkerMetrics(raw json.RawMessage) (map[string]float64, error) {
 		if math.IsNaN(value) || math.IsInf(value, 0) || value < 0 || value > limit {
 			return nil, fmt.Errorf("metrics field %q is out of range", name)
 		}
-		if name == "active_tasks" && value != math.Trunc(value) {
-			return nil, errors.New("metrics field \"active_tasks\" must be an integer")
+		integer := name == "active_tasks" || strings.HasSuffix(name, "_processes") ||
+			strings.HasPrefix(name, "connection_slots_") || name == "upload_queued_bytes" || name == "admission_paused"
+		if integer && value != math.Trunc(value) {
+			return nil, fmt.Errorf("metrics field %q must be an integer", name)
 		}
 	}
 	return metrics, nil

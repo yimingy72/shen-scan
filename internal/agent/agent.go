@@ -37,8 +37,10 @@ type queuedObservation struct {
 }
 
 type activeTask struct {
-	typeName string
-	cancel   context.CancelCauseFunc
+	connectionSlots int
+	webHelper       bool
+	typeName        string
+	cancel          context.CancelCauseFunc
 }
 
 type Config struct {
@@ -76,6 +78,7 @@ type Agent struct {
 	endpointSlots       chan struct{}
 	httpxSlots          chan struct{}
 	webProbes           chan *webProbeProcess
+	fingerprints        fingerprintProcess
 	httpTargetMu        sync.Mutex
 	httpTargetSlots     map[string]*targetSlots
 	resources           *resourceSampler
@@ -89,6 +92,7 @@ type Agent struct {
 	mu                  sync.Mutex
 	active              map[string]activeTask
 	lastTaskType        string
+	preferServiceUntil  time.Time
 	taskFinished        chan struct{}
 	terminationAt       *time.Time
 	nucleiOriginalOnce  sync.Once
@@ -162,15 +166,16 @@ func New(cfg Config) (*Agent, error) {
 		return nil, err
 	}
 	client.nmapBinary = cfg.NmapBinary
+	resources := newResourceSampler()
 	webProbes := make(chan *webProbeProcess, cfg.HTTPXMaxProcesses)
 	for i := 0; i < cfg.HTTPXMaxProcesses; i++ {
-		webProbes <- &webProbeProcess{slot: make(chan struct{}, 1)}
+		webProbes <- &webProbeProcess{slot: make(chan struct{}, 1), resources: resources}
 	}
 	return &Agent{
 		cfg: cfg, client: client, policy: newTargetPolicy(cfg.ControlURL, cfg.AllowPrivateTargets),
 		log: cfg.Logger, portExecutor: cfg.PortExecutor,
 		webProbes: webProbes, endpointSlots: make(chan struct{}, cfg.EndpointConcurrency), httpxSlots: make(chan struct{}, cfg.HTTPXMaxProcesses), httpTargetSlots: make(map[string]*targetSlots),
-		resources: newResourceSampler(), ruleSets: newRuleSetCache(8), active: make(map[string]activeTask), taskFinished: make(chan struct{}, 1), heartbeatEvery: 10 * time.Second,
+		resources: resources, fingerprints: fingerprintProcess{slot: make(chan struct{}, 1), resources: resources}, ruleSets: newRuleSetCache(8), active: make(map[string]activeTask), taskFinished: make(chan struct{}, 1), heartbeatEvery: 10 * time.Second,
 	}, nil
 }
 
@@ -197,6 +202,7 @@ func (a *Agent) Run(ctx context.Context) error {
 			a.cancelAll(context.Cause(ctx))
 			a.wg.Wait()
 			a.stopWebProbes()
+			a.fingerprints.stop()
 			if errors.Is(ctx.Err(), context.Canceled) && context.Cause(ctx) == context.Canceled {
 				return nil
 			}
@@ -343,15 +349,22 @@ func (a *Agent) claimOptions() (options [][]string) {
 		options = append(options, []string{"port"})
 	}
 	if fingerprints < a.fingerprintTaskLimit() {
+		used, nextHTTP := a.connectionEstimate()
 		var types []string
-		if a.activeStageCount("service") == 0 && a.estimatedConnections()+4 <= a.cfg.EndpointConcurrency {
+		if a.activeStageCount("service") == 0 && used+4 <= a.cfg.EndpointConcurrency {
 			types = append(types, "service")
 		}
-		if a.activeStageCount("http") < a.cfg.HTTPXMaxProcesses && a.estimatedConnections()+a.cfg.HTTPXThreads <= a.cfg.EndpointConcurrency {
+		if a.activeStageCount("http") < a.cfg.HTTPXMaxProcesses && used+nextHTTP <= a.cfg.EndpointConcurrency {
 			types = append(types, "http")
 		}
-		if a.activePoCCount() == 0 && a.estimatedConnections()+4 <= a.cfg.EndpointConcurrency {
+		if a.activePoCCount() == 0 && used+4 <= a.cfg.EndpointConcurrency {
 			types = append(types, "poc")
+		}
+		if a.servicePreferred(time.Now()) && len(types) > 0 && types[0] == "service" {
+			if _, err := exec.LookPath(a.cfg.NmapBinary); err == nil {
+				options = append([][]string{{"service"}}, options...)
+				types = types[1:]
+			}
 		}
 		if len(types) > 0 {
 			options = append(options, types)
@@ -398,13 +411,17 @@ func (a *Agent) startTask(parent context.Context, task Task) {
 		return
 	}
 	ctx, cancel := context.WithCancelCause(parent)
+	slots, helper := 0, false
+	if task.Type == "http" {
+		slots, helper = a.httpReservation(task.Payload)
+	}
 	a.mu.Lock()
 	if _, exists := a.active[task.ID]; exists {
 		a.mu.Unlock()
 		cancel(fmt.Errorf("duplicate task claim"))
 		return
 	}
-	a.active[task.ID] = activeTask{typeName: task.Type, cancel: cancel}
+	a.active[task.ID] = activeTask{typeName: task.Type, cancel: cancel, connectionSlots: slots, webHelper: helper}
 	a.lastTaskType = task.Type
 	a.mu.Unlock()
 	a.wg.Add(1)
@@ -709,6 +726,13 @@ func (a *Agent) sendHeartbeat(ctx context.Context, stop context.CancelFunc) {
 	status, current, termination := a.snapshot()
 	metrics := a.resources.metrics()
 	metrics["active_tasks"] = a.activeCount()
+	metrics["connection_slots_used"] = a.estimatedConnections()
+	metrics["connection_slots_limit"] = a.cfg.EndpointConcurrency
+	metrics["upload_queued_bytes"] = a.uploadQueuedBytes.Load()
+	metrics["admission_paused"] = 0
+	if len(a.claimOptions()) == 0 {
+		metrics["admission_paused"] = 1
+	}
 	hbCtx, cancel := context.WithTimeout(ctx, minDuration(a.heartbeatEvery, 8*time.Second))
 	defer cancel()
 	out, err := a.client.Heartbeat(hbCtx, HeartbeatRequest{
@@ -721,6 +745,7 @@ func (a *Agent) sendHeartbeat(ctx context.Context, stop context.CancelFunc) {
 		}
 		return
 	}
+	a.setServicePreference(out.PreferService, out.PreferenceTTLSeconds, time.Now())
 	if len(out.StopTaskIDs) > 0 {
 		reason := out.Reason
 		if reason == "" {
@@ -890,7 +915,7 @@ func (a *Agent) canAdmitWork() bool {
 		return false
 	}
 	metrics := a.resources.metrics()
-	if available, ok := metrics["mem_available_mib"].(float64); ok && available > 0 && available < 256 {
+	if available, ok := metrics["mem_available_mib"].(float64); ok && available < 256 {
 		return false
 	}
 	if cpu, ok := metrics["cpu_percent"].(float64); ok && cpu >= 90 {
@@ -911,5 +936,6 @@ func (a *Agent) capabilities() map[string]bool {
 
 // Estimates are admission weights, not an assertion about exact wire connections.
 func (a *Agent) estimatedConnections() int {
-	return 4*a.activeStageCount("service") + a.cfg.HTTPXThreads*a.activeStageCount("http") + 4*a.activeStageCount("poc")
+	used, _ := a.connectionEstimate()
+	return used
 }

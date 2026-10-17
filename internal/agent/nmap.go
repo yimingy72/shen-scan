@@ -89,11 +89,14 @@ func (a *Agent) runNmapBatch(ctx context.Context, path string, endpoints []Endpo
 	if err := cmd.Start(); err != nil {
 		return err
 	}
+	releaseProcess := a.resources.trackTool(toolNmap, cmd.Process.Pid)
+	defer releaseProcess()
 	parsed, parseErr := parseNmapXML(io.LimitReader(stdout, maxNmapXMLBytes+1), endpoints, emit)
 	if parseErr != nil {
 		cancel()
 	}
 	waitErr := cmd.Wait()
+	releaseProcess()
 	if ctx.Err() != nil {
 		return context.Cause(ctx)
 	}

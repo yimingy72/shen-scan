@@ -122,10 +122,10 @@ func (a *Agent) runWebProbe(ctx context.Context, task Task, payload httpPayload,
 			var resolve func(context.Context) (string, error)
 			if payload.FingerprintBundleSchema == fb.Schema {
 				resolve = func(ctx context.Context) (string, error) {
-					return sharedFingerprints.cache.get(ctx, a.client, a.workerID, a.cfg.SessionID, task, payload.FingerprintBundle)
+					return a.fingerprints.cache.get(ctx, a.client, a.workerID, a.cfg.SessionID, task, payload.FingerprintBundle)
 				}
 			}
-			match, matchErr := sharedFingerprints.matchBundle(ctx, webevidence.MatchRequest{Protocol: webevidence.Protocol, ID: webevidence.SHA256([]byte(raw)) + "/" + result.Response.BodySHA256, ExpectedBundle: payload.FingerprintBundle, Response: result.Response, Icons: result.Icons}, payload.FingerprintBundleSchema, resolve)
+			match, matchErr := a.fingerprints.matchBundle(ctx, webevidence.MatchRequest{Protocol: webevidence.Protocol, ID: webevidence.SHA256([]byte(raw)) + "/" + result.Response.BodySHA256, ExpectedBundle: payload.FingerprintBundle, Response: result.Response, Icons: result.Icons}, payload.FingerprintBundleSchema, resolve)
 			actualMatch = match
 			if matchErr != nil {
 				obs.Error = joinWebError(obs.Error, "passive fingerprint: "+matchErr.Error())
@@ -266,14 +266,15 @@ func runWebHelper(ctx context.Context, binary string, input []byte) ([]byte, err
 }
 
 type webProbeProcess struct {
-	slot    chan struct{}
-	cmd     *exec.Cmd
-	stdin   io.WriteCloser
-	scanner *bufio.Scanner
-	stderr  *stderrTail
-	done    chan error
-	binary  string
-	dir     string
+	resources *resourceSampler
+	slot      chan struct{}
+	cmd       *exec.Cmd
+	stdin     io.WriteCloser
+	scanner   *bufio.Scanner
+	stderr    *stderrTail
+	done      chan error
+	binary    string
+	dir       string
 }
 
 func (p *webProbeProcess) run(ctx context.Context, binary string, request webevidence.ProbeRequest) ([]byte, error) {
@@ -395,7 +396,8 @@ func (p *webProbeProcess) start(binary string) (err error) {
 	p.scanner = bufio.NewScanner(output)
 	p.scanner.Buffer(make([]byte, 64<<10), webevidence.MaxMessage)
 	p.done = make(chan error, 1)
-	go func(done chan error) { done <- cmd.Wait() }(p.done)
+	releaseProcess := p.resources.trackTool(toolWebProbe, cmd.Process.Pid)
+	go func(done chan error) { err := cmd.Wait(); releaseProcess(); done <- err }(p.done)
 	return nil
 }
 func (p *webProbeProcess) stop() {
@@ -430,16 +432,17 @@ func (b *cappedWebBuffer) Write(p []byte) (int, error) {
 var sharedFingerprints = fingerprintProcess{slot: make(chan struct{}, 1)}
 
 type fingerprintProcess struct {
-	slot    chan struct{}
-	cmd     *exec.Cmd
-	stdin   io.WriteCloser
-	scanner *bufio.Scanner
-	stderr  *stderrTail
-	done    chan error
-	binary  string
-	bundle  string
-	schema  string
-	cache   fingerprintBundleCache
+	resources *resourceSampler
+	slot      chan struct{}
+	cmd       *exec.Cmd
+	stdin     io.WriteCloser
+	scanner   *bufio.Scanner
+	stderr    *stderrTail
+	done      chan error
+	binary    string
+	bundle    string
+	schema    string
+	cache     fingerprintBundleCache
 }
 
 func (p *fingerprintProcess) match(ctx context.Context, input webevidence.MatchRequest) (webevidence.MatchResult, error) {
@@ -511,7 +514,8 @@ func (p *fingerprintProcess) matchBundle(ctx context.Context, input webevidence.
 			return webevidence.MatchResult{}, err
 		}
 		p.done = make(chan error, 1)
-		go func(cmd *exec.Cmd, done chan error) { done <- cmd.Wait() }(p.cmd, p.done)
+		releaseProcess := p.resources.trackTool(toolFingerprint, p.cmd.Process.Pid)
+		go func(cmd *exec.Cmd, done chan error) { err := cmd.Wait(); releaseProcess(); done <- err }(p.cmd, p.done)
 	}
 	type reply struct {
 		result webevidence.MatchResult

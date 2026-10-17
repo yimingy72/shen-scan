@@ -138,6 +138,9 @@ func TestWebProbePoolParallelReuseAndCancelIsolation(t *testing.T) {
 	}
 	enteredOne() // Third entry starts after one of the two processes is returned.
 	original := snapshot()
+	if metrics := a.resources.metrics(); metrics["web_probe_processes"] != 2 {
+		t.Fatalf("resident helpers not tracked: %+v", metrics)
+	}
 	if len(original) != 2 || peak.Load() != 2 {
 		t.Fatalf("helpers did not overlap at bounded2: pids=%v peak=%d", pids(original), peak.Load())
 	}
@@ -168,6 +171,9 @@ func TestWebProbePoolParallelReuseAndCancelIsolation(t *testing.T) {
 		t.Fatalf("peer poisoned by cancellation: %+v", result)
 	}
 	surviving := snapshot()
+	if metrics := a.resources.metrics(); metrics["web_probe_processes"] != 1 {
+		t.Fatalf("canceled helper remains tracked: %+v", metrics)
+	}
 	if len(surviving) != 1 {
 		t.Fatalf("cancel should reap exactly one process: pids=%v", pids(surviving))
 	}
@@ -189,6 +195,9 @@ func TestWebProbePoolParallelReuseAndCancelIsolation(t *testing.T) {
 		}
 	}
 	a.stopWebProbes()
+	if metrics := a.resources.metrics(); metrics["web_probe_processes"] != 0 {
+		t.Fatalf("stopped helpers remain tracked: %+v", metrics)
+	}
 	if remaining := snapshot(); len(remaining) != 0 {
 		t.Fatalf("close left helpers: %v", pids(remaining))
 	}

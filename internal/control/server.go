@@ -46,8 +46,9 @@ type Server struct {
 	cloudSetup func(context.Context) (map[string]any, error)
 	cloudAdmin http.HandlerFunc
 
-	sourceMu      sync.Mutex
-	sourceRunning map[string]bool
+	sourceMu        sync.Mutex
+	sourceRunning   map[string]bool
+	servicePressure servicePressureCache
 }
 
 func New(ctx context.Context, databaseURL, adminToken, joinToken string) (*Server, error) {
@@ -62,7 +63,7 @@ func New(ctx context.Context, databaseURL, adminToken, joinToken string) (*Serve
 		db.Close()
 		return nil, fmt.Errorf("ping database: %w", err)
 	}
-	if _, err = db.Exec(ctx, schema+httpBudgetSchema); err != nil {
+	if _, err = db.Exec(ctx, schema+httpBudgetSchema+servicePressureSchema); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("migrate database: %w", err)
 	}

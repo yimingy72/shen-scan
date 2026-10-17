@@ -82,4 +82,13 @@ func TestValidateWorkerMetrics(t *testing.T) {
 	if _, err := validateWorkerMetrics(json.RawMessage(`{"cpu_percent":101}`)); err == nil {
 		t.Fatal("out-of-range metric must be rejected")
 	}
+	metrics, err = validateWorkerMetrics(json.RawMessage(`{"tools_processes":3,"tools_rss_mib":125.5,"nmap_processes":1,"nmap_rss_mib":24.5,"web_probe_processes":2,"web_probe_rss_mib":101,"connection_slots_used":6,"connection_slots_limit":16,"upload_queued_bytes":2048,"admission_paused":0}`))
+	if err != nil || metrics["tools_processes"] != 3 || metrics["connection_slots_used"] != 6 {
+		t.Fatalf("tool telemetry rejected: metrics=%v err=%v", metrics, err)
+	}
+	for _, raw := range []string{`{"tools_processes":0.5}`, `{"connection_slots_used":1.5}`, `{"upload_queued_bytes":-1}`, `{"admission_paused":2}`, `{"admission_paused":0.5}`} {
+		if _, err := validateWorkerMetrics(json.RawMessage(raw)); err == nil {
+			t.Fatalf("invalid telemetry accepted: %s", raw)
+		}
+	}
 }

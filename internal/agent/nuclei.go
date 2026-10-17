@@ -193,8 +193,10 @@ func (a *Agent) runNucleiPoC(ctx context.Context, ep Endpoint, baseURL *url.URL,
 	if err := cmd.Start(); err != nil {
 		return pocError(obs, "start nuclei: "+err.Error())
 	}
+	releaseProcess := a.resources.trackTool(toolNuclei, cmd.Process.Pid)
+	defer releaseProcess()
 	waitDone := make(chan error, 1)
-	go func() { waitDone <- cmd.Wait() }()
+	go func() { err := cmd.Wait(); releaseProcess(); waitDone <- err }()
 	var waitErr error
 	select {
 	case <-ctx.Done():

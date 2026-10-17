@@ -108,6 +108,8 @@ func (a *Agent) runNucleiBatch(ctx context.Context, ep Endpoint, rules []rulelib
 	if err = cmd.Start(); err != nil {
 		return err
 	}
+	releaseProcess := a.resources.trackTool(toolNuclei, cmd.Process.Pid)
+	defer releaseProcess()
 	stopped := make(chan struct{})
 	defer close(stopped)
 	go func() {
@@ -182,6 +184,7 @@ func (a *Agent) runNucleiBatch(ctx context.Context, ep Endpoint, rules []rulelib
 	if waitErr := cmd.Wait(); executionErr == nil && waitErr != nil {
 		executionErr = waitErr
 	}
+	releaseProcess()
 	if ctx.Err() != nil {
 		return context.Cause(ctx)
 	}

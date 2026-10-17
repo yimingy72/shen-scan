@@ -32,11 +32,13 @@ type HeartbeatRequest struct {
 }
 
 type HeartbeatResponse struct {
-	Action            string     `json:"action"`
-	ControlGeneration int64      `json:"control_generation"`
-	Reason            string     `json:"reason,omitempty"`
-	StopDeadline      *time.Time `json:"stop_deadline,omitempty"`
-	StopTaskIDs       []string   `json:"stop_task_ids,omitempty"`
+	PreferService        bool       `json:"prefer_service"`
+	PreferenceTTLSeconds int        `json:"preference_ttl_seconds"`
+	Action               string     `json:"action"`
+	ControlGeneration    int64      `json:"control_generation"`
+	Reason               string     `json:"reason,omitempty"`
+	StopDeadline         *time.Time `json:"stop_deadline,omitempty"`
+	StopTaskIDs          []string   `json:"stop_task_ids,omitempty"`
 }
 
 type Task struct {

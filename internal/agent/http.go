@@ -58,14 +58,17 @@ func (a *Agent) runHTTP(ctx context.Context, task Task, emit func(Observation) e
 		return err
 	}
 	payload.Rules = rules
-	if binary, ok := webProbeBinary(); ok {
+	binary, helper := webProbeBinary()
+	cffEnabled := hasEnabledHTTPXCFF(payload.Rules)
+	a.updateHTTPReservation(task.ID, len(payload.Endpoints), helper, cffEnabled)
+	if helper {
 		return a.runWebProbe(ctx, task, payload, binary, emit)
 	}
 	if payload.FingerprintBundle != "" || payload.FingerprintBundleSchema != "" {
 		return &TaskError{Reason: "this task requires web-probe-worker and its assigned fingerprint bundle", Retryable: false}
 	}
 	timeout := minDuration(boundedTimeout(payload.TimeoutSeconds, 12*time.Second), 12*time.Second)
-	if hasEnabledHTTPXCFF(payload.Rules) {
+	if cffEnabled {
 		cff, ok := a.ruleSets.cff(payload.RulesRef)
 		if !ok {
 			cff, err = buildHTTPXCFF(payload.Rules)

@@ -275,7 +275,7 @@ func newHTTPXTestAgent(t *testing.T, binary string) *Agent {
 		t.Fatal(err)
 	}
 	allowHTTPFixture(t, agent)
-	t.Cleanup(agent.stopWebProbes)
+	t.Cleanup(func() { agent.stopWebProbes(); agent.fingerprints.stop() })
 	return agent
 }
 

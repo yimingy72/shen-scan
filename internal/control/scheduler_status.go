@@ -58,5 +58,5 @@ func (s *Server) schedulerStatus(w http.ResponseWriter, r *http.Request) {
 		writeError(w, 503, "database unavailable")
 		return
 	}
-	writeJSON(w, 200, map[string]any{"http_budget": budget, "port_batch": port, "service_batch": service, "stages": stages, "port_range": "1-65535"})
+	writeJSON(w, 200, map[string]any{"http_budget": budget, "port_batch": port, "service_batch": service, "stages": stages, "port_range": "1-65535", "service_pressure": s.servicePressureSnapshot(r.Context())})
 }

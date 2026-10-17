@@ -47,6 +47,9 @@ func TestRealWebProbeHelpers(t *testing.T) {
 	if err := a.runWebProbe(context.Background(), Task{}, payload, binary, func(obs Observation) error { results = append(results, obs); return nil }); err != nil {
 		t.Fatal(err)
 	}
+	if metrics := a.resources.metrics(); metrics["fingerprint_processes"] != 1 {
+		t.Fatalf("resident fingerprint helper untracked: %+v", metrics)
+	}
 	if len(results) != 2 {
 		t.Fatalf("results: %d", len(results))
 	}

@@ -281,8 +281,10 @@ func (a *Agent) runHTTPXBatch(ctx context.Context, endpoints []Endpoint, rules [
 	if err := cmd.Start(); err != nil {
 		return &TaskError{Reason: "start httpx: " + err.Error(), Retryable: true}
 	}
+	releaseProcess := a.resources.trackTool(toolHTTPX, cmd.Process.Pid)
+	defer releaseProcess()
 	waitDone := make(chan error, 1)
-	go func() { waitDone <- cmd.Wait() }()
+	go func() { err := cmd.Wait(); releaseProcess(); waitDone <- err }()
 	var waitErr error
 	select {
 	case <-ctx.Done():
