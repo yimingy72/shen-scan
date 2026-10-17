@@ -25,7 +25,7 @@ PoC 默认关闭，创建任务时仍须显式设置 `poc_enabled:true`，并包
 
 新的 Nuclei HEAD 同步只写入独立“上游原库”。它不会创建、更新、退役或重新启用这 11 条 verification，也不会把原始模板交给现有执行器。当前 ConverterVersion 4 只负责原库目录与文件追溯。
 
-原库中的 revision / hash 随 HEAD 更新，仅表示内容来自哪个版本。上游文件变化会产生新的 catalog revision，不会修改现有 verification。原始 Nuclei 执行器迁移尚未完成。
+原库中的 revision / hash 随 HEAD 更新，仅表示内容来自哪个版本。上游文件变化会产生新的 catalog revision，不会修改现有 verification。这里的 11 条 native verification 仍不执行原始 YAML；另有一条独立的 `http-basic-v1` 导入/执行路径，只接受静态 GET / HEAD 子集，且不会因为原库同步自动生成可执行规则。
 
 ## 执行和证据闭环
 
