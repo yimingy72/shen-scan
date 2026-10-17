@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"math"
 	"net"
 	"net/http"
@@ -628,6 +629,11 @@ func (s *Server) submitBatch(w http.ResponseWriter, r *http.Request) {
 	}
 	itemsJSON, _ := json.Marshal(request.Items)
 	hash := sha256.Sum256(itemsJSON)
+	batchIndex, _, err := observationStorageJSON(itemsJSON)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid observation JSON")
+		return
+	}
 	tx, err := s.db.Begin(r.Context())
 	if err != nil {
 		writeError(w, http.StatusServiceUnavailable, "database unavailable")
@@ -701,20 +707,29 @@ func (s *Server) submitBatch(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		raw, _ := json.Marshal(item)
-		assetRows[index] = []any{newID(), runID, r.PathValue("id"), request.AttemptNo, request.BatchSeq, index, targetKey, raw}
+		stored, original, err := observationStorageJSON(raw)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "invalid observation JSON")
+			return
+		}
+		assetRows[index] = []any{newID(), runID, r.PathValue("id"), request.AttemptNo, request.BatchSeq, index, targetKey, stored, original}
 	}
 	_, err = tx.Exec(r.Context(), `INSERT INTO task_batches(task_id,attempt_no,batch_seq,content_hash,items) VALUES ($1,$2,$3,$4,$5)`,
-		r.PathValue("id"), request.AttemptNo, request.BatchSeq, hash[:], itemsJSON)
+		r.PathValue("id"), request.AttemptNo, request.BatchSeq, hash[:], batchIndex)
 	if err == nil {
 		var copied int64
 		copied, err = tx.CopyFrom(r.Context(), pgx.Identifier{"assets"},
-			[]string{"id", "run_id", "task_id", "attempt_no", "batch_seq", "item_index", "target_key", "observation"},
+			[]string{"id", "run_id", "task_id", "attempt_no", "batch_seq", "item_index", "target_key", "observation", "observation_raw"},
 			pgx.CopyFromRows(assetRows))
 		if err == nil && copied != int64(len(assetRows)) {
 			err = fmt.Errorf("copied %d of %d assets", copied, len(assetRows))
 		}
 	}
-	if err != nil || tx.Commit(r.Context()) != nil {
+	if err == nil {
+		err = tx.Commit(r.Context())
+	}
+	if err != nil {
+		slog.Error("store task batch failed", "task_id", r.PathValue("id"), "attempt_no", request.AttemptNo, "batch_seq", request.BatchSeq, "error", err)
 		writeError(w, http.StatusInternalServerError, "store batch failed")
 		return
 	}

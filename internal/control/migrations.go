@@ -146,6 +146,7 @@ CREATE TABLE IF NOT EXISTS assets (
   UNIQUE (task_id, attempt_no, batch_seq, item_index)
 );
 CREATE INDEX IF NOT EXISTS assets_run_idx ON assets (run_id, observed_at DESC);
+ALTER TABLE assets ADD COLUMN IF NOT EXISTS observation_raw bytea;
 CREATE INDEX IF NOT EXISTS assets_task_attempt_idx ON assets (task_id,attempt_no);
 ALTER TABLE assets ADD COLUMN IF NOT EXISTS target_key text NOT NULL DEFAULT '';
 CREATE INDEX IF NOT EXISTS assets_run_target_idx ON assets(run_id,target_key);

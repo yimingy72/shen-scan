@@ -268,7 +268,7 @@ func (s *Server) listFindings(w http.ResponseWriter, r *http.Request) {
 func (s *Server) getObservation(w http.ResponseWriter, r *http.Request) {
 	var item Asset
 	var raw, taskPayload []byte
-	err := s.db.QueryRow(r.Context(), `SELECT a.id,a.run_id,a.observed_at,a.observation,t.payload
+	err := s.db.QueryRow(r.Context(), `SELECT a.id,a.run_id,a.observed_at,COALESCE(a.observation_raw,convert_to(a.observation::text,'UTF8')),t.payload
 		FROM assets a JOIN tasks t ON t.id=a.task_id WHERE a.id=$1`, r.PathValue("id")).Scan(&item.ID, &item.RunID, &item.ObservedAt, &raw, &taskPayload)
 	if errors.Is(err, pgx.ErrNoRows) {
 		writeError(w, 404, "结果不存在")

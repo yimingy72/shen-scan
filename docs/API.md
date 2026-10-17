@@ -70,6 +70,8 @@ Agent 以引导令牌调用 `POST /api/workers/register`，获得独立会话令
 
 租约 120 秒、发包许可 60 秒，Agent 每 15 秒续约。心跳与续约可携带停止动作；无有效许可不能继续发包。详细请求结构以 `internal/control` 和 `internal/agent` 的类型及处理器为准。
 
+观测中的服务 Banner 或 HTTP 报文可以包含 NUL 字符。控制面在 JSONB 查询索引中以 `␀` 显示，另以 BYTEA 保存含该字符的完整回传观测；`GET /api/observations/{id}` 返回原始字段值。批次幂等校验仍使用原始内容，显示相同的不同报文不会被误认为同一批次。
+
 ## 规则与 PoC 数据
 
 创建任务可设置 `poc_enabled:true`（必须包含 HTTP 模式）及 `poc_rule_ids:["poc-security-txt"]`。省略或空数组表示按端点指纹自动筛选已启用的产品型 PoC；默认 `poc_enabled:false` 不创建 PoC 任务。创建时保存 HTTP / 端口 / 所选 PoC 的规则快照。
