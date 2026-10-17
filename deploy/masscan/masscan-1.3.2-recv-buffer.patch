@@ -1,0 +1,177 @@
+diff --git a/src/main.c b/src/main.c
+index 9218aa1..9d5b161 100644
+--- a/src/main.c
++++ b/src/main.c
+@@ -1067,6 +1067,19 @@ receive_thread(void *v)
+ 
+ 
+     LOG(1, "[+] exiting receive thread #%u                    \n", parms->nic_index);
++
++    {
++        unsigned received;
++        unsigned dropped;
++        unsigned interface_dropped;
++
++        if (rawsock_get_capture_stats(adapter, &received, &dropped, &interface_dropped) == 0) {
++            LOG(0, "scan_capture: received=%u dropped=%u if_dropped=%u\n",
++                received, dropped, interface_dropped);
++        } else {
++            LOG(0, "scan_capture: unavailable\n");
++        }
++    }
+     
+     /*
+      * cleanup
+diff --git a/src/rawsock.c b/src/rawsock.c
+index 223607f..bdcf0f1 100755
+--- a/src/rawsock.c
++++ b/src/rawsock.c
+@@ -47,6 +47,8 @@ static int is_pcap_file = 0;
+ #include "rawsock-adapter.h"
+ 
+ #define SENDQ_SIZE 65536 * 8
++#define RECEIVE_SNAPLEN 2048
++#define RECEIVE_BUFFER_SIZE (32 * 1024 * 1024)
+ 
+ 
+ struct AdapterNames
+@@ -396,6 +398,25 @@ int rawsock_recv_packet(
+     return 0;
+ }
+ 
++int rawsock_get_capture_stats(
++    struct Adapter *adapter,
++    unsigned *received,
++    unsigned *dropped,
++    unsigned *interface_dropped)
++{
++    struct pcap_stat stats;
++
++    if (adapter == NULL || adapter->pcap == NULL || adapter->ring)
++        return -1;
++    if (PCAP.stats(adapter->pcap, &stats) != 0)
++        return -1;
++
++    *received = stats.ps_recv;
++    *dropped = stats.ps_drop;
++    *interface_dropped = stats.ps_ifdrop;
++    return 0;
++}
++
+ 
+ /***************************************************************************
+  * Sends the TCP SYN probe packet.
+@@ -733,7 +754,7 @@ rawsock_init_adapter(const char *adapter_name,
+         if (adapter->pcap == NULL) {
+             adapter->pcap = PCAP.open_live(
+                         adapter_name,           /* interface name */
+-                        65536,                  /* max packet size */
++                        RECEIVE_SNAPLEN,        /* max packet size */
+                         8,                      /* promiscuous mode */
+                         1000,                   /* read timeout in milliseconds */
+                         errbuf);
+@@ -746,7 +767,7 @@ rawsock_init_adapter(const char *adapter_name,
+                 return 0;
+             }
+         } else {
+-            err = PCAP.set_snaplen(adapter->pcap, 65536);
++            err = PCAP.set_snaplen(adapter->pcap, RECEIVE_SNAPLEN);
+             if (err) {
+                 PCAP.perror(adapter->pcap, "if: set_snaplen");
+                 goto pcap_error;
+@@ -770,6 +791,12 @@ rawsock_init_adapter(const char *adapter_name,
+                 goto pcap_error;
+             }
+ 
++            err = PCAP.set_buffer_size(adapter->pcap, RECEIVE_BUFFER_SIZE);
++            if (err) {
++                PCAP.perror(adapter->pcap, "if: set_buffer_size");
++                goto pcap_error;
++            }
++
+             /* If errors happen, they aren't likely to happen above, but will
+              * happen where when they are applied */
+             err = PCAP.activate(adapter->pcap);
+diff --git a/src/rawsock.h b/src/rawsock.h
+index ac1313a..287192a 100644
+--- a/src/rawsock.h
++++ b/src/rawsock.h
+@@ -143,6 +143,12 @@ int rawsock_recv_packet(
+     unsigned *usecs,
+     const unsigned char **packet);
+ 
++int rawsock_get_capture_stats(
++    struct Adapter *adapter,
++    unsigned *received,
++    unsigned *dropped,
++    unsigned *interface_dropped);
++
+ 
+ 
+ /**
+diff --git a/src/stub-pcap.c b/src/stub-pcap.c
+index 1e06565..4b7393e 100644
+--- a/src/stub-pcap.c
++++ b/src/stub-pcap.c
+@@ -233,6 +233,15 @@ static const unsigned char *null_PCAP_NEXT(pcap_t *p, struct pcap_pkthdr *h)
+     my_null(3, p, h);
+     return 0;
+ }
++static int null_PCAP_STATS(pcap_t *p, struct pcap_stat *ps)
++{
++#ifdef STATICPCAP
++    return pcap_stats(p, ps);
++#endif
++    UNUSEDPARM(p);
++    UNUSEDPARM(ps);
++    return -1;
++}
+ static int null_PCAP_SETDIRECTION(pcap_t *p, pcap_direction_t d)
+ {
+ #ifdef STATICPCAP
+@@ -417,6 +426,7 @@ pl->func_err=0, pl->datalink = null_##PCAP_DATALINK;
+     DOLINK(PCAP_OPEN_OFFLINE    , open_offline);
+     DOLINK(PCAP_SENDPACKET      , sendpacket);
+     DOLINK(PCAP_NEXT            , next);
++    DOLINK(PCAP_STATS           , stats);
+     DOLINK(PCAP_SETDIRECTION    , setdirection);
+     DOLINK(PCAP_DATALINK_VAL_TO_NAME , datalink_val_to_name);
+     DOLINK(PCAP_PERROR          , perror);
+diff --git a/src/stub-pcap.h b/src/stub-pcap.h
+index 5b615e0..1a50d51 100755
+--- a/src/stub-pcap.h
++++ b/src/stub-pcap.h
+@@ -83,6 +83,17 @@ struct pcap_pkthdr {
+ #endif
+ };
+ 
++struct pcap_stat {
++    unsigned ps_recv;
++    unsigned ps_drop;
++    unsigned ps_ifdrop;
++#ifdef WIN32
++    unsigned ps_capt;
++    unsigned ps_sent;
++    unsigned ps_netdrop;
++#endif
++};
++
+ 
+ /*
+  * This block is for function declarations. Consult the libpcap
+@@ -102,6 +113,7 @@ typedef void        (*PCAP_FREEALLDEVS)(pcap_if_t *alldevs);
+ typedef pcap_t *    (*PCAP_OPEN_OFFLINE)(const char *fname, char *errbuf);
+ typedef int         (*PCAP_SENDPACKET)(pcap_t *p, const unsigned char *buf, int size);
+ typedef const unsigned char *(*PCAP_NEXT)(pcap_t *p, struct pcap_pkthdr *h);
++typedef int         (*PCAP_STATS)(pcap_t *p, struct pcap_stat *ps);
+ typedef int         (*PCAP_SETDIRECTION)(pcap_t *, pcap_direction_t);
+ typedef const char *(*PCAP_DATALINK_VAL_TO_NAME)(int dlt);
+ typedef void        (*PCAP_PERROR)(pcap_t *p, char *prefix);
+@@ -169,6 +181,7 @@ struct PcapFunctions {
+     PCAP_OPEN_OFFLINE       open_offline;
+     PCAP_SENDPACKET         sendpacket;
+     PCAP_NEXT               next;
++    PCAP_STATS              stats;
+     PCAP_SETDIRECTION       setdirection;
+     PCAP_DATALINK_VAL_TO_NAME datalink_val_to_name;
+     PCAP_PERROR             perror;

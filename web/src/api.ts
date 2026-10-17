@@ -1,0 +1,152 @@
+export interface Run {
+  id: string
+  name: string
+  targets: string[]
+  input_count?: number
+  modes: ('port' | 'http')[]
+  status: string
+  created_at: string
+  updated_at: string
+  task_total: number
+  task_done: number
+  task_failed: number
+  asset_count: number
+  target_count: number
+  target_done: number
+  open_port_count: number
+  http_count: number
+  error?: string
+}
+
+export interface Technology {
+  name: string
+  version?: string
+  evidence?: string
+}
+
+export interface Asset {
+  source_target?: string
+  id: string
+  run_id: string
+  observed_at: string
+  kind: 'port' | 'service' | 'http'
+  target: string
+  ip: string
+  port: number
+  protocol: string
+  service?: string
+  product?: string
+  version?: string
+  url?: string
+  status_code?: number
+  title?: string
+  server?: string
+  technologies?: Technology[]
+  headers?: Record<string, string[]>
+  body_excerpt?: string
+  banner?: string
+  request_raw?: string
+  response_raw?: string
+  truncated?: boolean
+  error?: string
+}
+
+export interface Worker {
+  id: string
+  instance_id: string
+  hostname: string
+  status: string
+  agent_version: string
+  last_heartbeat: string
+  current_task_id?: string
+  az?: string
+  spec?: Record<string, string | number | null>
+  metrics?: Record<string, number>
+  active_tasks?: { id: string; type: string; target: string; targets?: string[]; run_id: string; run_name: string }[]
+}
+
+export interface TargetResult {
+  target: string; state: string; port_state: string; task_total: number; task_done: number; task_failed: number; failure_reason?: string
+  open_port_count: number; ports: number[]; open_flood?: boolean; fingerprint_limited?: boolean; fingerprint_count?: number; http_count: number; error_count: number; ips: string[]
+  services: string[]; products: string[]; technologies: string[]; titles: string[]; updated_at: string
+}
+export interface PortResult {
+  port: number; is_open: boolean; service?: string; product?: string; version?: string; error?: string
+  service_observation_id?: string
+  http: { id: string; url: string; title?: string; status_code: number; technologies?: Technology[] }[]
+}
+export interface CloudAccount {
+  name: string; account_id: string; region: string; zone: string; verified_at?: string; revision: number
+}
+export interface CloudConfig {
+  account: CloudAccount; has_credentials: boolean; access_key_masked: string; ready: boolean; error?: string
+  resources: { region: string; zone: string; vpc_id?: string; vswitch_ids?: string[]; security_group_id?: string; image_id?: string; instance_types?: string[]; vpc_cidr?: string; vswitch_cidr?: string }
+}
+export interface CloudInstance {
+  instance_id: string; state: string; released: boolean; drain_started?: string; created_at: string; updated_at: string
+  details: Record<string, string | number | boolean | undefined>
+}
+export interface PageData<T> { items: T[]; total: number }
+
+export interface Pool {
+  desired_workers: number
+  enabled: boolean
+  generation: number
+  healthy_workers: number
+  starting_workers: number
+  draining_workers: number
+  provider: string
+  configured: boolean
+  error?: string
+}
+
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message)
+  }
+}
+
+export class ApiClient {
+  constructor(
+    private readonly base: string,
+    private readonly token: string,
+  ) {}
+
+  request<T>(path: string, options: RequestInit = {}): Promise<T> {
+    return fetch(`${this.base}${path}`, {
+      ...options,
+      signal: options.signal ?? AbortSignal.timeout(90000),
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${this.token}`,
+        ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+        ...options.headers,
+      },
+    }).then(async (response) => {
+      const text = await response.text()
+      let data: unknown
+      try {
+        data = text ? JSON.parse(text) : undefined
+      } catch {
+        data = undefined
+      }
+      if (!response.ok) {
+        const message =
+          typeof data === 'object' && data && 'error' in data
+            ? String((data as { error: unknown }).error)
+            : `请求失败（HTTP ${response.status}）`
+        throw new ApiError(message, response.status)
+      }
+      return data as T
+    })
+  }
+}
+
+export const formatTime = (value?: string) => {
+  if (!value) return '—'
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString('zh-CN', { hour12: false })
+}

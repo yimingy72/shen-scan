@@ -1,0 +1,23 @@
+[Unit]
+Description=Scan Platform Control Plane
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=scanplatform
+Group=scanplatform
+WorkingDirectory=/opt/scan-platform
+EnvironmentFile=/opt/scan-platform/runtime.env
+ExecStart=/opt/scan-platform/scan-server
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=20
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/opt/scan-platform/data
+
+[Install]
+WantedBy=multi-user.target
