@@ -21,8 +21,8 @@ import (
 	"scanplatform/internal/webevidence"
 )
 
-// Nine independent sequential helper processes reproduce the cloud Worker
-// layout. The controller fixture uses the production 10/s burst-one admission
+// Nine Agent-owned pools with two helper processes each reproduce the Worker
+// process limit. The controller fixture uses the production 10/s burst-one admission
 // algorithm; the actual Agent callback/client and helper transport are exercised.
 func TestWebProbeSharedIPContention(t *testing.T) {
 	binary := os.Getenv("TEST_WEB_PROBE_BINARY")
@@ -94,46 +94,46 @@ func TestWebProbeSharedIPContention(t *testing.T) {
 	var wg sync.WaitGroup
 	var success, failed atomic.Int32
 	for worker := 0; worker < 9; worker++ {
-		wg.Add(1)
-		go func(worker int) {
-			defer wg.Done()
-			a, err := New(Config{ControlURL: central.URL, JoinToken: "local", InstanceID: fmt.Sprint(worker), Hostname: "fixture", SessionID: fmt.Sprint(worker), AllowPrivateTargets: true})
-			if err != nil {
-				t.Error(err)
-				return
-			}
-			a.workerID = fmt.Sprint(worker)
-			process := webProbeProcess{slot: make(chan struct{}, 1)}
-			defer process.stop()
-			for index := range jobs {
-				id := strconv.Itoa(index)
-				base, _ := url.Parse(fmt.Sprintf("http://fixture%s.test:%d/slow/%s", id, port, id))
-				itemCtx := a.withHTTPBudget(ctx, Task{ID: "fixture-" + id, AttemptNo: 1})
-				callback, token, closeCallback, err := startWebAdmission(itemCtx, id, "127.0.0.1", base, false)
-				if err != nil {
-					t.Error(err)
-					return
+		a, err := New(Config{ControlURL: central.URL, JoinToken: "local", InstanceID: fmt.Sprint(worker), Hostname: "fixture", SessionID: fmt.Sprint(worker), AllowPrivateTargets: true, HTTPXMaxProcesses: 2})
+		if err != nil {
+			t.Fatal(err)
+		}
+		a.workerID = fmt.Sprint(worker)
+		t.Cleanup(a.stopWebProbes)
+		for slot := 0; slot < a.cfg.HTTPXMaxProcesses; slot++ {
+			wg.Add(1)
+			go func(a *Agent, worker int) {
+				defer wg.Done()
+				for index := range jobs {
+					id := strconv.Itoa(index)
+					base, _ := url.Parse(fmt.Sprintf("http://fixture%s.test:%d/slow/%s", id, port, id))
+					itemCtx := a.withHTTPBudget(ctx, Task{ID: "fixture-" + id, AttemptNo: 1})
+					callback, token, closeCallback, err := startWebAdmission(itemCtx, id, "127.0.0.1", base, false)
+					if err != nil {
+						t.Error(err)
+						return
+					}
+					request := webevidence.ProbeRequest{Protocol: webevidence.Protocol, ID: id, URL: base.String(), ConnectIP: "127.0.0.1", CFFSHA256: webevidence.SHA256(nil), TimeoutMillis: 8000, EntryTimeoutMillis: 90000, AdmissionURL: callback, AdmissionToken: token}
+					started := time.Now()
+					raw, err := a.runWebHelper(itemCtx, binary, request)
+					closeCallback()
+					var result webevidence.ProbeResult
+					if err == nil {
+						err = json.Unmarshal(raw, &result)
+					}
+					if err != nil || result.Response.StatusCode != 200 {
+						failed.Add(1)
+						t.Logf("worker=%d item=%d elapsed=%s error=%v response_error=%s", worker, index, time.Since(started), err, result.Response.Error)
+					} else {
+						success.Add(1)
+					}
 				}
-				request := webevidence.ProbeRequest{Protocol: webevidence.Protocol, ID: id, URL: base.String(), ConnectIP: "127.0.0.1", CFFSHA256: webevidence.SHA256(nil), TimeoutMillis: 8000, EntryTimeoutMillis: 90000, AdmissionURL: callback, AdmissionToken: token}
-				started := time.Now()
-				raw, err := process.run(itemCtx, binary, request)
-				closeCallback()
-				var result webevidence.ProbeResult
-				if err == nil {
-					err = json.Unmarshal(raw, &result)
-				}
-				if err != nil || result.Response.StatusCode != 200 {
-					failed.Add(1)
-					t.Logf("worker=%d item=%d elapsed=%s error=%v response_error=%s", worker, index, time.Since(started), err, result.Response.Error)
-				} else {
-					success.Add(1)
-				}
-			}
-		}(worker)
+			}(a, worker)
+		}
 	}
 	wg.Wait()
-	t.Logf("success=%d failed=%d grants=%d target_requests=%d closed_before_headers=%d", success.Load(), failed.Load(), grants.Load(), requests.Load(), closedUnread.Load())
-	if success.Load() != 128 {
+	t.Logf("workers=9 max_helpers=18 success=%d failed=%d grants=%d target_requests=%d closed_before_headers=%d", success.Load(), failed.Load(), grants.Load(), requests.Load(), closedUnread.Load())
+	if success.Load() != 128 || requests.Load() != 256 || closedUnread.Load() != 0 {
 		t.Fatalf("shared-IP contention lost %d of128 page responses", failed.Load())
 	}
 }

@@ -101,8 +101,7 @@ func (a *Agent) runWebProbe(ctx context.Context, task Task, payload httpPayload,
 		}
 		defer closeAdmission()
 		input.AdmissionURL, input.AdmissionToken = admissionURL, token
-		data, _ := json.Marshal(input)
-		output, err := runWebHelper(ctx, binary, data)
+		output, err := a.runWebHelper(ctx, binary, input)
 		if err != nil {
 			return webFailure(ep, err)
 		}
@@ -226,8 +225,29 @@ func normalizedWebResponse(response webevidence.Response) []byte {
 	return raw
 }
 
-// A single sequential helper amortizes SDK initialization. Any failed or
-// cancelled item destroys its process before the next item can be dispatched.
+// The existing httpxSlots admission and this Agent-owned queue have the same
+// bounded capacity. Each borrowed process remains sequential and owns its cache.
+func (a *Agent) runWebHelper(ctx context.Context, binary string, input webevidence.ProbeRequest) ([]byte, error) {
+	select {
+	case process := <-a.webProbes:
+		defer func() { a.webProbes <- process }()
+		return process.run(ctx, binary, input)
+	case <-ctx.Done():
+		return nil, context.Cause(ctx)
+	}
+}
+
+// Called after task cancellation and wg.Wait, when no process is borrowed.
+func (a *Agent) stopWebProbes() {
+	for i := 0; i < cap(a.webProbes); i++ {
+		process := <-a.webProbes
+		process.stop()
+		a.webProbes <- process
+	}
+}
+
+// Standalone IPC fixtures retain one helper; production uses the Agent pool.
+// Failed/canceled items destroy their process before another item is dispatched.
 var sharedWebProbe = webProbeProcess{slot: make(chan struct{}, 1)}
 
 func runWebHelper(ctx context.Context, binary string, input []byte) ([]byte, error) {

@@ -75,6 +75,7 @@ type Agent struct {
 	portExecutor        string
 	endpointSlots       chan struct{}
 	httpxSlots          chan struct{}
+	webProbes           chan *webProbeProcess
 	httpTargetMu        sync.Mutex
 	httpTargetSlots     map[string]*targetSlots
 	resources           *resourceSampler
@@ -161,10 +162,14 @@ func New(cfg Config) (*Agent, error) {
 		return nil, err
 	}
 	client.nmapBinary = cfg.NmapBinary
+	webProbes := make(chan *webProbeProcess, cfg.HTTPXMaxProcesses)
+	for i := 0; i < cfg.HTTPXMaxProcesses; i++ {
+		webProbes <- &webProbeProcess{slot: make(chan struct{}, 1)}
+	}
 	return &Agent{
 		cfg: cfg, client: client, policy: newTargetPolicy(cfg.ControlURL, cfg.AllowPrivateTargets),
 		log: cfg.Logger, portExecutor: cfg.PortExecutor,
-		endpointSlots: make(chan struct{}, cfg.EndpointConcurrency), httpxSlots: make(chan struct{}, cfg.HTTPXMaxProcesses), httpTargetSlots: make(map[string]*targetSlots),
+		webProbes: webProbes, endpointSlots: make(chan struct{}, cfg.EndpointConcurrency), httpxSlots: make(chan struct{}, cfg.HTTPXMaxProcesses), httpTargetSlots: make(map[string]*targetSlots),
 		resources: newResourceSampler(), ruleSets: newRuleSetCache(8), active: make(map[string]activeTask), taskFinished: make(chan struct{}, 1), heartbeatEvery: 10 * time.Second,
 	}, nil
 }
@@ -191,7 +196,7 @@ func (a *Agent) Run(ctx context.Context) error {
 		if ctx.Err() != nil {
 			a.cancelAll(context.Cause(ctx))
 			a.wg.Wait()
-			sharedWebProbe.stop()
+			a.stopWebProbes()
 			if errors.Is(ctx.Err(), context.Canceled) && context.Cause(ctx) == context.Canceled {
 				return nil
 			}
