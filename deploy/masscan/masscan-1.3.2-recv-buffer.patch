@@ -15,6 +15,29 @@ diff --git a/src/main.c b/src/main.c
 +            LOG(0, "scan_capture: unavailable\n");
 +        }
 +    }
+diff --git a/src/out-text.c b/src/out-text.c
+--- a/src/out-text.c
++++ b/src/out-text.c
+@@ -7,0 +8,11 @@
++#include <stdlib.h>
++
++/* List records are consumed while scanning; never hide them in stdio buffers. */
++static void
++text_out_flush(FILE *fp)
++{
++    if (ferror(fp) || fflush(fp) != 0) {
++        perror("masscan: list output write/flush");
++        exit(EXIT_FAILURE);
++    }
++}
+@@ -15,0 +27 @@
++    text_out_flush(fp);
+@@ -24,0 +37 @@
++    text_out_flush(fp);
+@@ -45,0 +59 @@
++    text_out_flush(fp);
+@@ -72,0 +87 @@
++    text_out_flush(fp);
 diff --git a/src/rawsock.c b/src/rawsock.c
 --- a/src/rawsock.c
 +++ b/src/rawsock.c

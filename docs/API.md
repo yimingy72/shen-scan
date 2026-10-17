@@ -7,6 +7,7 @@ API 前缀为 `/api`，请求及响应使用 JSON。除健康检查外，管理�
 | 方法与路径 | 用途 |
 |---|---|
 | `GET /api/health` | 控制面及数据库健康 |
+| `GET /api/scheduler/status` | HTTP共享许可额度、阶段队列和未来批次调优信息 |
 | `POST /api/runs` | 创建扫描任务 |
 | `GET /api/runs?summary=true` | 列表摘要，仅含前 2 条输入和真实 `input_count` |
 | `GET /api/runs/{id}` | 完整任务与原始输入 |
@@ -28,6 +29,8 @@ API 前缀为 `/api`，请求及响应使用 JSON。除健康检查外，管理�
 | `GET /api/library/products` | 可绑定产品名称，返回 `{items:[string]}` |
 | `POST /api/library/import` | 原子导入 JSON / Nuclei YAML，默认禁用 |
 | `GET /api/library/sources` | 固定官方源状态、版本、统计和排除样例 |
+| `GET /api/library/fingerprint-bundles` | fingers默认包、源版本和实际加载统计 |
+| `GET /api/library/fingerprint-bundles/{digest}` | 下载固定摘要的完整被动执行包 |
 | `POST /api/library/sources/{id}/update` | 后台检查并原子更新一个官方源 |
 | `GET /api/library/sources/{id}/license` | 来源许可证全文和成功版本 |
 | `GET /api/library/sources/{id}/catalog` | 上游原库分页；支持 `revision/kind/purpose/engine/enabled/runtime/q` |
@@ -57,7 +60,7 @@ API 前缀为 `/api`，请求及响应使用 JSON。除健康检查外，管理�
 }
 ```
 
-列表使用 `limit`、`offset` 分页。结果按当前执行版本计算，旧 attempt 的观测不会混入本次覆盖统计。`task_total` 是内部执行步骤数，派生指纹任务后会增加；目标完成进度使用 `target_done / target_count`。
+列表使用 `limit`、`offset` 分页。完整端口覆盖按被接受的完成版本计算。P1新增独立的阳性端口凭证及Nuclei逐模板凭证：在有效执行中确认收到的这些证据可跨attempt保留；它们不替代完整端口区间覆盖。目标结果增加 `port_coverage`，端口列表增加 `port_observation_id/positive_port_receipt_id`，端口观测详情的 `positive_port_receipt` 包含来源task、attempt、batch和完整摘要。`task_total` 是内部执行批次数，派生任务后会增加；目标完成进度使用 `target_done / target_count`。
 
 ## Worker 维护
 
@@ -78,6 +81,18 @@ Agent 以引导令牌调用 `POST /api/workers/register`，获得独立会话令
 支持完整 Wapp 的 Agent 还提交 `supports_httpx_cff:true`。含 HTTPx 指纹的新 run 标记 `requires_httpx_cff`；未同时声明 rules_ref 和 HTTPx capability 的旧 Agent 不能领取该 run 的 HTTP task；已声明停止确认能力时，其他任务类型继续按各自能力过滤。这样不会把 `httpx-cff` 规则交给不认识该 engine 的旧节点。
 
 `request_id` 保证认领重试幂等；`attempt_no` 隔离旧执行；`batch_seq` 和内容校验防止重复批次污染数据。任务在完成结果排空、批次确认和完成确认后才算完成。
+
+P1新增 `supports_http_request_budget:true`，HTTP/PoC认领及历史claim重放均需该能力；端口与服务仍按已有能力过滤。兼容原始模板合批另需 `supports_nuclei_http_batch:true`，Agent实际检查Nuclei3.11.1和必要参数后才声明。批次payload的 `nuclei_batch_profile` 为 `nuclei-3.11.1-single-http-batch-v1`，最多4条同入口、单请求单matcher模板。任务存储保留原清单，认领响应只含无独立完成凭证的规则；已全部封账时可返回空rules，Agent无需再发送探测，仍须完成最终确认。合批不改变规则匹配范围或PoC默认关闭策略。
+
+`POST /api/tasks/{id}/http-permit` 使用Worker会话令牌，请求：
+
+```json
+{"worker_id":"...","session_id":"...","attempt_no":1,"request_id":"1","connect_ip":"192.0.2.1","host":"example.test","port":443}
+```
+
+`request_id` 是每个执行内串行递增的十进制编号。成功或等待均返回200，字段为 `granted/server_time/valid_until/retry_after_ms/rate_rps/cluster_rps/burst`。发放许可的有效期至多500ms，重放不延长；等待期间在事务外重试。失败、过期、执行取消、session变化或额度冻结时不得写出HTTP请求。许可按实际连接IP归并，默认10/IP/s和250/集群/s，表示协作式请求准入速率，不等同网络到达的精确滑动窗口RPS。维护及回收排空状态中的现有有效执行继续受租约约束。
+
+外部被动库任务另带 `fingerprint_bundle_schema`；Agent通过 `GET /api/tasks/{id}/fingerprint-bundle?worker_id=...&session_id=...&attempt_no=N` 下载该执行对应的固定包并校验SHA。管理员更新默认库不会改写已有任务的包身份。
 
 租约 120 秒、发包许可 60 秒，Agent 每 15 秒续约。心跳与续约可携带停止动作；无有效许可不能继续发包。详细请求结构以 `internal/control` 和 `internal/agent` 的类型及处理器为准。
 
