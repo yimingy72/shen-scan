@@ -1,0 +1,69 @@
+{
+  "scope": "Control service-pressure snapshot, cache, heartbeat and scheduler/status additions only",
+  "record_source": "Existing execution outputs; no tests rerun to create this record",
+  "repository": "outputs/shen-scan-public",
+  "database": "Ephemeral local PostgreSQL 16, separate service_pressure database and per-test schema; credentials omitted",
+  "checks": [
+    {
+      "command": "go test ./internal/control -run '^TestServicePressure(Thresholds|Cache)$' -count=1",
+      "exit_code": 0,
+      "output": "ok  scanplatform/internal/control  0.462s"
+    },
+    {
+      "command": "CONTROL_TEST_DATABASE_URL=<ISOLATED_LOCAL_DATABASE_URL> go test ./internal/control -run '^TestPostgresServicePressureWindow$' -count=1 -v",
+      "exit_code": 1,
+      "output": "ERROR: null value in column \"derived_key\" of relation \"tasks\" violates not-null constraint (SQLSTATE 23502)",
+      "disposition": "Initial test fixture omitted required derived_key. Fixture corrected; subsequent executions passed."
+    },
+    {
+      "command": "CONTROL_TEST_DATABASE_URL=<ISOLATED_LOCAL_DATABASE_URL> go test ./internal/control -run '^TestPostgresServicePressureWindow$' -count=1 -v",
+      "exit_code": 0,
+      "output": "--- PASS: TestPostgresServicePressureWindow (0.49s)\nPASS\nok  scanplatform/internal/control  0.796s"
+    },
+    {
+      "command": "go test -race ./internal/control -run '^TestServicePressure(Thresholds|Cache)$' -count=1",
+      "exit_code": 0,
+      "output": "ok  scanplatform/internal/control  1.334s"
+    },
+    {
+      "command": "CONTROL_TEST_DATABASE_URL=<ISOLATED_LOCAL_DATABASE_URL> go test ./internal/control -run '^TestPostgresServicePressureWindow$' -count=1 -v",
+      "exit_code": 0,
+      "output": "--- PASS: TestPostgresServicePressureWindow (0.59s)\nPASS\nok  scanplatform/internal/control  0.884s",
+      "coverage": [
+        "Paused and incompatible candidate windows cannot trigger preference",
+        "1025th candidate only signals truncation",
+        "Exactly 1024 candidates do not signal truncation",
+        "Cold cost samples produce no estimated throughput",
+        "Heartbeat boolean and TTL",
+        "scheduler/status service_pressure object"
+      ]
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "output": ""
+    },
+    {
+      "command": "go test -race ./internal/control -run '^TestServicePressureCache$' -count=1 -v",
+      "exit_code": 0,
+      "output": "=== RUN   TestServicePressureCache\n--- PASS: TestServicePressureCache (0.00s)\nPASS\nok  scanplatform/internal/control  1.444s",
+      "coverage": [
+        "Initial unknown concurrent refresh returns no preference",
+        "Concurrent refresh reuses successful snapshot through age 20 seconds without changing observed_at",
+        "Over-age snapshot returns no preference",
+        "Refresh failure replaces successful snapshot with unavailable/false and is cached",
+        "Follower requests do not issue additional queries; exactly two loads across initial and failed refresh"
+      ],
+      "change": "Bounded stale successful snapshot reuse during synchronized heartbeat refresh; no heartbeat stop-state changes"
+    }
+  ],
+  "cleanup": {
+    "temporary_container": "shen-p2-service-pressure-pg",
+    "removed": true,
+    "parent_shared_postgres_untouched": true
+  },
+  "limits": [
+    "No cloud, deployment, performance benchmark or full-suite execution by this subagent",
+    "Parent owns full local HTTP transcripts and actual UI screenshots; this JSON is the execution index only"
+  ]
+}
