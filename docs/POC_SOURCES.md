@@ -1,44 +1,59 @@
-# 只读 PoC 扩展来源与筛选记录
+# 只读 PoC 来源与筛选记录
 
-研究日期：2026-10-17。本文固定记录研究时使用的提交，避免把会持续变化的上游 `main` 当成可复现版本。
+核对日期：2026-10-17。SHEN 的 PoC 库包含随项目发布的 bootstrap，以及从固定官方 [`projectdiscovery/nuclei-templates`](https://github.com/projectdiscovery/nuclei-templates) commit 转换的规则。控制面只发布通过静态只读策略的子集；不会把整个上游模板目录交给 Worker 任意执行。
 
-## Nemo v3 的实际接入方式
+## 当前官方快照
 
-Nemo v3 在 [`pkg/task/pocscan/nuclei.go`](https://github.com/hanc00l/nemo_go/blob/0fda1b0d9f28fb57c1e37495ad3ed793dbb85274/v3/pkg/task/pocscan/nuclei.go) 中遍历并加载两个目录：`thirdparty/nuclei/nuclei-templates` 和 `thirdparty/nuclei/some_nuclei_templates`。运行时把选择结果交给 Nuclei `-t`，使用 JSONL 输出。该代码把两个模板库作为资源名声明，但没有在执行代码中固定仓库提交。因此，本次研究单独固定以下快照：
+当前验证快照共读取 14,119 个上游模板，接受 853 条，排除 13,266 条。接受规则中：
 
-| 来源 | 固定提交 | 许可证 | 在 Nemo/poc_map 中的作用 |
+- 447 条带明确 `applies_to` 产品绑定，只在同源端点已识别对应产品后派发；
+- 406 条没有可靠产品绑定，只能由用户在创建任务时明确选中；
+- 所有规则使用 `nt-` 前缀的稳定 ID，并保留来源路径、source revision 和规范内容摘要。
+
+这些数字对应当时的 commit SHA，并非长期固定数量。最新 SHA、accepted / skipped、排除原因和样例以工作台的规则源状态为准。
+
+## 只读静态子集
+
+自动转换只接受能安全表达为以下模型的 HTTP 模板：
+
+- 同源静态 GET / HEAD；
+- 最多 3 个固定路径、8 个 word / regex / status matcher；
+- 无 query、payload、动态变量、重定向或外部回连；
+- 响应匹配可以由当前原生执行器或受限 Nuclei 进程完整复现；
+- 仓库根 MIT 许可证验证通过。
+
+以下类别明确排除并计入拒绝原因：POST 等写操作、raw / DSL / flow / workflow、code、headless、网络或 DNS 模板、payload / fuzz、Interactsh / OAST、认证爆破、默认口令、文件读取、配置或会话泄露、SQL 注入、RCE、上传，以及包含目录穿越或编码利用载荷的路径。解析失败、未知执行字段和无法安全确定语义的模板也不会降级导入。
+
+全部模板变得不兼容时，更新会失败并保留旧库，而不是把现有规则批量退役。正常更新中，单条上游规则被移除或不再合规时，未被本地改写的对应规则会停用并计为 retired。
+
+## 结果不等于漏洞清单
+
+很多接受项只检查产品特有的面板、登录页、版本页、健康接口或公开元数据。这类 `info` / `low` 命中用于确认产品表面或暴露状态，不代表存在可利用漏洞；必须结合规则描述、级别及请求响应证据判断。
+
+执行结果严格区分：
+
+- `matched`：完整请求后满足规则条件；
+- `not_matched`：完整请求后条件不满足；
+- `error`：超时、连接失败、响应不完整、引擎缺失或输出无效，不能推断目标安全。
+
+PoC 默认关闭。用户必须为任务显式开启；未知产品不会自动遍历产品型 PoC。产品名称仅进行大小写、空白、下划线 / 连字符和少量明确别名的精确规范化匹配，不做模糊子串或厂商猜测。没有绑定的规则即使启用，也只有在任务中明确选中 ID 才执行。
+
+## Bootstrap 与 Nemo 历史调研
+
+一键更新出现前，项目维护了 43 条 bootstrap PoC，其中 36 条是在固定公开资料基础上独立编写的单路径只读检查，另有 7 条早期规则。这个“43”是 bootstrap 历史数量，不是当前完整 PoC 库数量。
+
+早期研究核对了 Nemo v3 的真实接入方式：它加载官方 `nuclei-templates`、团队 `some_nuclei_templates`，并通过 `poc_map` 把产品指纹关联到模板。该研究促成了 `applies_to` 的设计，但当前自动 source 只使用 ProjectDiscovery 官方仓库：
+
+| 历史参考 | 固定提交 | 许可证 | 当前用途 |
 |---|---|---|---|
-| [hanc00l/nemo_go](https://github.com/hanc00l/nemo_go) | `0fda1b0d9f28fb57c1e37495ad3ed793dbb85274` | Apache-2.0 | v3 的真实 Nuclei 调用与两套模板目录接入 |
-| [projectdiscovery/nuclei-templates](https://github.com/projectdiscovery/nuclei-templates) | `e07ef2152c4ef4ced8367f879d36c65017c9a5db` | MIT | 官方社区模板与常见产品端点参考 |
-| [hanc00l/some_nuclei_templates](https://github.com/hanc00l/some_nuclei_templates) | `3b56f388784377db5246fd7b1b1f0b160a69d666` | Apache-2.0 | Nemo 加载的团队模板目录 |
-| [hanc00l/poc_map](https://github.com/hanc00l/poc_map) | `acfdd0bf89bdff78c08a1ca17ad9a52f0baf9af1` | Apache-2.0 | 指纹名称到模板来源与路径的映射依据 |
+| [`hanc00l/nemo_go`](https://github.com/hanc00l/nemo_go) | `0fda1b0d9f28fb57c1e37495ad3ed793dbb85274` | Apache-2.0 | 核对 Nuclei 调用与模板目录接入 |
+| [`hanc00l/some_nuclei_templates`](https://github.com/hanc00l/some_nuclei_templates) | `3b56f388784377db5246fd7b1b1f0b160a69d666` | Apache-2.0 | 只做排除范围调研，不同步 |
+| [`hanc00l/poc_map`](https://github.com/hanc00l/poc_map) | `acfdd0bf89bdff78c08a1ca17ad9a52f0baf9af1` | Apache-2.0 | 参考产品到模板的关联原则，不同步 |
 
-`poc_map` 明确区分 `nuclei-template`、`some_nuclei_templates` 和私有模板三种来源，并用 `fingerprint[]` 将已识别产品关联到 PoC。本项目的 `Rule.applies_to` 采用同一原则，但只做规范化后的产品精确匹配，不使用模糊子串或通配符。
+`some_nuclei_templates` 中常见的 SQL 注入、RCE、上传、认证绕过、任意文件读取以及配置 / 会话泄露模板均不符合本项目边界，没有复制或自动同步。
 
-## 纳入标准
+## 许可与可复现性
 
-新增的 36 条规则覆盖 36 个产品：`info` 20 条、`low` 14 条、`medium` 2 条。所有规则均满足：
+官方 `nuclei-templates` 使用 MIT。更新时控制面验证仓库根许可证、记录 commit SHA 与归档内容摘要，并持久化完整许可文本。规则导出包同时携带相关 SHA、MIT 全文和第三方声明；重新导入时这些元数据不会被当作可执行字段。
 
-- 仅一个静态同源 `GET`，无 query、payload、变量、重定向、OAST、爆破或写操作。
-- `applies_to` 非空，只会在产品已经被识别后参与调度。
-- 同时匹配 HTTP 状态与产品特有内容；通用 HTML 200、单独 `OK` 或单独 JSON 字段不算命中。
-- `info` 只表示产品特有的公开健康、登录或客户端清单；名称和描述不声称漏洞。
-- `low` 表示无需认证即可读取管理、状态、集群或运行信息的暴露。
-- `medium` 仅用于可直接确认的调试/设置界面暴露：Werkzeug console、phpMyAdmin setup。
-- 不依据版本 banner 推断 CVE，也不读取配置文件、密钥、会话、用户记录、数据库内容或任意文件。
-
-覆盖范围：Jenkins、Elasticsearch、Kibana、RabbitMQ Management、Vault、Grafana、Prometheus、Harbor、SonarQube、Portainer、Apache Airflow、Solr、Druid、Flink、Hadoop、NiFi、Nacos、Traefik、Envoy、nginx、OpenResty、Werkzeug、Microsoft IIS、Django、phpMyAdmin、Swagger UI、Gitea、GitLab、MediaWiki、Joomla、Drupal、Gatsby、Angular、ASP.NET、Apache Tomcat、Microsoft SharePoint。
-
-二次最小化复核删除了 Consul 和 Nomad 的 `/v1/agent/self`，因为完整响应包含运行配置；同时将 Harbor `systeminfo`、Solr `system`、Envoy `server_info` 分别替换为只返回最小健康状态的 `/api/v2.0/ping`、`/solr/admin/info/health`、`/ready`。Jenkins 改用只描述匿名请求身份的 `/whoAmI/api/json`，不再请求会列出 jobs/views 的根 API；Apache `/server-status` 可能包含客户端与请求路径，因此删除。GitLab 使用官方文档明确的 `/-/health` 与 `GitLab OK` 响应；`/-/readiness` 通常返回 JSON 检查结果，且可能在使用 `all=1` 时包含依赖服务状态，因此没有纳入。参见 [GitLab Health check 官方文档](https://docs.gitlab.com/administration/monitoring/health_check/)。
-
-## 未纳入的上游内容
-
-`some_nuclei_templates` 当前主要包含 SQL 注入、RCE、文件上传、OAST、任意文件读取、认证绕过以及会话/配置泄露模板，例如上传类模板、`jumpserver-session-unauth.yaml`、`ruijie-switch-configuration-leak.yaml`。这些模板即使使用 GET，也会读取用户会话、设备配置或其他敏感数据；其余模板需要 POST、动态参数、延时判断、回连或写入。它们均不符合本项目只读静态子集，未复制也未改写为内置规则。
-
-官方 `nuclei-templates` 中的 default-login、文件读取、SQL/RCE、上传、DAST、headless、code、workflow 和 interactsh 模板同样排除。健康接口若只返回通用 `200/OK`，也没有作为漏洞规则加入；只有已关联产品且响应包含产品特有结构时，才作为 `info` 发现项保留。
-
-## 许可证处理
-
-新增 Go 规则是针对公开产品端点独立编写的静态请求和最小匹配器，没有逐字复制完整 YAML 模板、说明或利用 payload。文件中的 `Source` 字段和本文保留了研究来源、固定提交和许可证。
-
-如果后续直接分发上游 YAML 或逐字复制其较大部分，需要同时保留对应许可文本和版权声明：ProjectDiscovery 模板使用 MIT；Nemo、`poc_map`、`some_nuclei_templates` 使用 Apache-2.0，后者还要求修改文件带有显著修改说明，并在存在 NOTICE 时保留 NOTICE。当前扩展没有引入需要随二进制打包的第三方模板文件。
+固定 Nuclei 引擎的下载、校验和许可证见 [引擎部署说明](../deploy/nuclei/README.md)；一键更新流程见 [规则源更新](RULE_UPDATES.md)。

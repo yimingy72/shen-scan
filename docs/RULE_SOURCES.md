@@ -1,56 +1,69 @@
 # 指纹规则来源、许可与筛选记录
 
-核对日期：2026-10-17。本文记录 SHEN 公共版规则库扩充所依据的上游、实际执行语义、许可判断和排除范围。研究过程只读取公开仓库源码和本地响应夹具，没有探测任何外部目标。
+核对日期：2026-10-17。SHEN 的规则库由两部分组成：随项目发布的 bootstrap 规则，以及管理员按需更新的固定官方源。所有数量都对应某个上游 commit SHA；上游变化或转换策略升级后，数量会变化。
 
-## Nemo v3 实际调用链
+## 当前官方源
 
-- 核对版本：[`hanc00l/nemo_go` v3.2.1](https://github.com/hanc00l/nemo_go/tree/v3.2.1)，commit `55506cc9fb7cbba329f7ca04dbf7308ee5e5f681`，仓库根许可证为 Apache-2.0。
-- `v3/go.mod` 固定 `github.com/chainreactors/fingers` 为 `v1.0.1-0.20240730173434-48ba7446b94b`。
-- `v3/pkg/task/fingerprint/httpx.go` 调用外部 HTTPX 收集 header/body/title/status 等响应信息，再把同一响应交给 ChainReactor fingers 和 Nemo 自带的 FingerprintHub 匹配器。FingerprintHub 数据文件 `web_fingerprint_v4.json` 有 3,154 个条目、3,552 个 matcher（2,910 word、382 regex、260 favicon）。
-- `v3/pkg/task/fingerprint/fingerprinthub.go` 只实现 favicon、word、regex，matcher 内支持 AND/OR、negative 和大小写；HTTP definition 与 matcher 集合之间采用 OR。SHEN 没有 favicon 输入，因此 favicon 规则不能等价转换。
-- `v3/pkg/task/fingerprint/fingerprintx.go` 把目标交给外部 fingerprintx 可执行文件并解析 JSON；这不是“已有 banner 上做字符串匹配”。fingerprintx 自身采用 Apache-2.0，但其主动协议握手不能在不改 Agent 探测器的前提下移植到当前 port matcher。
-- HTTPX 项目采用 MIT，负责采集而非提供本次转入的产品规则。
-
-## 许可结论
-
-| 来源 | 固定版本 | 许可判断 | 本次使用 |
+| Source ID | 固定官方仓库 | 许可证 | 当前验证快照 |
 |---|---|---|---|
-| hanc00l/nemo_go | v3.2.1 / `55506cc` | Apache-2.0 | 仅核对架构、依赖和匹配语义 |
-| chainreactors/fingers | `48ba7446` | 仓库根未发现明确 LICENSE | 不复制代码或规则 |
-| chainreactors/templates | 2026-10-17 所见 master | 仓库根未发现明确 LICENSE | 不复制规则 |
-| 0x727/FingerprintHub | Nemo README 指向的公开仓库 | 仓库根未发现明确 LICENSE | 不复制规则；仅统计 Nemo vendored 数据的能力范围 |
-| projectdiscovery/httpx | Nemo bundling 版本未标明 | MIT | 仅确认采集字段，不复制规则 |
-| praetorian-inc/fingerprintx | Nemo bundling 版本未标明 | Apache-2.0 | 未移植；主动协议语义不兼容 |
-| projectdiscovery/wappalyzergo | v0.3.5 / `10c7df1e2b381046fad03dccb3bec3280052df99` | MIT | 选取并改写 85 个可精确表达的被动信号 |
+| `wappalyzer` | [`projectdiscovery/wappalyzergo`](https://github.com/projectdiscovery/wappalyzergo) | MIT | 7,642 个产品中接受 4,437 条 HTTP 规则，排除 3,205 个产品 |
+| `nuclei-templates` | [`projectdiscovery/nuclei-templates`](https://github.com/projectdiscovery/nuclei-templates) | MIT | 14,119 个模板中接受 853 条只读 PoC，排除 13,266 个模板 |
 
-`wappalyzergo` 明确说明其指纹数据来自 `enthec/webappanalyzer` 与 `HTTPArchive/wappalyzer`。本次固定到上述 commit，保留 `Source` 字段，并按当前 matcher 模型重写为 Go RE2 可编译的 header/body/title 规则，没有把其 3.7 MiB 数据文件直接打包进项目。
+控制面先从 GitHub API 读取最新 commit，再从固定 SHA 的 `codeload.github.com` 地址下载归档。它校验归档边界、根目录、文件数量和大小，并要求仓库根 MIT 许可证；完整许可文本随 source 状态持久化，可在工作台查看。可选 `GITHUB_TOKEN` 只用于 `api.github.com` 的限额认证，不会发送给 codeload、Worker 或浏览器。
 
-完整 MIT 许可证与版权声明见 [THIRD_PARTY_NOTICES.md](../internal/rulelib/THIRD_PARTY_NOTICES.md)。
+同一 SHA 且转换器版本未变化时，只检查 HEAD，不重复下载归档。当前策略版本为 `ConverterVersion=2`；以后转换器或只读策略升级会增加内部版本，即使 commit 相同也会重新转换。更新流程、失败保护和 API 见 [规则源更新](RULE_UPDATES.md)。
 
-## 转换准则
+## Wappalyzer 转换范围
 
-只转换以下可由当前一次 HTTP 响应完整表达的信号：
+转换器只保留当前一次 HTTP 响应可以完整表达的被动信号：
 
-- 专用响应头、`Set-Cookie` 名称、Server/X-Powered-By 产品 token；
-- 静态 HTML 中的强 generator meta、产品专用 DOM 属性、脚本/样式资源路径；
-- 产品专用标题与第二个独立资源/DOM 信号的 AND 组合；
-- 能由 Go RE2 表达的正则和明确版本捕获组。
+- 专用响应头、Cookie 名称、HTML、meta 和静态脚本路径；
+- 可以安全转换为 Go RE2 的 word / regex 条件；
+- 有明确产品归属、不会把普通页面元素当作产品证据的信号。
 
-以下语义全部排除，没有静默降级：
+以下能力明确排除，不做低保真降级：
 
-- favicon 的 mmh3/md5/hash；
-- JavaScript 运行时全局变量、渲染后 DOM、CSS selector 运行时结果；
-- 主动 `send_data`、额外路径探测、协议握手；
-- `requires`、`excludes`、`implies`、confidence 分数、复杂 DSL；
-- 只有默认端口、泛化标题、裸产品名称、单个通用 cookie/header 的弱规则；
-- 无明确再分发许可证的 ChainReactor templates 和 FingerprintHub 原始规则。
+- JavaScript 运行时变量、渲染后 DOM、CSS selector 运行结果；
+- favicon hash、主动请求、额外路径和协议握手；
+- 无法完整表达的 `requires`、`excludes`、`implies` 和置信度关系；
+- 无效正则、弱通用 token 及与扫描任务无关的产品条目。
 
-`wappalyzergo` 当前包含 7,642 个产品。这里不是无损转换器：只人工选择 85 个常见 CMS、框架和中间件产品。其余 7,557 个没有导入，原因包括类别与任务无关、需要上述不支持语义、信号过弱、与已有规则重复，或尚未做正反样本审查。
+主统计中的 `skipped` 是产品级排除，满足 `total = accepted + skipped`。信号级损失单独记录，不重复计入产品级排除。规则 ID 使用稳定的 `wa-` 前缀和产品名摘要；更新同一产品时保留本地启停选择。
 
-## 最终覆盖
+## 当前库规模
 
-- HTTP：150 个稳定 builtin ID，其中原有 54 个，新增 96 个不同产品规则；新增规则中 85 个来自 MIT `wappalyzergo` 的人工改写，11 个是为 SHEN 常见产品/PoC 绑定编写的强被动信号。
-- Port：22 个产品规则，数量未增加。当前协议解析器只可靠产出这些产品；仅增加规则无法获得 fingerprintx 的主动握手结果，硬加会退化为按端口猜测。
-- PoC：43 个 builtin（原有 7 个、新增 36 个）。`AppliesTo` 只对真实产品名称做 OR 精确规范化匹配；空绑定保持手动选择。通配 `* / all / any / http / https / web` 被校验拒绝。
+当前完成验证的数据库快照为：
 
-新增覆盖包括 Adobe AEM、Magento、PrestaShop、Shopware、OpenCart、Discuz! X、Typecho、DedeCMS、ThinkPHP、Craft CMS、October CMS、Umbraco、Moodle、Liferay、Confluence、Jira、CakePHP、CodeIgniter、Symfony、Yii、Rails、FastAPI、SvelteKit、Astro、Qwik、Blazor、Varnish、Traffic Server、APISIX、JBoss、WebSphere、GlassFish、Keycloak、Airflow、Solr、Flink、NiFi、Nacos、Druid、Hadoop YARN 等。规则按产品合并多个 header/body 分支，不把同一产品的不同 header 计成多个产品规则。
+- HTTP：4,587 条，其中 150 条 bootstrap、4,437 条 Wappalyzer 转换规则；
+- Port：22 条 bootstrap 产品规则；
+- PoC：896 条，其中 43 条 bootstrap、853 条 Nuclei 转换规则。
+
+这些不是代码承诺的固定常量。工作台显示的 source revision、digest、accepted / skipped 和规则库实际计数才是当前部署的权威状态。
+
+## Bootstrap 的历史来源
+
+一键更新出现前，SHEN 根据公开资料人工维护了 150 条 HTTP、22 条 port 和 43 条只读 PoC。HTTP bootstrap 中 85 条是对 MIT `wappalyzergo` 信号的人工改写，另有产品专用强信号；许可声明保留在 [THIRD_PARTY_NOTICES.md](../internal/rulelib/THIRD_PARTY_NOTICES.md)。这些数字描述历史 bootstrap，不代表当前自动更新后的完整库。
+
+早期调研同时核对了 [`hanc00l/nemo_go`](https://github.com/hanc00l/nemo_go) v3.2.1（commit `55506cc9fb7cbba329f7ca04dbf7308ee5e5f681`）：它组合 HTTPX、ChainReactor fingers、FingerprintHub 和 fingerprintx。`httpx.go` 收集 header / body / title / status 后交给静态匹配器；`fingerprinthub.go` 实现 favicon、word、regex 和 AND / OR / negative；`fingerprintx.go` 则启动外部主动协议探测器。研究快照中的 `web_fingerprint_v4.json` 有 3,154 个条目、3,552 个 matcher（2,910 word、382 regex、260 favicon），这些统计只描述 Nemo vendored 数据，不是 SHEN 当前规则数。
+
+该研究解释了产品关联和主动协议探测的差异，但当前自动 source 不从 Nemo、ChainReactor 或 FingerprintHub 下载内容：
+
+- Nemo 为 Apache-2.0，仅用于核对架构和调用语义；
+- ChainReactor fingers / templates 与 FingerprintHub 当时未发现可满足本项目再分发要求的明确仓库根许可证，因此不复制；
+- fingerprintx 是主动协议握手，不可等价转换为已有 Banner 上的静态 matcher；
+- HTTPX 负责采集响应，不是本次规则数据源。
+
+当时核对的 ChainReactor fingers 版本为 `48ba7446b94b`；Nemo 与 fingerprintx 分别采用 Apache-2.0，HTTPX 采用 MIT。ChainReactor templates / fingers 与 FingerprintHub 原始规则没有作为当前自动源，其许可证与执行语义也不会由一键更新流程继承。
+
+Port 规则仍以 Agent 实际协议解析结果为前提；仅增加字符串规则不会获得 fingerprintx 的主动握手能力，也不会按默认端口猜产品。
+
+## 本地修改与来源归属
+
+来源规则记录 `source_id`、上游规范内容摘要和 source revision。再次更新时：
+
+- 用户的禁用状态继续保留；
+- 已编辑、删除或与本地自定义 ID 冲突的规则不被覆盖；
+- 上游移除且没有本地改写的规则会被停用并计为 retired；
+- 更新失败不会发布部分规则，也不会替换上一次成功版本。
+
+导出的 JSON 包含相关上游 SHA、MIT 许可全文和 bootstrap 第三方声明，可直接作为规则与许可备份。手工导入恢复后视为本地修改，不再由上游静默覆盖。

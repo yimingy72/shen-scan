@@ -1,0 +1,37 @@
+import { useState } from 'react'
+import { Alert, Button, Collapse, Drawer, Space, Tag, Tooltip } from 'antd'
+import { CloudDownloadOutlined } from '@ant-design/icons'
+import { ApiClient, formatTime } from './api'
+import { LoadError, number, useLoad } from './ui'
+
+export interface RuleSource {
+  id: string; name: string; repository: string; license: string
+  status: 'idle' | 'updating' | 'ready' | 'failed'; revision?: string; updated_at?: string; error?: string
+  stats?: { total: number; accepted: number; skipped: number; reasons: Record<string, number>; added: number; updated: number; unchanged: number; preserved: number; retired: number }
+  samples?: { path: string; reason: string }[]
+}
+export interface RuleSourcesData { items: RuleSource[] }
+const states = { idle: '尚未同步', updating: '同步中', ready: '已同步', failed: '更新失败' }
+
+export function RuleSourcesDrawer({ api, open, close, data, loading, error, busy, refresh, update }: {
+  api: ApiClient; open: boolean; close: () => void; data?: RuleSourcesData; loading: boolean; error: string; busy: string[]; refresh: () => void; update: (ids?: string[]) => Promise<void>
+}) {
+  const [detail, setDetail] = useState<string>()
+  const [licenseSource, setLicenseSource] = useState<RuleSource>()
+  const license = useLoad<{ license: string; license_text: string; revision: string }>(api, licenseSource ? `/library/sources/${encodeURIComponent(licenseSource.id)}/license` : null)
+  const updating = busy.length > 0 || data?.items.some(source => source.status === 'updating')
+  return <><Drawer title="开源规则库" open={open} onClose={close} size={780}>
+    <div className="rule-source-toolbar"><span className="muted">更新仅影响新任务，保留停用、删除和本地修改。</span><Button type="primary" icon={<CloudDownloadOutlined />} loading={updating} disabled={!data?.items.length} onClick={() => void update()}>更新全部</Button></div>
+    <LoadError error={error} retry={refresh} />
+    {loading && !data && <div className="compact-note">正在加载规则源…</div>}
+    <div className="rule-source-list">{data?.items.map(source => <section className="rule-source-card" key={source.id}>
+      <div className="rule-source-heading"><div><h3>{source.name}</h3><a href={source.repository} target="_blank" rel="noreferrer">{source.repository.replace('https://github.com/', '')}</a></div><span className="bar-spacer" /><Tag color={source.status === 'failed' ? 'error' : source.status === 'updating' ? 'processing' : source.status === 'ready' ? 'success' : undefined}>{states[source.status]}</Tag><Button size="small" loading={busy.includes(source.id) || source.status === 'updating'} onClick={() => void update([source.id])}>更新</Button></div>
+      <div className="rule-source-version"><Button size="small" type="link" disabled={!source.revision} onClick={() => setLicenseSource(source)}>{source.license || '许可证待校验'}</Button><Tooltip title={source.revision}><span className="mono">{source.revision?.slice(0, 12) || '—'}</span></Tooltip><span>最近检查 {formatTime(source.updated_at)}</span></div>
+      {source.stats && (source.revision || source.stats.total > 0) && <><div className="rule-source-counts"><span>来源条目 <b>{number(source.stats.total)}</b></span><span>兼容规则 <b>{number(source.stats.accepted)}</b></span><span>排除 <b>{number(source.stats.skipped)}</b></span></div><div className="rule-source-changes"><span>新增 {number(source.stats.added)}</span><span>更新 {number(source.stats.updated)}</span><span>无变化 {number(source.stats.unchanged)}</span><span>保留本地 {number(source.stats.preserved)}</span><span>上游撤回 / 停用 {number(source.stats.retired)}</span></div></>}
+      {source.status === 'updating' && <div className="source-progress">下载固定版本，校验并生成兼容规则后整体发布。</div>}
+      {source.error && <Alert type="error" title="本次更新失败，原规则库保留" description={source.error} showIcon />}
+      {!!source.stats?.skipped && <Collapse size="small" ghost activeKey={detail === source.id ? ['details'] : []} onChange={keys => setDetail(keys.length ? source.id : undefined)} items={[{ key: 'details', label: '排除原因与样例', children: <><div className="rule-source-reasons">{Object.entries(source.stats.reasons || {}).sort((a, b) => b[1] - a[1]).map(([reason, count]) => <div key={reason}><span>{reason}</span><b>{number(count)}</b></div>)}</div>{!!source.samples?.length && <div className="rule-source-samples">{source.samples.map((item, index) => <div key={index}><span className="mono">{item.path}</span><span>{item.reason}</span></div>)}</div>}</> }]} />}
+    </section>)}</div>
+    <Space className="rule-source-footer"><Tag>HTTP：被动响应识别</Tag><Tag>PoC：只读子集 · 按指纹匹配</Tag></Space>
+  </Drawer><Drawer title={`${licenseSource?.name || '规则库'} · 许可证`} size={700} open={!!licenseSource} onClose={() => setLicenseSource(undefined)}><LoadError error={license.error} retry={() => void license.reload()} /><div className="compact-note mono">{license.data?.revision}</div><pre className="evidence-block">{license.data?.license_text || (license.loading ? '加载中…' : '暂无许可证记录')}</pre></Drawer></>
+}

@@ -3,9 +3,11 @@ package control
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -145,8 +147,36 @@ func TestRuleLibraryAndPOCClosure(t *testing.T) {
 		Rules    []rulelib.Rule `json:"rules"`
 		POCRules []rulelib.Rule `json:"poc_rules"`
 	}
-	if json.Unmarshal(httpClaim.Task.Payload, &httpPayload) != nil || int64(len(httpPayload.Rules)) != builtinCounts["http"]+1 || len(httpPayload.POCRules) != 1 || httpPayload.POCRules[0].Revision != 1 {
+	if json.Unmarshal(httpClaim.Task.Payload, &httpPayload) != nil || int64(len(httpPayload.Rules)) != builtinCounts["http"]+1 || len(httpPayload.POCRules) != 0 {
 		t.Fatalf("claim did not use immutable rules snapshot: %+v", httpPayload)
+	}
+	var refRun Run
+	callAPI(t, handler, http.MethodPost, "/api/runs", "admin-library", map[string]any{
+		"name": "rule set ref", "targets": []string{"ref.example.com"}, "modes": []string{"http"},
+	}, http.StatusCreated, &refRun)
+	var refClaim struct {
+		Task *Task `json:"task"`
+	}
+	callAPI(t, handler, http.MethodPost, "/api/tasks/claim", worker.WorkerToken, map[string]any{
+		"worker_id": worker.WorkerID, "session_id": "session-library", "request_id": "http-ref", "types": []string{"http"}, "use_rule_sets": true,
+	}, http.StatusOK, &refClaim)
+	var refPayload struct {
+		RulesRef string          `json:"rules_ref"`
+		Rules    json.RawMessage `json:"rules"`
+		POCRules json.RawMessage `json:"poc_rules"`
+	}
+	if refClaim.Task == nil || json.Unmarshal(refClaim.Task.Payload, &refPayload) != nil || refPayload.RulesRef != refRun.ID+":http" || len(refPayload.Rules) != 0 || len(refPayload.POCRules) != 0 {
+		t.Fatalf("reference claim=%+v payload=%s", refClaim.Task, refClaim.Task.Payload)
+	}
+	var ruleSet struct {
+		Ref   string          `json:"ref"`
+		Kind  string          `json:"kind"`
+		Rules []executionRule `json:"rules"`
+	}
+	callAPI(t, handler, http.MethodGet, "/api/tasks/"+refClaim.Task.ID+"/rules?worker_id="+worker.WorkerID+
+		"&session_id=session-library&attempt_no="+strconv.Itoa(refClaim.Task.AttemptNo), worker.WorkerToken, nil, http.StatusOK, &ruleSet)
+	if ruleSet.Ref != refPayload.RulesRef || ruleSet.Kind != "http" || int64(len(ruleSet.Rules)) != builtinCounts["http"]+1 {
+		t.Fatalf("downloaded rule set=%+v", ruleSet)
 	}
 	httpItems := []Observation{
 		{Kind: "http", Target: "https://example.com", URL: "https://example.com/", StatusCode: 200},
@@ -282,5 +312,27 @@ func TestLegacyTypeCheckMigration(t *testing.T) {
 	if _, err = second.db.Exec(ctx, `INSERT INTO tasks(id,run_id,type,payload,derived_key,target_key)
 		VALUES($1,$2,'poc','{"endpoint":{"url":"https://example.com"}}','migration-poc','example.com')`, newID(), runID); err != nil {
 		t.Fatalf("migrated constraint rejected poc task: %v", err)
+	}
+}
+
+func TestJSONImportOverLegacyLimit(t *testing.T) {
+	_, handler := newPolicyTestServer(t, "large_import_test")
+	rules := make([]rulelib.Rule, 1001)
+	for index := range rules {
+		rules[index] = rulelib.Rule{ID: fmt.Sprintf("bulk-http-%04d", index), Kind: "http", Name: fmt.Sprintf("Bulk %d", index),
+			Engine: "native", Severity: "info", Revision: 1, Definition: rulelib.Definition{Matchers: []rulelib.Matcher{{
+				Part: "status", Type: "status", Status: []int{200},
+			}}}}
+	}
+	content, _ := json.Marshal(rules)
+	var imported struct {
+		Items []rulelib.Rule `json:"items"`
+		Count int            `json:"count"`
+	}
+	callAPI(t, handler, http.MethodPost, "/api/library/import", "admin-policy", map[string]any{
+		"format": "json", "content": string(content),
+	}, http.StatusCreated, &imported)
+	if imported.Count != len(rules) || len(imported.Items) != len(rules) || imported.Items[1000].Enabled {
+		t.Fatalf("large import count/items/enabled=%d/%d/%t", imported.Count, len(imported.Items), imported.Items[1000].Enabled)
 	}
 }

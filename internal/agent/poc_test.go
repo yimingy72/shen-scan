@@ -200,6 +200,116 @@ func TestRealNucleiPoC(t *testing.T) {
 	}
 }
 
+func TestRealNucleiRootPoC(t *testing.T) {
+	binary := os.Getenv("TEST_NUCLEI_BINARY")
+	if binary == "" {
+		t.Skip("set TEST_NUCLEI_BINARY to the official Nuclei executable")
+	}
+	rootRule := rootNucleiRule(t)
+	for _, test := range []struct {
+		name, want string
+		tls, match bool
+	}{
+		{name: "http matched", match: true, want: "matched"},
+		{name: "http negative", want: "not_matched"},
+		{name: "https matched", tls: true, match: true, want: "matched"},
+		{name: "https negative", tls: true, want: "not_matched"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			handler := http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+				if request.URL.Path != "/" {
+					t.Errorf("Nuclei requested unexpected path %q", request.URL.Path)
+				}
+				if test.match {
+					_, _ = io.WriteString(response, "Root Fixture Management Console")
+				} else {
+					_, _ = io.WriteString(response, "generic page")
+				}
+			})
+			fixture := httptest.NewServer(handler)
+			if test.tls {
+				fixture.Close()
+				fixture = httptest.NewTLSServer(handler)
+			}
+			defer fixture.Close()
+			agent, err := New(Config{
+				ControlURL: "http://127.0.0.1:1", JoinToken: "join", InstanceID: "test", Hostname: "test", SessionID: "test",
+				AllowPrivateTargets: true, NucleiBinary: binary,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			payload, _ := json.Marshal(pocPayload{Endpoint: Endpoint{URL: fixture.URL}, Rules: []rulelib.Rule{rootRule}})
+			var got Observation
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			if err := agent.runPoC(ctx, Task{Payload: payload}, func(observation Observation) error { got = observation; return nil }); err != nil {
+				t.Fatal(err)
+			}
+			if got.FindingStatus != test.want || got.Error != "" || !strings.Contains(got.RequestRaw, "GET / HTTP/1.1") || !strings.Contains(got.ResponseRaw, "HTTP/1.1 200 OK") {
+				t.Fatalf("root PoC outcome = %#v, want %s with root request evidence", got, test.want)
+			}
+		})
+	}
+}
+
+func TestNucleiTruncationRejectsNegativeBodyMatcher(t *testing.T) {
+	base, _ := url.Parse("https://fixture.invalid")
+	proxy := &scopeProxy{
+		base: base, allowedPaths: map[string]bool{"/": true},
+		requestCount: 1, truncated: true,
+	}
+	matched := true
+	event, _ := json.Marshal(nucleiEvent{
+		TemplateID: "negative-body", MatchedAt: "https://fixture.invalid", MatcherStatus: &matched,
+		Request:  "GET / HTTP/1.1\r\nHost: fixture.invalid\r\n\r\n",
+		Response: "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok",
+	})
+	rule := rulelib.Rule{
+		ID: "negative-body",
+		Definition: rulelib.Definition{Requests: []rulelib.Request{{Matchers: []rulelib.Matcher{{
+			Part: "body", Type: "word", Words: []string{"error"}, Negative: true,
+		}}}}},
+	}
+	got := nucleiOutcome(Observation{}, rule, append(event, '\n'), proxy)
+	if got.FindingStatus != "error" || !strings.Contains(got.Error, "negative body matcher") {
+		t.Fatalf("truncated negative-body match was trusted: %#v", got)
+	}
+	rule.Definition.Requests[0].Matchers[0].Negative = false
+	got = nucleiOutcome(Observation{}, rule, append(event, '\n'), proxy)
+	if got.FindingStatus != "matched" || got.Error != "" {
+		t.Fatalf("positive match was rejected only because evidence was truncated: %#v", got)
+	}
+}
+
+func rootNucleiRule(t *testing.T) rulelib.Rule {
+	t.Helper()
+	const template = `id: root-fixture
+info:
+  name: Root Fixture Panel
+  author: SHEN
+  severity: info
+http:
+  - method: GET
+    path:
+      - '{{BaseURL}}'
+    matchers-condition: and
+    matchers:
+      - type: status
+        status: [200]
+      - type: word
+        part: body
+        words:
+          - Root Fixture Management Console
+`
+	rule, err := rulelib.ParseNuclei(template)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rule.Enabled = true
+	return rule
+}
+
 func findBuiltinRule(t *testing.T, id string) rulelib.Rule {
 	t.Helper()
 	for _, rule := range rulelib.Builtins() {

@@ -1,6 +1,7 @@
 package control
 
 import (
+	"compress/gzip"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
@@ -13,6 +14,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -43,6 +45,9 @@ type Server struct {
 	reconcile  PoolReconciler
 	cloudSetup func(context.Context) (map[string]any, error)
 	cloudAdmin http.HandlerFunc
+
+	sourceMu      sync.Mutex
+	sourceRunning map[string]bool
 }
 
 func New(ctx context.Context, databaseURL, adminToken, joinToken string) (*Server, error) {
@@ -69,14 +74,19 @@ func New(ctx context.Context, databaseURL, adminToken, joinToken string) (*Serve
 		db.Close()
 		return nil, fmt.Errorf("index result targets: %w", err)
 	}
+	if err = initializeRuleSources(ctx, db); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("initialize rule sources: %w", err)
+	}
 	serverCtx, cancel := context.WithCancel(ctx)
 	return &Server{
-		db:         db,
-		adminHash:  sha256.Sum256([]byte(adminToken)),
-		joinHash:   sha256.Sum256([]byte(joinToken)),
-		allowLocal: strings.EqualFold(os.Getenv("SCAN_ALLOW_PRIVATE_TARGETS"), "true"),
-		ctx:        serverCtx,
-		cancel:     cancel,
+		db:            db,
+		adminHash:     sha256.Sum256([]byte(adminToken)),
+		joinHash:      sha256.Sum256([]byte(joinToken)),
+		allowLocal:    strings.EqualFold(os.Getenv("SCAN_ALLOW_PRIVATE_TARGETS"), "true"),
+		ctx:           serverCtx,
+		cancel:        cancel,
+		sourceRunning: make(map[string]bool),
 	}, nil
 }
 
@@ -94,6 +104,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/library/products", s.admin(s.listLibraryProducts))
 	mux.HandleFunc("POST /api/library/import", s.admin(s.importLibrary))
 	mux.HandleFunc("POST /api/library/delete", s.admin(s.deleteLibraryRules))
+	mux.HandleFunc("GET /api/library/sources", s.admin(s.listRuleSources))
+	mux.HandleFunc("GET /api/library/sources/{id}/license", s.admin(s.getRuleSourceLicense))
+	mux.HandleFunc("POST /api/library/sources/{id}/update", s.admin(s.updateRuleSource))
 	mux.HandleFunc("GET /api/library/{id}", s.admin(s.getLibraryRule))
 	mux.HandleFunc("PUT /api/library/{id}", s.admin(s.updateLibraryRule))
 	mux.HandleFunc("PATCH /api/library/{id}", s.admin(s.patchLibraryRule))
@@ -121,11 +134,12 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/workers/register", s.join(s.registerWorker))
 	mux.HandleFunc("POST /api/workers/heartbeat", s.worker(s.heartbeat))
 	mux.HandleFunc("POST /api/tasks/claim", s.worker(s.claimTask))
+	mux.HandleFunc("GET /api/tasks/{id}/rules", s.worker(s.getTaskRules))
 	mux.HandleFunc("POST /api/tasks/{id}/renew", s.worker(s.renewTask))
 	mux.HandleFunc("POST /api/tasks/{id}/batches", s.worker(s.submitBatch))
 	mux.HandleFunc("POST /api/tasks/{id}/complete", s.worker(s.completeTask))
 	mux.HandleFunc("POST /api/tasks/{id}/release", s.worker(s.releaseTask))
-	handler := recoverer(mux)
+	handler := gzipJSON(recoverer(mux))
 	if os.Getenv("SCAN_HTTP_TIMING") != "true" {
 		return handler
 	}
@@ -135,6 +149,65 @@ func (s *Server) Handler() http.Handler {
 		handler.ServeHTTP(out, r)
 		slog.Info("http_timing", "route", r.Pattern, "status", out.status, "duration_us", time.Since(start).Microseconds(), "request_bytes", r.ContentLength, "response_bytes", out.bytes)
 	})
+}
+
+func gzipJSON(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !acceptsGzip(r.Header.Get("Accept-Encoding")) {
+			next.ServeHTTP(w, r)
+			return
+		}
+		w.Header().Set("Content-Encoding", "gzip")
+		w.Header().Add("Vary", "Accept-Encoding")
+		w.Header().Del("Content-Length")
+		writer := gzip.NewWriter(w)
+		defer writer.Close()
+		next.ServeHTTP(&gzipResponseWriter{ResponseWriter: w, writer: writer}, r)
+	})
+}
+
+type gzipResponseWriter struct {
+	http.ResponseWriter
+	writer *gzip.Writer
+}
+
+func (w *gzipResponseWriter) Write(data []byte) (int, error) { return w.writer.Write(data) }
+
+func acceptsGzip(value string) bool {
+	explicit, explicitQuality := false, float64(0)
+	wildcardQuality := float64(0)
+	for _, part := range strings.Split(value, ",") {
+		segments := strings.Split(part, ";")
+		coding := strings.ToLower(strings.TrimSpace(segments[0]))
+		if coding != "gzip" && coding != "*" {
+			continue
+		}
+		quality := float64(1)
+		for _, parameter := range segments[1:] {
+			name, raw, found := strings.Cut(strings.TrimSpace(parameter), "=")
+			if !found || !strings.EqualFold(strings.TrimSpace(name), "q") {
+				continue
+			}
+			parsed, err := strconv.ParseFloat(strings.TrimSpace(raw), 64)
+			if err != nil || parsed < 0 || parsed > 1 {
+				quality = 0
+			} else {
+				quality = parsed
+			}
+		}
+		if coding == "gzip" {
+			explicit = true
+			if quality > explicitQuality {
+				explicitQuality = quality
+			}
+		} else if quality > wildcardQuality {
+			wildcardQuality = quality
+		}
+	}
+	if explicit {
+		return explicitQuality > 0
+	}
+	return wildcardQuality > 0
 }
 
 type responseStats struct {

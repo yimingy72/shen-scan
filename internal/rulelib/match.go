@@ -2,7 +2,6 @@ package rulelib
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
 )
 
@@ -27,33 +26,30 @@ func MatchesProducts(rule Rule, products []string) bool {
 }
 
 func normalizeProduct(product string) string {
+	product = strings.NewReplacer("_", " ", "-", " ").Replace(product)
 	product = strings.ToLower(strings.Join(strings.Fields(strings.TrimSpace(product)), " "))
 	switch product {
-	case "springboot", "spring-boot", "spring_boot":
+	case "springboot":
 		return "spring boot"
-	case "tomcat", "apache_tomcat", "apache-tomcat":
+	case "tomcat":
 		return "apache tomcat"
-	case "rabbitmq", "rabbitmq_management", "rabbitmq-management":
+	case "rabbitmq":
 		return "rabbitmq management"
-	case "apache_http_server", "apache-http-server":
-		return "apache http server"
-	case "iis", "microsoft_iis":
+	case "iis":
 		return "microsoft iis"
-	case "sharepoint", "microsoft_sharepoint":
+	case "sharepoint":
 		return "microsoft sharepoint"
-	case "jetty", "eclipse_jetty":
+	case "jetty":
 		return "eclipse jetty"
-	case "airflow", "apache_airflow":
+	case "airflow":
 		return "apache airflow"
-	case "solr", "apache_solr":
+	case "solr":
 		return "apache solr"
-	case "flink", "apache_flink":
+	case "flink":
 		return "apache flink"
-	case "nifi", "apache_nifi":
+	case "nifi":
 		return "apache nifi"
-	case "apache_druid":
-		return "apache druid"
-	case "hadoop", "apache_hadoop":
+	case "hadoop":
 		return "apache hadoop"
 	case "nextjs", "next js":
 		return "next.js"
@@ -83,7 +79,7 @@ func Match(rule Rule, input Input) (MatchResult, bool) {
 		result.Version = input.Version
 	}
 	if d.VersionRegex != "" {
-		compiled, err := regexp.Compile(d.VersionRegex)
+		compiled, err := compilePattern(d.VersionRegex)
 		if err == nil {
 			if match := compiled.FindStringSubmatch(inputPart(d.VersionPart, input)); match != nil {
 				result.Version = match[0]
@@ -160,10 +156,7 @@ func matchMatcher(m Matcher, input Input) bool {
 		text := inputPart(m.Part, input)
 		values := make([]bool, len(m.Regex))
 		for i, pattern := range m.Regex {
-			if !m.CaseSensitive {
-				pattern = "(?i:" + pattern + ")"
-			}
-			compiled, err := regexp.Compile(pattern)
+			compiled, err := compilePattern(matcherPattern(pattern, m.CaseSensitive))
 			values[i] = err == nil && compiled.MatchString(text)
 		}
 		matched = combine(values, m.Condition, false)

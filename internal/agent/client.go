@@ -13,9 +13,14 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"scanplatform/internal/rulelib"
 )
 
-const maxControlResponse = 4 << 20
+const (
+	maxControlResponse = 4 << 20
+	maxRuleSetResponse = 16 << 20
+)
 
 type Client struct {
 	baseURL     string
@@ -77,12 +82,31 @@ func (c *Client) Claim(ctx context.Context, workerID, sessionID, requestID strin
 	}
 	sentAt, err := c.do(ctx, c.control, http.MethodPost, "/api/tasks/claim", c.workerToken, map[string]any{
 		"worker_id": workerID, "session_id": sessionID, "request_id": requestID,
-		"types": types,
+		"types": types, "use_rule_sets": true,
 	}, &out)
 	if out.Task != nil {
 		out.Task.requestSentAt = sentAt
 	}
 	return out.Task, err
+}
+
+type ruleSetResponse struct {
+	Ref   string         `json:"ref"`
+	Kind  string         `json:"kind"`
+	Rules []rulelib.Rule `json:"rules"`
+}
+
+func (c *Client) Rules(ctx context.Context, workerID, sessionID string, task Task) (ruleSetResponse, error) {
+	var out ruleSetResponse
+	query := url.Values{
+		"worker_id":  []string{workerID},
+		"session_id": []string{sessionID},
+		"attempt_no": []string{fmt.Sprint(task.AttemptNo)},
+	}
+	rulesCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	_, err := c.doLimit(rulesCtx, c.upload, http.MethodGet, "/api/tasks/"+url.PathEscape(task.ID)+"/rules?"+query.Encode(), c.workerToken, nil, &out, maxRuleSetResponse)
+	return out, err
 }
 
 func (c *Client) Renew(ctx context.Context, workerID, sessionID string, task Task) (renewResponse, time.Time, error) {
@@ -135,15 +159,25 @@ func (c *Client) Release(ctx context.Context, workerID, sessionID string, task T
 }
 
 func (c *Client) do(ctx context.Context, client *http.Client, method, path, token string, in, out any) (time.Time, error) {
-	body, err := json.Marshal(in)
+	return c.doLimit(ctx, client, method, path, token, in, out, maxControlResponse)
+}
+
+func (c *Client) doLimit(ctx context.Context, client *http.Client, method, requestPath, token string, in, out any, responseLimit int) (time.Time, error) {
+	var body io.Reader
+	if in != nil {
+		encoded, err := json.Marshal(in)
+		if err != nil {
+			return time.Time{}, err
+		}
+		body = bytes.NewReader(encoded)
+	}
+	req, err := http.NewRequestWithContext(ctx, method, c.baseURL+requestPath, body)
 	if err != nil {
 		return time.Time{}, err
 	}
-	req, err := http.NewRequestWithContext(ctx, method, c.baseURL+path, bytes.NewReader(body))
-	if err != nil {
-		return time.Time{}, err
+	if in != nil {
+		req.Header.Set("Content-Type", "application/json")
 	}
-	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
@@ -154,12 +188,12 @@ func (c *Client) do(ctx context.Context, client *http.Client, method, path, toke
 		return sentAt, err
 	}
 	defer resp.Body.Close()
-	data, err := io.ReadAll(io.LimitReader(resp.Body, maxControlResponse+1))
+	data, err := io.ReadAll(io.LimitReader(resp.Body, int64(responseLimit)+1))
 	if err != nil {
 		return sentAt, err
 	}
-	if len(data) > maxControlResponse {
-		return sentAt, fmt.Errorf("control response exceeds %d bytes", maxControlResponse)
+	if len(data) > responseLimit {
+		return sentAt, fmt.Errorf("control response exceeds %d bytes", responseLimit)
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		var apiErr struct {

@@ -215,6 +215,9 @@ func nucleiOutcome(obs Observation, rule rulelib.Rule, output []byte, proxy *sco
 	}
 	obs.RequestRaw, obs.ResponseRaw = requests.String(), responses.String()
 	obs.Truncated = truncated || requests.Len() >= maxRawRequest || responses.Len() >= maxRawResponse || proxy.Truncated()
+	if obs.Truncated && hasNegativeBodyMatcher(rule) {
+		return nucleiError(obs, "nuclei response evidence was truncated; negative body matcher result is incomplete", proxy)
+	}
 	if !matched && obs.Truncated {
 		return nucleiError(obs, "nuclei response evidence was truncated; negative result is incomplete", proxy)
 	}
@@ -229,6 +232,17 @@ func nucleiOutcome(obs Observation, rule rulelib.Rule, output []byte, proxy *sco
 		obs.Evidence += "; JSONL: " + jsonEvidence.String()
 	}
 	return obs
+}
+
+func hasNegativeBodyMatcher(rule rulelib.Rule) bool {
+	for _, request := range rule.Definition.Requests {
+		for _, matcher := range request.Matchers {
+			if matcher.Negative && matcher.Part == "body" {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func pocError(obs Observation, message string) Observation {

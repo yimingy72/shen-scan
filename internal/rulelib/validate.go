@@ -113,7 +113,7 @@ func validateDefinition(rule Rule) error {
 		if len(d.VersionRegex) > 2048 {
 			return fmt.Errorf("version regex is too long")
 		}
-		if _, err := regexp.Compile(d.VersionRegex); err != nil {
+		if _, err := compilePattern(d.VersionRegex); err != nil {
 			return fmt.Errorf("invalid version regex: %w", err)
 		}
 		if !oneOf(d.VersionPart, "body", "header", "title", "banner", "service", "product", "version") {
@@ -237,11 +237,7 @@ func validateMatcher(m Matcher, kind string) error {
 			return err
 		}
 		if m.Type == "regex" {
-			pattern := value
-			if !m.CaseSensitive {
-				pattern = "(?i:" + pattern + ")"
-			}
-			if _, err := regexp.Compile(pattern); err != nil {
+			if _, err := compilePattern(matcherPattern(value, m.CaseSensitive)); err != nil {
 				return fmt.Errorf("invalid regex: %w", err)
 			}
 		}

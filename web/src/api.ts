@@ -167,5 +167,5 @@ export type RuleKind = 'http' | 'port' | 'poc'
 export interface LibraryRule {
   id: string; kind: RuleKind; name: string; description?: string; engine: 'native' | 'nuclei'
   severity: string; enabled: boolean; builtin: boolean; revision: number; tags?: string[]; source?: string
-  definition?: Record<string, unknown>; template?: string; match_summary?: string; applies_to?: string[]
+  definition?: Record<string, unknown>; template?: string; match_summary?: string; applies_to?: string[]; source_id?: string
 }

@@ -166,7 +166,34 @@ CREATE TABLE IF NOT EXISTS rule_library (
 );
 ALTER TABLE rule_library ADD COLUMN IF NOT EXISTS deleted_at timestamptz;
 ALTER TABLE rule_library ADD COLUMN IF NOT EXISTS seed_version integer NOT NULL DEFAULT 0;
+ALTER TABLE rule_library ADD COLUMN IF NOT EXISTS source_id text NOT NULL DEFAULT '';
+ALTER TABLE rule_library ADD COLUMN IF NOT EXISTS upstream_hash text NOT NULL DEFAULT '';
+ALTER TABLE rule_library ADD COLUMN IF NOT EXISTS local_modified boolean NOT NULL DEFAULT false;
+ALTER TABLE rule_library ADD COLUMN IF NOT EXISTS enabled_override boolean;
+ALTER TABLE rule_library ADD COLUMN IF NOT EXISTS upstream_retired boolean NOT NULL DEFAULT false;
 CREATE INDEX IF NOT EXISTS rule_library_kind_idx ON rule_library((rule->>'kind'));
 CREATE INDEX IF NOT EXISTS rule_library_enabled_idx ON rule_library(((rule->>'enabled')::boolean));
+CREATE INDEX IF NOT EXISTS rule_library_source_idx ON rule_library(source_id,id) WHERE source_id<>'';
+
+CREATE TABLE IF NOT EXISTS rule_sources (
+  id text PRIMARY KEY,
+  name text NOT NULL,
+  repository text NOT NULL,
+  license text NOT NULL DEFAULT '',
+  license_text text NOT NULL DEFAULT '',
+  status text NOT NULL DEFAULT 'idle' CHECK(status IN ('idle','updating','ready','failed')),
+  revision text NOT NULL DEFAULT '',
+  converter_version text NOT NULL DEFAULT '',
+  digest text NOT NULL DEFAULT '',
+  stats jsonb NOT NULL DEFAULT '{"total":0,"accepted":0,"skipped":0,"reasons":{},"added":0,"updated":0,"unchanged":0,"preserved":0,"retired":0}'::jsonb,
+  samples jsonb NOT NULL DEFAULT '[]'::jsonb,
+  error text NOT NULL DEFAULT '',
+  updated_at timestamptz
+);
+ALTER TABLE rule_sources ADD COLUMN IF NOT EXISTS converter_version text NOT NULL DEFAULT '';
+INSERT INTO rule_sources(id,name,repository) VALUES
+ ('wappalyzer','Wappalyzer fingerprints','https://github.com/projectdiscovery/wappalyzergo'),
+ ('nuclei-templates','Nuclei templates','https://github.com/projectdiscovery/nuclei-templates')
+ON CONFLICT(id) DO UPDATE SET name=EXCLUDED.name,repository=EXCLUDED.repository;
 
 `

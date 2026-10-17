@@ -136,7 +136,7 @@ func (proxy *scopeProxy) httpRequestAllowed(request *http.Request) bool {
 	if err != nil || hostURL.User != nil || hostURL.Path != "" || !sameAuthority(hostURL, proxy.base) {
 		return false
 	}
-	return proxy.allowed[request.Method+" "+request.URL.EscapedPath()]
+	return proxy.allowed[request.Method+" "+scopedURLPath(request.URL)]
 }
 
 func sameAuthority(left, right *url.URL) bool {
@@ -263,7 +263,7 @@ func (proxy *scopeProxy) ResultAllowed(rawURL, rawRequest string) bool {
 		if err != nil || u.User != nil || u.RawQuery != "" || u.Fragment != "" || u.Scheme != proxy.base.Scheme || !sameAuthority(u, proxy.base) {
 			return false
 		}
-		return proxy.allowedPaths[u.EscapedPath()]
+		return proxy.allowedPaths[scopedURLPath(u)]
 	}
 	request, err := http.ReadRequest(bufio.NewReader(strings.NewReader(rawRequest)))
 	if err != nil || request.URL == nil || request.URL.User != nil || request.URL.RawQuery != "" || request.URL.Fragment != "" {
@@ -276,7 +276,14 @@ func (proxy *scopeProxy) ResultAllowed(rawURL, rawRequest string) bool {
 	if err != nil || hostURL.User != nil || hostURL.Path != "" || !sameAuthority(hostURL, proxy.base) {
 		return false
 	}
-	return proxy.allowed[request.Method+" "+request.URL.EscapedPath()]
+	return proxy.allowed[request.Method+" "+scopedURLPath(request.URL)]
+}
+
+func scopedURLPath(value *url.URL) string {
+	if value == nil || value.EscapedPath() == "" {
+		return "/"
+	}
+	return value.EscapedPath()
 }
 
 func (proxy *scopeProxy) Close() {

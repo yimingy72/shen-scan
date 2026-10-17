@@ -177,6 +177,7 @@ http:
 
 func TestImportedProductAliases(t *testing.T) {
 	for alias, product := range map[string]string{
+		"microsoft_exchange_server": "Microsoft Exchange Server", "open-webui": "Open WebUI",
 		"spring_boot": "Spring Boot", "apache_tomcat": "Apache Tomcat", "rabbitmq": "RabbitMQ Management",
 		"apache_http_server": "Apache HTTP Server", "microsoft_iis": "Microsoft IIS", "sharepoint": "Microsoft SharePoint",
 		"jetty": "Eclipse Jetty", "apache_airflow": "Apache Airflow", "solr": "Apache Solr", "flink": "Apache Flink",

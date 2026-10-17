@@ -213,10 +213,11 @@ func validateWorkerMetrics(raw json.RawMessage) (map[string]float64, error) {
 
 func (s *Server) claimTask(w http.ResponseWriter, r *http.Request) {
 	var request struct {
-		WorkerID  string   `json:"worker_id"`
-		SessionID string   `json:"session_id"`
-		RequestID string   `json:"request_id"`
-		Types     []string `json:"types"`
+		WorkerID    string   `json:"worker_id"`
+		SessionID   string   `json:"session_id"`
+		RequestID   string   `json:"request_id"`
+		Types       []string `json:"types"`
+		UseRuleSets bool     `json:"use_rule_sets"`
 	}
 	if err := decodeJSON(w, r, &request); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
@@ -396,7 +397,7 @@ func (s *Server) claimTask(w http.ResponseWriter, r *http.Request) {
 			last_claim_target_key=$2,updated_at=CASE WHEN status='pending' THEN now() ELSE updated_at END WHERE id=$1`, runID, targetKey)
 	}
 	if err == nil {
-		payload, err = attachClaimRules(r.Context(), tx, runID, typeName, payload)
+		payload, err = attachClaimRules(r.Context(), tx, runID, typeName, payload, request.UseRuleSets)
 	}
 	task := Task{ID: taskID, RunID: runID, Type: typeName, AttemptNo: attempt, Payload: payload,
 		LeaseUntil: leaseUntil, RateUntil: rateUntil, ServerTime: serverTime, ControlGeneration: generation}
@@ -432,6 +433,50 @@ func normalizeTaskTypes(input []string) ([]string, error) {
 	return result, nil
 }
 
+func (s *Server) getTaskRules(w http.ResponseWriter, r *http.Request) {
+	workerID := strings.TrimSpace(r.URL.Query().Get("worker_id"))
+	sessionID := strings.TrimSpace(r.URL.Query().Get("session_id"))
+	attempt, err := strconv.Atoi(r.URL.Query().Get("attempt_no"))
+	if err != nil || attempt < 1 {
+		writeError(w, http.StatusBadRequest, "positive attempt_no is required")
+		return
+	}
+	if err = s.authenticateWorker(r.Context(), workerID, sessionID); err != nil {
+		writeError(w, http.StatusUnauthorized, err.Error())
+		return
+	}
+	var runID, typeName string
+	var snapshotRaw []byte
+	err = s.db.QueryRow(r.Context(), `SELECT t.run_id,t.type,r.rules_snapshot FROM tasks t JOIN runs r ON r.id=t.run_id
+		WHERE t.id=$1 AND t.worker_id=$2 AND t.session_id=$3 AND t.attempt_no=$4
+		AND t.state='leased' AND t.lease_until>now() AND t.type IN ('http','service')`,
+		r.PathValue("id"), workerID, sessionID, attempt).Scan(&runID, &typeName, &snapshotRaw)
+	if errors.Is(err, pgx.ErrNoRows) {
+		writeError(w, http.StatusConflict, "task execution is stale or has no rule set")
+		return
+	}
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "load task rules failed")
+		return
+	}
+	if len(snapshotRaw) == 0 || string(snapshotRaw) == "null" {
+		writeError(w, http.StatusConflict, "task has no frozen rule set")
+		return
+	}
+	var snapshot ruleSnapshot
+	if json.Unmarshal(snapshotRaw, &snapshot) != nil {
+		writeError(w, http.StatusInternalServerError, "load task rules failed")
+		return
+	}
+	kind := "http"
+	rules := executionRules(snapshot.HTTP)
+	if typeName == "service" {
+		kind = "port"
+		rules = executionRules(snapshot.Port)
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ref": runID + ":" + typeName, "kind": kind, "rules": rules})
+}
+
 func loadTask(ctx context.Context, tx pgx.Tx, id string, attempt int) (Task, error) {
 	var task Task
 	var lease, rate *time.Time
@@ -446,7 +491,7 @@ func loadTask(ctx context.Context, tx pgx.Tx, id string, attempt int) (Task, err
 	}
 	task.ServerTime = task.ServerTime.UTC()
 	if err == nil {
-		task.Payload, err = attachClaimRules(ctx, tx, task.RunID, task.Type, task.Payload)
+		task.Payload, err = attachClaimRules(ctx, tx, task.RunID, task.Type, task.Payload, false)
 	}
 	return task, err
 }

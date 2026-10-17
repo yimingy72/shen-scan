@@ -17,6 +17,7 @@ type servicePayload struct {
 	Endpoints      []Endpoint     `json:"endpoints"`
 	TimeoutSeconds int            `json:"timeout_seconds"`
 	Rules          []rulelib.Rule `json:"rules"`
+	RulesRef       string         `json:"rules_ref,omitempty"`
 }
 
 func (a *Agent) runService(ctx context.Context, task Task, emit func(Observation) error) error {
@@ -27,9 +28,11 @@ func (a *Agent) runService(ctx context.Context, task Task, emit func(Observation
 	if len(payload.Endpoints) == 0 {
 		return &TaskError{Reason: "service task has no endpoints"}
 	}
-	if err := validateTaskRules(payload.Rules, "port"); err != nil {
-		return &TaskError{Reason: "invalid port rules: " + err.Error(), Retryable: false}
+	rules, err := a.resolveTaskRules(ctx, task, payload.RulesRef, payload.Rules, "port")
+	if err != nil {
+		return err
 	}
+	payload.Rules = rules
 	timeout := boundedTimeout(payload.TimeoutSeconds, 90*time.Second)
 	return runEndpointsWithLimit(ctx, payload.Endpoints, a.endpointSlots, 8, func(ctx context.Context, ep Endpoint) Observation {
 		obs := a.probeService(ctx, ep, timeout)

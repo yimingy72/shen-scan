@@ -34,6 +34,7 @@ type httpPayload struct {
 	Endpoints      []Endpoint     `json:"endpoints"`
 	TimeoutSeconds int            `json:"timeout_seconds"`
 	Rules          []rulelib.Rule `json:"rules"`
+	RulesRef       string         `json:"rules_ref,omitempty"`
 }
 
 type targetSlots struct {
@@ -49,9 +50,11 @@ func (a *Agent) runHTTP(ctx context.Context, task Task, emit func(Observation) e
 	if len(payload.Endpoints) == 0 {
 		return &TaskError{Reason: "http task has no endpoints"}
 	}
-	if err := validateTaskRules(payload.Rules, "http"); err != nil {
-		return &TaskError{Reason: "invalid http rules: " + err.Error(), Retryable: false}
+	rules, err := a.resolveTaskRules(ctx, task, payload.RulesRef, payload.Rules, "http")
+	if err != nil {
+		return err
 	}
+	payload.Rules = rules
 	timeout := minDuration(boundedTimeout(payload.TimeoutSeconds, 12*time.Second), 12*time.Second)
 	return runEndpointsWithLimit(ctx, payload.Endpoints, a.endpointSlots, 2, func(ctx context.Context, ep Endpoint) Observation {
 		release, err := a.acquireHTTPTarget(ctx, httpTargetKey(ep))

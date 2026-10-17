@@ -16,7 +16,7 @@
 |---|---|
 | 端口扫描 | IPv4 TCP **1–65535**，发现开放端口后继续执行服务指纹 |
 | HTTP 指纹 | HTTP / HTTPS 探测，页面标题、状态码、Server、CMS / 框架及识别依据 |
-| 指纹库 | 内置 150 条 HTTP 指纹、22 条端口指纹、43 条只读 PoC；编辑、启停、复制、批量导入 / 导出 / 删除和规则版本 |
+| 指纹库 | 内置 bootstrap 加官方规则源一键更新；编辑、启停、复制、批量导入 / 导出 / 删除和规则版本 |
 | PoC / Nuclei | 任务显式开启；原生只读检查和 Nuclei HTTP 模板，命中 / 未命中 / 检测错误及请求响应证据 |
 | 输入 | 手动输入或导入 TXT / CSV；支持 IPv4、CIDR、域名与 HTTP(S) URL |
 | 结果查看 | 按任务 → IP / 域名 → 开放端口 / HTTP 端点查看；提供搜索、筛选和分页 |
@@ -52,7 +52,7 @@ flowchart LR
 - **控制面**提供 API 和前端静态文件，保存任务、租约、结果和云资源状态。
 - **PostgreSQL**是唯一权威存储；当前没有 Redis 或独立消息队列依赖。
 - **Agent**负责认领、执行、续约、批量回传和停止；管理员令牌、引导令牌、Worker 会话令牌各自独立。
-- **Nuclei**以受限独立进程运行；只执行任务固定的只读 HTTP 模板，不自动下载模板或连接云服务。
+- **Nuclei**以受限独立进程运行；只执行任务固定的只读 HTTP 模板，不在 Worker 上自动下载模板或连接云服务。管理员可在控制面更新官方规则源，经转换和校验后写入规则库。
 - **Masscan**以独立进程运行。仓库包含固定版本的接收修复补丁、构建脚本和许可证，发布包携带对应源码。
 
 ## 快速启动控制面
@@ -141,7 +141,8 @@ AGENT_CA_FILE=/path/to/public-ca.crt
 3. **扫描结果**：选择任务，展开目标查看开放端口；切换 HTTP 端点查看页面与技术指纹。
 4. **PoC 检查**：任务显式开启后，在结果页查看命中、未命中和检测错误。信息级命中不等于漏洞，超时不等于未命中。
 5. **指纹库**：按 HTTP、端口、PoC 分类管理规则。导入 JSON 或受支持的 Nuclei YAML，校验后默认禁用；支持按筛选 / 勾选导出及批量删除，内置规则删除后重启也不会恢复。
-6. **详情**：查看服务 Banner、请求响应、规则版本及识别依据。失败、取消、未扫描和指纹受限分别显示。
+6. **规则源**：按需从固定官方仓库检查最新 SHA，一键转换并原子更新；查看版本、许可证、纳入数量、排除原因和失败状态。
+7. **详情**：查看服务 Banner、请求响应、规则版本及识别依据。失败、取消、未扫描和指纹受限分别显示。
 
 创建任务不需要填写预算、发包速率或内部执行阶段。Worker 是全平台共享容量，任务按存活节点认领执行；云节点回收后，未完成任务可由其他节点重派。
 
@@ -169,7 +170,7 @@ PPS 是 Masscan 的发包预算，不能直接视为每秒有效 SYN 探针数�
 ## 当前边界
 
 - 当前使用单管理员令牌登录，尚无多用户、项目隔离或细粒度 RBAC。
-- TCP 全端口执行器仅支持 IPv4；内置指纹库不承诺识别所有产品。Nuclei 只支持经校验的静态同源 GET / HEAD 模板，不支持整个官方模板集合。
+- TCP 全端口执行器仅支持 IPv4；指纹库不承诺识别所有产品。Nuclei 只支持经校验的静态同源 GET / HEAD 子集；官方仓库中的写操作、动态载荷、OAST、代码、无头浏览器及其他不兼容模板会明确排除。
 - 网页截图、完整报告生成、完整 OSS 证据归档和高级灰度发布尚未实现。
 - 原始端口仍按行存储；没有完成密集位图、网段自动熔断和自动归档。
 - 临时文件用于解耦收包和回传，不是跨实例回收的持久检查点；实例丢失依靠租约与重试恢复。
@@ -184,6 +185,7 @@ internal/control/  任务、租约、结果与 API
 internal/agent/    执行器、指纹、回传与停止
 internal/cloud/    云账号、网络准备、实例与回收事件
 internal/rulelib/  指纹定义、内置库、匹配与 Nuclei 模板校验
+internal/rulesource/ 固定官方源下载、许可校验和安全转换
 deploy/            发布脚本、systemd、PostgreSQL、固定扫描器构建
 web/               React 工作台
 docs/              部署、调度、API 与使用说明
@@ -204,6 +206,8 @@ PostgreSQL 集成用例需要单独设置 `CONTROL_TEST_DATABASE_URL`；未设�
 
 Masscan 及其修改使用 AGPLv3，相关许可证、固定源码与补丁说明见 [deploy/masscan](deploy/masscan/README.md)。发布脚本会将对应源码和许可证一起放入 Agent 包。其他依赖的许可见各自项目；本仓库当前尚未为平台自有代码声明单独的开源许可证。
 
-Nuclei 引擎固定为 v3.11.1（MIT），下载校验和许可见 [deploy/nuclei](deploy/nuclei/README.md)。新增 HTTP 规则中 85 条改写自 MIT 的 `projectdiscovery/wappalyzergo`，另有 11 条产品专用规则；保留了 [第三方声明](internal/rulelib/THIRD_PARTY_NOTICES.md)。没有打包整个第三方模板仓库；导入自有规则时请保留其来源和许可证。
+Nuclei 引擎固定为 v3.11.1（MIT），下载校验和许可见 [deploy/nuclei](deploy/nuclei/README.md)。内置 bootstrap 保留了早期从 MIT `projectdiscovery/wappalyzergo` 人工改写的 85 条 HTTP 信号及产品专用规则；[第三方声明](internal/rulelib/THIRD_PARTY_NOTICES.md) 继续保留。控制面还可从固定的 `projectdiscovery/wappalyzergo` 与 `projectdiscovery/nuclei-templates` 官方仓库按 SHA 更新，验证 MIT 全文后只保存规范化规则，不把归档交给 Worker 执行。
 
-参考 nemo_go 的组件与关联方式、规则来源及取舍见 [来源说明](docs/RULE_SOURCES.md)。当前 43 条 PoC 是只读检查集合，其中信息级项表示产品或健康端点发现，不等同于 43 种可利用漏洞。
+当前验证快照包含 **4587 HTTP、22 port、896 PoC**，其中官方源转换结果为 Wappalyzer **4437 / 7642**，Nuclei **853 / 14119**。这些数字对应当时的上游 SHA，不是长期常量；实际版本、数量、许可证和排除原因以工作台的规则源状态为准。PoC 中大量规则只确认产品页面、面板或健康端点，不等同于可利用漏洞。
+
+参考 Nemo 的历史调研与 bootstrap 取舍见 [规则来源](docs/RULE_SOURCES.md) 和 [PoC 来源](docs/POC_SOURCES.md)；一键更新、失败保护、升级顺序和容量边界见 [规则源更新](docs/RULE_UPDATES.md)。

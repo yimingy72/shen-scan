@@ -18,7 +18,7 @@ API 前缀为 `/api`，请求及响应使用 JSON。除健康检查外，管理�
 | `GET /api/runs/{id}/http?status=responded` | HTTP 端点；支持 `responded` / `no_response` / `all` |
 | `GET /api/observations/{id}` | 完整已存储的观测与报文 |
 | `GET /api/runs/{id}/findings` | PoC 结果；`status=matched/not_matched/error/all`、`severity`、`q`、分页 |
-| `GET /api/library` | 规则列表；`kind=http/port/poc`、`q`、`enabled`、`engine`、分页 |
+| `GET /api/library` | 规则列表；`kind=http/port/poc`、`q`、`enabled`、`engine`、`source_id`、分页 |
 | `GET /api/library/{id}` | 完整规则定义 |
 | `POST /api/library` | 创建规则 |
 | `PUT /api/library/{id}` | 修改规则，必须携带 `expected_revision` |
@@ -27,6 +27,9 @@ API 前缀为 `/api`，请求及响应使用 JSON。除健康检查外，管理�
 | `POST /api/library/delete` | 原子批量删除，`items:[{id,expected_revision}]`，返回 `deleted_count` |
 | `GET /api/library/products` | 可绑定产品名称，返回 `{items:[string]}` |
 | `POST /api/library/import` | 原子导入 JSON / Nuclei YAML，默认禁用 |
+| `GET /api/library/sources` | 固定官方源状态、版本、统计和排除样例 |
+| `POST /api/library/sources/{id}/update` | 后台检查并原子更新一个官方源 |
+| `GET /api/library/sources/{id}/license` | 来源许可证全文和成功版本 |
 | `GET /api/library/export?kind=http` | 导出完整规则 JSON |
 | `GET /api/workers` | Worker、指标和当前任务 |
 | `GET /api/worker-pool` | 节点池状态及配置版本 |
@@ -54,6 +57,8 @@ API 前缀为 `/api`，请求及响应使用 JSON。除健康检查外，管理�
 
 Agent 以引导令牌调用 `POST /api/workers/register`，获得独立会话令牌。随后通过 heartbeat、claim、renew、batches、complete、release 接口工作。
 
+新版 Agent 在 claim 中提交 `use_rule_sets:true`。HTTP / service 任务返回 `rules_ref`，Agent 使用 Worker bearer token 调用 `GET /api/tasks/{id}/rules?worker_id=...&session_id=...&attempt_no=N` 下载冻结的精简规则；控制面校验当前 lease、worker、session 和 attempt。旧 Agent 不提交该字段时仍收到 gzip 内联规则。部署时必须先升级控制面，再升级使用引用协议的 Agent。
+
 `request_id` 保证认领重试幂等；`attempt_no` 隔离旧执行；`batch_seq` 和内容校验防止重复批次污染数据。任务在完成结果排空、批次确认和完成确认后才算完成。
 
 租约 120 秒、发包许可 60 秒，Agent 每 15 秒续约。心跳与续约可携带停止动作；无有效许可不能继续发包。详细请求结构以 `internal/control` 和 `internal/agent` 的类型及处理器为准。
@@ -62,7 +67,7 @@ Agent 以引导令牌调用 `POST /api/workers/register`，获得独立会话令
 
 创建任务可设置 `poc_enabled:true`（必须包含 HTTP 模式）及 `poc_rule_ids:["poc-security-txt"]`。省略或空数组表示按端点指纹自动筛选已启用的产品型 PoC；默认 `poc_enabled:false` 不创建 PoC 任务。创建时保存 HTTP / 端口 / 所选 PoC 的规则快照。
 
-规则更新采用 `expected_revision` 乐观并发控制，冲突返回 409；详情和列表都有 `revision`。列表包含精简的 `match_summary`；完整定义从详情或导出接口获取。导入提交 `{ "format": "json" | "nuclei", "content": "原始文件内容" }`，一次最多 1000 条，请求体上限 8 MiB。JSON 采用导出的 `{ "items": [Rule] }` 格式。
+规则更新采用 `expected_revision` 乐观并发控制，冲突返回 409；详情和列表都有 `revision`。列表包含精简的 `match_summary`；完整定义从详情或导出接口获取。导入提交 `{ "format": "json" | "nuclei", "content": "原始文件内容" }`，JSON 一次最多 10,000 条，请求体上限 8 MiB。JSON 采用导出的 `{ "items": [Rule] }` 格式，并可携带 `licenses` / `notices` 备份元数据。
 
 PoC 观测包含 `rule_id`、`rule_name`、`rule_revision`、`engine`、`severity`、`finding_status`、`evidence`；详情包含 `request_raw`、`response_raw`、`error`、`truncated`。`finding_status` 为 `matched`、`not_matched` 或 `error`。`findings` 接口返回 `{items,total,summary:{matched,not_matched,error}}`，只统计当前执行版本。任务的 `finding_count` 仅计命中，`poc_checked_count` 计全部检查结果。模板格式和执行边界见 [规则库说明](RULE_LIBRARY.md)。
 

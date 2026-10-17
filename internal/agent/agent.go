@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"golang.org/x/sync/semaphore"
+	"golang.org/x/sync/singleflight"
 )
 
 const (
@@ -71,6 +72,8 @@ type Agent struct {
 	httpTargetMu    sync.Mutex
 	httpTargetSlots map[string]*targetSlots
 	resources       *resourceSampler
+	ruleSets        *ruleSetCache
+	ruleSetFlights  singleflight.Group
 	workerID        string
 	heartbeatEvery  time.Duration
 	draining        atomic.Bool
@@ -131,7 +134,7 @@ func New(cfg Config) (*Agent, error) {
 		cfg: cfg, client: client, policy: newTargetPolicy(cfg.ControlURL, cfg.AllowPrivateTargets),
 		log: cfg.Logger, portExecutor: cfg.PortExecutor,
 		endpointSlots: make(chan struct{}, cfg.EndpointConcurrency), httpTargetSlots: make(map[string]*targetSlots),
-		resources: newResourceSampler(), active: make(map[string]activeTask), taskFinished: make(chan struct{}, 1), heartbeatEvery: 10 * time.Second,
+		resources: newResourceSampler(), ruleSets: newRuleSetCache(8), active: make(map[string]activeTask), taskFinished: make(chan struct{}, 1), heartbeatEvery: 10 * time.Second,
 	}, nil
 }
 
