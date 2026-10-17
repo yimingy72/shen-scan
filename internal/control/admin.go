@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"scanplatform/internal/webevidence"
 )
 
 const maxExpandedTargets = 65536
@@ -69,19 +70,19 @@ func (s *Server) createRun(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	pool, err := s.loadPool(r.Context())
-	if err != nil {
-		writeError(w, 503, "无法读取调度容量")
-		return
+	// Initial IP batching is independent of stale desired/heartbeat counts.
+	// Low-latency port ranges are planned later from actual startup tickets.
+	portSeeds := 0
+	for _, seed := range seeds {
+		if seed.typeName == "port" {
+			portSeeds++
+		}
 	}
-	workers := pool.HealthyWorkers
-	if workers < 1 {
-		workers = pool.DesiredWorkers
+	initialWidth := 1
+	if portSeeds <= 16 {
+		initialWidth = max(1, portSeeds)
 	}
-	if workers < 1 {
-		workers = 1
-	}
-	seeds = shardPortSeeds(seeds, workers)
+	seeds = shardPortSeeds(seeds, initialWidth)
 	runID := newID()
 	targetJSON, _ := json.Marshal(request.Targets)
 	tx, err := s.db.Begin(r.Context())
@@ -95,6 +96,9 @@ func (s *Server) createRun(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	snapshot.ServiceProfile = "nmap-light-v1"
+	snapshot.FingerprintBundle = webevidence.FingerprintBundle
+	snapshot.WebProfile = webevidence.Profile
 	snapshotJSON, _ := json.Marshal(snapshot)
 	requiresHTTPXCFF := false
 	for _, rule := range snapshot.HTTP {
@@ -126,6 +130,19 @@ func (s *Server) createRun(w http.ResponseWriter, r *http.Request) {
 		}
 		if err == nil {
 			_, err = tx.CopyFrom(r.Context(), pgx.Identifier{"task_targets"}, []string{"task_id", "target_key"}, pgx.CopyFromRows(targetRows))
+			if err == nil {
+				for _, row := range taskRows {
+					if row[2] == "port" {
+						err = insertPortManifest(r.Context(), tx, row[0].(string), runID, row[3].([]byte))
+						if err != nil {
+							break
+						}
+					}
+				}
+			}
+			if err == nil {
+				err = validatePortManifest(r.Context(), tx, runID)
+			}
 		}
 	}
 
@@ -175,6 +192,8 @@ func shardPortSeeds(seeds []taskSeed, workers int) []taskSeed {
 		return a.Compare(b) < 0
 	})
 	rate, cap := portScanSettings()
+	rate = min(rate, portTargetQuota())
+	cap = min(cap, max(1, 135*rate/(2*65535)))
 	workers = max(workers, 1)
 	shards := max(min(workers, len(addresses)), (len(addresses)+cap-1)/cap)
 	for index := 0; index < shards; index++ {
@@ -279,8 +298,9 @@ func buildTaskSeeds(targets, modes []string, allowPrivate bool) ([]taskSeed, err
 		if !hasHTTP {
 			return nil, fmt.Errorf("domain target %q requires http mode", target)
 		}
-		endpoints := []map[string]any{{"host": target, "url": "http://" + target}, {"host": target, "url": "https://" + target}}
-		seeds = append(seeds, httpSeed(endpoints, fmt.Sprintf("domain:%d", index)))
+		for _, scheme := range []string{"http", "https"} {
+			seeds = append(seeds, httpSeed([]map[string]any{{"host": target, "url": scheme + "://" + target}}, fmt.Sprintf("domain:%d:%s", index, scheme)))
+		}
 		expanded++
 	}
 	if len(seeds) == 0 {
@@ -304,13 +324,19 @@ func seedsForAddress(address netip.Addr, hasPort, hasHTTP bool, key string) []ta
 		if address.Is6() {
 			host = "[" + text + "]"
 		}
-		return []taskSeed{httpSeed([]map[string]any{{"ip": text, "url": "http://" + host}, {"ip": text, "url": "https://" + host}}, key+":http")}
+		return []taskSeed{
+			httpSeed([]map[string]any{{"ip": text, "url": "http://" + host}}, key+":http"),
+			httpSeed([]map[string]any{{"ip": text, "url": "https://" + host}}, key+":https"),
+		}
 	}
 	return nil
 }
 
 func httpSeed(endpoints []map[string]any, key string) taskSeed {
-	return taskSeed{typeName: "http", key: key, payload: map[string]any{"endpoints": endpoints, "timeout_seconds": 12, "execution_timeout_seconds": 180}}
+	for i := range endpoints {
+		endpoints[i]["work_key"] = fmt.Sprintf("%s:%d", key, i)
+	}
+	return taskSeed{typeName: "http", key: key, payload: map[string]any{"endpoints": endpoints, "timeout_seconds": 8, "execution_timeout_seconds": 90, "max_requests": 8, "max_body_bytes": 2 << 20, "max_icons": 2, "fingerprint_bundle": webevidence.FingerprintBundle, "web_profile": webevidence.Profile}}
 }
 
 func allowedAddress(address netip.Addr, allowPrivate bool) bool {
@@ -364,17 +390,17 @@ func runSelect(targets, runs string) string {
 	  count(*) FILTER(WHERE state='failed') task_failed FROM tasks WHERE run_id=r.id) ts ON true
 	 LEFT JOIN LATERAL (SELECT count(*) target_count,count(*) FILTER(WHERE finished) target_done FROM (
 	  SELECT bool_and(t.state='completed') finished FROM tasks t JOIN task_targets tt ON tt.task_id=t.id WHERE t.run_id=r.id GROUP BY tt.target_key) target_states) tgs ON true
-	 LEFT JOIN LATERAL (SELECT count(*) asset_count FROM assets WHERE run_id=r.id) ac ON true
+	 LEFT JOIN LATERAL (SELECT count(*) asset_count FROM assets a JOIN tasks t ON t.id=a.task_id AND a.attempt_no=COALESCE(t.accepted_attempt_no,t.attempt_no) AND t.state='completed' WHERE a.run_id=r.id) ac ON true
 	 LEFT JOIN LATERAL (SELECT count(*) FILTER(WHERE a.observation->>'finding_status'='matched') finding_count,
 	  count(*) FILTER(WHERE a.observation->>'finding_status'='matched' AND COALESCE(NULLIF(a.observation->>'purpose',''),'discovery')='verification') verification_finding_count,
 	  count(*) FILTER(WHERE a.observation->>'finding_status'='matched' AND COALESCE(NULLIF(a.observation->>'purpose',''),'discovery')='check') check_match_count,
 	  count(*) FILTER(WHERE a.observation->>'finding_status'='matched' AND COALESCE(NULLIF(a.observation->>'purpose',''),'discovery')='discovery') discovery_match_count,
 	  count(*) checked_count
-	  FROM assets a JOIN tasks t ON t.id=a.task_id AND t.attempt_no=a.attempt_no
+	  FROM assets a JOIN tasks t ON t.id=a.task_id AND COALESCE(t.accepted_attempt_no,t.attempt_no)=a.attempt_no AND t.state='completed'
 	  WHERE a.run_id=r.id AND a.observation->>'kind'='poc') pc ON true
 	 LEFT JOIN LATERAL (SELECT count(*) FILTER(WHERE kind='port') open_port_count,count(*) FILTER(WHERE kind='http') http_count FROM (
 	  SELECT a.target_key,a.observation->>'kind' kind,CASE WHEN a.observation->>'kind'='port' THEN a.observation->>'port' ELSE a.observation->>'url' END result_key
-	  FROM assets a JOIN tasks t ON t.id=a.task_id AND t.attempt_no=a.attempt_no
+	  FROM assets a JOIN tasks t ON t.id=a.task_id AND COALESCE(t.accepted_attempt_no,t.attempt_no)=a.attempt_no AND t.state='completed'
 	  WHERE a.run_id=r.id AND ((a.observation->>'kind'='port' AND COALESCE(a.observation->>'error','')='')
 	   OR (a.observation->>'kind'='http' AND COALESCE((a.observation->>'status_code')::int,0)>0))
 	  GROUP BY a.target_key,a.observation->>'kind',CASE WHEN a.observation->>'kind'='port' THEN a.observation->>'port' ELSE a.observation->>'url' END) grouped_results) rs ON true`
@@ -512,7 +538,7 @@ func (s *Server) listAssets(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	runID, query := r.URL.Query().Get("run_id"), strings.TrimSpace(r.URL.Query().Get("q"))
-	where := ` WHERE ($1='' OR run_id=$1) AND ($2='' OR observation::text ILIKE '%' || $2 || '%')`
+	where := ` WHERE EXISTS(SELECT 1 FROM tasks t WHERE t.id=assets.task_id AND t.state='completed' AND COALESCE(t.accepted_attempt_no,t.attempt_no)=assets.attempt_no) AND ($1='' OR run_id=$1) AND ($2='' OR observation::text ILIKE '%' || $2 || '%')`
 	var total int64
 	if err := s.db.QueryRow(r.Context(), `SELECT count(*) FROM assets`+where, runID, query).Scan(&total); err != nil {
 		writeError(w, http.StatusInternalServerError, "load assets failed")

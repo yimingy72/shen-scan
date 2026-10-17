@@ -75,6 +75,8 @@ export interface Asset {
 }
 
 export interface Worker {
+  maintenance?: boolean
+  session_id?: string
   id: string
   instance_id: string
   hostname: string

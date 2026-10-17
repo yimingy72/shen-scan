@@ -17,9 +17,9 @@
 | 模块 | 当前能力 |
 |---|---|
 | 端口扫描 | IPv4 TCP **1–65535**，发现开放端口后继续执行服务指纹 |
-| HTTP 指纹 | HTTP / HTTPS 探测；HTTPx v1.12.0 + 完整 Wappalyzer app 被动识别，并保留 native 补充规则 |
+| HTTP 指纹 | 有界 HTTP / HTTPS 采集；httpx SDK + WappalyzerGo，常驻 fingers 补充 Fingers / FingerprintHub / EHole / favicon 被动规则 |
 | 规则数据 | Wapp 一键更新执行库；Nuclei 一键同步独立上游原库；执行规则支持编辑、启停、导入 / 导出 / 删除 |
-| PoC / Nuclei | 任务显式开启；区分发现检查与审核过的只读漏洞验证，保存命中 / 未命中 / 检测错误及逐请求证据 |
+| PoC / Nuclei | 任务显式开启；按指纹选择，区分命中 / 可证明未命中 / 证据不足 / 检测错误 |
 | 输入 | 手动输入或导入 TXT / CSV；支持 IPv4、CIDR、域名与 HTTP(S) URL |
 | 结果查看 | 按任务 → IP / 域名 → 开放端口 / HTTP 端点查看；提供搜索、筛选和分页 |
 | 报文证据 | 查看已采集的请求、响应、Banner 和异常；超过采集上限时标注截断 |
@@ -54,13 +54,14 @@ flowchart LR
 - **控制面**提供 API 和前端静态文件，保存任务、租约、结果和云资源状态。
 - **PostgreSQL**是唯一权威存储；当前没有 Redis 或独立消息队列依赖。
 - **Agent**负责认领、执行、续约、批量回传和停止；管理员令牌、引导令牌、Worker 会话令牌各自独立。
-- **HTTPx**使用任务冻结的已启用 Wappalyzer app 生成 CFF；Agent 过滤 HTTPx embedded 库中未启用产品，避免禁用规则重新出现。
+- **服务识别**由 Nmap 轻量探测已发现端口；HTTP/TLS-Web及未知候选单向进入Web确认，失败不派回Nmap。
+- **Web helper**使用 httpx 请求/标题 SDK 和 WappalyzerGo，通过有界传输层采集一次响应并交给常驻 fingers。任务保存 CFF、被动库和 profile 引用，重试核对相同内容；只承诺已支持规则的识别能力。具体接口及上游边界见 [Web helpers](deploy/WEB_HELPERS.md)。
 - **Nuclei**以受限独立进程运行。执行库同时支持旧版规范化规则和 `http-basic-v1` 原始 YAML 子集；原始模式保留注释、行尾和模板 ID 原文，只接受 GET / HEAD、最多 3 个静态同源请求，执行器会再次核对内容摘要与请求范围。官方全量 `nuclei-templates` 仍同步到独立“上游原库”供查看和导出，不会自动进入执行库。
 - **Masscan**以独立进程运行。仓库包含固定版本的接收修复补丁、构建脚本和许可证，发布包携带对应源码。
 
 ## 快速启动控制面
 
-需要：Go 1.25+、Node.js 22.12+、npm、Docker Compose。实际端口扫描的 Worker 需要 **Linux amd64**、Masscan 和原始套接字权限。
+需要：控制面/Agent使用Go 1.25+，Web helper使用Go 1.26+（支持自动工具链）；Node.js 22.12+、npm、Docker Compose。实际端口扫描的 Worker 需要 **Linux amd64**、Masscan、Nmap及其数据文件、两个Web helper和原始套接字权限。
 
 ```sh
 git clone https://github.com/yimingy72/shen-scan.git
@@ -106,6 +107,11 @@ sudo install -m 0755 bin/nuclei/nuclei /usr/local/bin/nuclei
 # 使用完整 Wapp 被动指纹时安装固定 HTTPx：
 deploy/httpx/download.sh
 sudo install -m 0755 bin/httpx/httpx /usr/local/bin/httpx
+# P0 单向服务/Web流水线：
+sudo apt-get install -y nmap
+deploy/build-web-helpers.sh
+sudo install -m 0755 bin/web-helpers/web-probe-worker /usr/local/bin/web-probe-worker
+sudo install -m 0755 bin/web-helpers/fingerprint-worker /usr/local/bin/fingerprint-worker
 ```
 
 为 Agent 设置以下环境变量，再以具备原始套接字权限的账号运行 `bin/scan-agent`：
@@ -158,18 +164,20 @@ AGENT_CA_FILE=/path/to/public-ca.crt
 | 项目 | 当前默认值 / 约束 |
 |---|---|
 | TCP 范围 | IPv4 TCP 1–65535 |
-| 端口发包预算 | 每 Worker 5000 PPS；运维可通过 `SCAN_PORT_RATE_PPS` 设置 1000–20000 |
+| 端口发包预算 | 每 Worker 5000 PPS；同目标全局默认5000 PPS，分别由 `SCAN_PORT_RATE_PPS` / `SCAN_TARGET_DISCOVERY_PPS` 设置 |
 | 端口分片 | 默认最多 4 IP；`SCAN_PORT_SHARD_MAX` 支持 1–16，并受执行时间预算约束 |
 | Masscan 并发 | 每 Worker 最多 1 个进程，预留端口任务槽 |
-| Agent 任务槽 | 默认 17 个：1 个端口槽 + 最多 16 个指纹任务槽 |
-| 全局端点并发 | 默认 16；单服务任务最多 8，单 HTTP 任务最多 2 |
-| HTTPx | 最多 2 个进程，每进程默认 8 线程；只执行冻结快照中启用的 Wapp app |
+| Agent 任务槽 | 配置上限17，按资源与阶段限制认领，不代表允许17个重工具同时满载 |
+| 服务识别 | 每Worker最多1个Nmap进程，同IP已发现端口小批次；不重扫全端口发现 |
+| Web | 每入口独立截止/封账，最多2个采集进程，常驻被动helper串行匹配；每入口最多8个请求 |
 | PoC 并发 / 超时 | 每 Worker 最多 1 个 PoC；原生 60 秒，Nuclei 90 秒；每规则最多 3 个请求 |
 | 收包等待 / 任务上限 | 15 秒 / 180 秒，任务上限包含结果回传和完成确认 |
 | 高开放率处理 | 保留全部原始端口；单 IP 下游指纹最多选择 1024 个端口 |
 | 结果缓冲 | 有界内存队列；Masscan 原始输出使用临时文件解耦回传，128 MiB 监测阈值 |
 
 PPS 是 Masscan 的发包预算，不能直接视为每秒有效 SYN 探针数。更高速率需要结合网络、捕获丢包、CPU、内存与结果入库能力验证。当前默认值仍保持 5000 PPS；20,000 PPS 等配置属于可调候选，不代表已经完成大规模公网容量验收。
+
+少量IP可以按端口区间跨Worker执行，但必须先取得启动预留、匹配实测profile且通过收益门槛。未校准时保守用整IP分片；不会仅因在线节点变多就提高单目标额度。未知旧执行占用的额度保持冻结，确认停发后释放；租约过期不等于网络已经停止。
 
 本次扫描提速工作保留在源码中；并发全开放问题已加入临时文件解耦修复，大批量新旧配置对照在开发者要求下停止，**尚未形成完整的吞吐验收结论**。不以局部测试替代全系统性能保证。
 
@@ -189,6 +197,8 @@ PPS 是 Masscan 的发包预算，不能直接视为每秒有效 SYN 探针数�
 ```text
 cmd/server/        控制面入口
 cmd/agent/         Worker Agent 入口
+cmd/web-probe-worker/ 有界采集 helper（独立Go module）
+cmd/fingerprint-worker/ 常驻被动指纹 helper（独立Go module）
 internal/control/  任务、租约、结果与 API
 internal/agent/    执行器、指纹、回传与停止
 internal/cloud/    云账号、网络准备、实例与回收事件
@@ -200,6 +210,8 @@ docs/              部署、调度、API 与使用说明
 ```
 
 ## 开发检查
+
+设计基线：[Worker执行架构与平台调度 V2](docs/SCAN_ARCHITECTURE_V2.md)（v0.5，保留任务制）；P0实现与必要验证记录见 [P0核心闭环](docs/P0_CORE.md)。
 
 实现说明：[原始 Nuclei YAML 兼容性适配方案](docs/NUCLEI_MIGRATION_PLAN.md)。
 

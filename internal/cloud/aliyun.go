@@ -104,6 +104,9 @@ func (c *controller) reconcileAliyun(ctx context.Context, pool control.Pool) err
 	}
 
 	var warnings []error
+	if err := c.reconcileQuotaStops(ctx, instances); err != nil {
+		warnings = append(warnings, err)
+	}
 	if err := c.reconcileCreateOperations(ctx, pool, instances); err != nil {
 		warnings = append(warnings, errors.New(shortError(err)))
 	}

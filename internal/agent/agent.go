@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"os/exec"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -61,34 +62,38 @@ type Config struct {
 	HTTPXBinary         string
 	HTTPXMaxProcesses   int
 	HTTPXThreads        int
+	NmapBinary          string
 	NucleiBinary        string
 	Logger              *slog.Logger
 }
 
 type Agent struct {
-	cfg                Config
-	client             *Client
-	policy             targetPolicy
-	log                *slog.Logger
-	portExecutor       string
-	endpointSlots      chan struct{}
-	httpxSlots         chan struct{}
-	httpTargetMu       sync.Mutex
-	httpTargetSlots    map[string]*targetSlots
-	resources          *resourceSampler
-	ruleSets           *ruleSetCache
-	ruleSetFlights     singleflight.Group
-	workerID           string
-	heartbeatEvery     time.Duration
-	draining           atomic.Bool
-	mu                 sync.Mutex
-	active             map[string]activeTask
-	lastTaskType       string
-	taskFinished       chan struct{}
-	terminationAt      *time.Time
-	nucleiOriginalOnce sync.Once
-	nucleiOriginalOK   bool
-	wg                 sync.WaitGroup
+	cfg                 Config
+	client              *Client
+	policy              targetPolicy
+	log                 *slog.Logger
+	portExecutor        string
+	endpointSlots       chan struct{}
+	httpxSlots          chan struct{}
+	httpTargetMu        sync.Mutex
+	httpTargetSlots     map[string]*targetSlots
+	resources           *resourceSampler
+	ruleSets            *ruleSetCache
+	ruleSetFlights      singleflight.Group
+	workerID            string
+	heartbeatEvery      time.Duration
+	draining            atomic.Bool
+	uploadQueuedBytes   atomic.Int64
+	portStartReserved   atomic.Bool
+	mu                  sync.Mutex
+	active              map[string]activeTask
+	lastTaskType        string
+	taskFinished        chan struct{}
+	terminationAt       *time.Time
+	nucleiOriginalOnce  sync.Once
+	nucleiOriginalOK    bool
+	nucleiEngineVersion string
+	wg                  sync.WaitGroup
 }
 
 func New(cfg Config) (*Agent, error) {
@@ -112,6 +117,9 @@ func New(cfg Config) (*Agent, error) {
 	}
 	if cfg.PortExecutor == "" {
 		cfg.PortExecutor = "masscan"
+	}
+	if cfg.NmapBinary == "" {
+		cfg.NmapBinary = "nmap"
 	}
 	if cfg.NucleiBinary == "" {
 		cfg.NucleiBinary = "nuclei"
@@ -151,6 +159,7 @@ func New(cfg Config) (*Agent, error) {
 	if err != nil {
 		return nil, err
 	}
+	client.nmapBinary = cfg.NmapBinary
 	return &Agent{
 		cfg: cfg, client: client, policy: newTargetPolicy(cfg.ControlURL, cfg.AllowPrivateTargets),
 		log: cfg.Logger, portExecutor: cfg.PortExecutor,
@@ -226,7 +235,15 @@ func (a *Agent) Run(ctx context.Context) error {
 }
 
 func (a *Agent) register(ctx context.Context) (RegisterResponse, error) {
-	req := RegisterRequest{InstanceID: a.cfg.InstanceID, Hostname: a.cfg.Hostname, AgentVersion: a.cfg.AgentVersion, SessionID: a.cfg.SessionID, AZ: a.cfg.AZ, Spec: a.cfg.Spec}
+	var spec map[string]any
+	_ = json.Unmarshal(a.cfg.Spec, &spec)
+	if spec == nil {
+		spec = make(map[string]any)
+	}
+	spec["capabilities"] = a.capabilities()
+	spec["stage_capacity"] = map[string]int{"port": 1, "service": 1, "http": a.cfg.HTTPXMaxProcesses, "poc": 1}
+	specJSON, _ := json.Marshal(spec)
+	req := RegisterRequest{InstanceID: a.cfg.InstanceID, Hostname: a.cfg.Hostname, AgentVersion: a.cfg.AgentVersion, SessionID: a.cfg.SessionID, AZ: a.cfg.AZ, Spec: specJSON}
 	for {
 		out, err := a.client.Register(ctx, req)
 		if err == nil {
@@ -242,12 +259,23 @@ func (a *Agent) register(ctx context.Context) (RegisterResponse, error) {
 }
 
 func (a *Agent) claim(ctx context.Context, types []string) (*Task, error) {
+	portReserved := false
+	for _, stage := range types {
+		if stage == "port" {
+			if a.activeStageCount("port") > 0 || !a.canAdmitWork() || !a.portStartReserved.CompareAndSwap(false, true) {
+				return nil, nil
+			}
+			portReserved = true
+			defer a.portStartReserved.Store(false)
+			break
+		}
+	}
 	requestID, err := RandomID()
 	if err != nil {
 		return nil, err
 	}
 	for {
-		task, err := a.client.Claim(ctx, a.workerID, a.cfg.SessionID, requestID, types, a.supportsNucleiOriginal())
+		task, err := a.client.Claim(ctx, a.workerID, a.cfg.SessionID, requestID, types, a.supportsNucleiOriginal(), portReserved)
 		if err == nil {
 			return task, nil
 		}
@@ -269,7 +297,28 @@ func (a *Agent) claimAvailable(ctx context.Context) (*Task, error) {
 	return nil, nil
 }
 
-func (a *Agent) claimOptions() [][]string {
+func (a *Agent) claimOptions() (options [][]string) {
+	defer func() {
+		if _, err := exec.LookPath(a.cfg.NmapBinary); err == nil {
+			return
+		}
+		filtered := make([][]string, 0, len(options))
+		for _, types := range options {
+			kept := make([]string, 0, len(types))
+			for _, stage := range types {
+				if stage != "service" {
+					kept = append(kept, stage)
+				}
+			}
+			if len(kept) > 0 {
+				filtered = append(filtered, kept)
+			}
+		}
+		options = filtered
+	}()
+	if !a.canAdmitWork() {
+		return nil
+	}
 	ports, fingerprints := a.activeTypeCounts()
 	if ports+fingerprints >= a.cfg.MaxTasks {
 		return nil
@@ -283,16 +332,23 @@ func (a *Agent) claimOptions() [][]string {
 		}
 		return [][]string{{"port"}, {"service", "http", "poc"}}
 	}
-	var options [][]string
-	if ports == 0 {
+	if ports == 0 && !a.portStartReserved.Load() {
 		options = append(options, []string{"port"})
 	}
 	if fingerprints < a.fingerprintTaskLimit() {
-		types := []string{"service", "http"}
-		if a.activePoCCount() == 0 {
+		var types []string
+		if a.activeStageCount("service") == 0 && a.estimatedConnections()+4 <= a.cfg.EndpointConcurrency {
+			types = append(types, "service")
+		}
+		if a.activeStageCount("http") < a.cfg.HTTPXMaxProcesses && a.estimatedConnections()+a.cfg.HTTPXThreads <= a.cfg.EndpointConcurrency {
+			types = append(types, "http")
+		}
+		if a.activePoCCount() == 0 && a.estimatedConnections()+4 <= a.cfg.EndpointConcurrency {
 			types = append(types, "poc")
 		}
-		options = append(options, types)
+		if len(types) > 0 {
+			options = append(options, types)
+		}
 	}
 	return options
 }
@@ -330,6 +386,10 @@ func (a *Agent) activeTypeCounts() (ports, fingerprints int) {
 }
 
 func (a *Agent) startTask(parent context.Context, task Task) {
+	if !a.canAdmitWork() {
+		a.releaseTask(task, &TaskError{Reason: "worker resource pressure before execution", Retryable: true})
+		return
+	}
 	ctx, cancel := context.WithCancelCause(parent)
 	a.mu.Lock()
 	if _, exists := a.active[task.ID]; exists {
@@ -490,10 +550,21 @@ func initialAuthorizationError(task Task, now time.Time) error {
 }
 
 func (a *Agent) executeAndReport(ctx context.Context, task Task) error {
+	ctx, stopExecutor := context.WithCancel(ctx)
+	executorStopped := make(chan struct{})
 	results := make(chan queuedObservation, maxQueuedResults)
 	resultBudget := semaphore.NewWeighted(maxQueuedResultBytes)
 	execDone := make(chan error, 1)
+	// Never report release while a cancelled executor can still send packets.
+	defer func(remaining <-chan queuedObservation) {
+		stopExecutor()
+		<-executorStopped
+		for queued := range remaining {
+			a.uploadQueuedBytes.Add(-int64(queued.encodedBytes))
+		}
+	}(results)
 	go func() {
+		defer close(executorStopped)
 		emit := func(obs Observation) error {
 			encoded, err := json.Marshal(obs)
 			if err != nil {
@@ -505,10 +576,12 @@ func (a *Agent) executeAndReport(ctx context.Context, task Task) error {
 			if err := resultBudget.Acquire(ctx, int64(len(encoded))); err != nil {
 				return context.Cause(ctx)
 			}
+			a.uploadQueuedBytes.Add(int64(len(encoded)))
 			select {
 			case results <- queuedObservation{observation: obs, encodedBytes: len(encoded)}:
 				return nil
 			case <-ctx.Done():
+				a.uploadQueuedBytes.Add(-int64(len(encoded)))
 				resultBudget.Release(int64(len(encoded)))
 				return context.Cause(ctx)
 			}
@@ -567,6 +640,7 @@ func (a *Agent) executeAndReport(ctx context.Context, task Task) error {
 				execErr = <-execDone
 				continue
 			}
+			a.uploadQueuedBytes.Add(-int64(queued.encodedBytes))
 			resultBudget.Release(int64(queued.encodedBytes))
 			delimiterBytes := 0
 			if len(batch) > 0 {
@@ -790,4 +864,45 @@ func RandomID() (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(b), nil
+}
+
+func (a *Agent) activeStageCount(stage string) int {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	count := 0
+	for _, task := range a.active {
+		if task.typeName == stage {
+			count++
+		}
+	}
+	return count
+}
+
+func (a *Agent) canAdmitWork() bool {
+	if a.draining.Load() || a.uploadQueuedBytes.Load() >= maxQueuedResultBytes/2 {
+		return false
+	}
+	metrics := a.resources.metrics()
+	if available, ok := metrics["mem_available_mib"].(float64); ok && available > 0 && available < 256 {
+		return false
+	}
+	if cpu, ok := metrics["cpu_percent"].(float64); ok && cpu >= 90 {
+		return false
+	}
+	return true
+}
+
+func (a *Agent) capabilities() map[string]bool {
+	_, nmapErr := exec.LookPath(a.cfg.NmapBinary)
+	_, masscanErr := exec.LookPath("masscan")
+	return map[string]bool{
+		"tcp_port_ranges": true, "nmap_service": nmapErr == nil,
+		"masscan":      a.portExecutor == "masscan" && masscanErr == nil,
+		"connect_test": a.portExecutor == "connect", "execution_stop_ack": true,
+	}
+}
+
+// Estimates are admission weights, not an assertion about exact wire connections.
+func (a *Agent) estimatedConnections() int {
+	return 4*a.activeStageCount("service") + a.cfg.HTTPXThreads*a.activeStageCount("http") + 4*a.activeStageCount("poc")
 }

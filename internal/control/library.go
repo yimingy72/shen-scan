@@ -78,6 +78,9 @@ type ruleExportPackage struct {
 }
 
 type ruleSnapshot struct {
+	ServiceProfile     string         `json:"service_profile,omitempty"`
+	FingerprintBundle  string         `json:"fingerprint_bundle,omitempty"`
+	WebProfile         string         `json:"web_profile,omitempty"`
 	HTTP               []rulelib.Rule `json:"http"`
 	Port               []rulelib.Rule `json:"port"`
 	POC                []rulelib.Rule `json:"poc"`

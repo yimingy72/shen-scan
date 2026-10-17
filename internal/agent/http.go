@@ -31,10 +31,11 @@ const (
 var titlePattern = regexp.MustCompile(`(?is)<title[^>]*>(.*?)</title>`)
 
 type httpPayload struct {
-	Endpoints      []Endpoint     `json:"endpoints"`
-	TimeoutSeconds int            `json:"timeout_seconds"`
-	Rules          []rulelib.Rule `json:"rules"`
-	RulesRef       string         `json:"rules_ref,omitempty"`
+	Endpoints         []Endpoint     `json:"endpoints"`
+	TimeoutSeconds    int            `json:"timeout_seconds"`
+	Rules             []rulelib.Rule `json:"rules"`
+	RulesRef          string         `json:"rules_ref,omitempty"`
+	FingerprintBundle string         `json:"fingerprint_bundle,omitempty"`
 }
 
 type targetSlots struct {
@@ -55,6 +56,12 @@ func (a *Agent) runHTTP(ctx context.Context, task Task, emit func(Observation) e
 		return err
 	}
 	payload.Rules = rules
+	if binary, ok := webProbeBinary(); ok {
+		return a.runWebProbe(ctx, payload, binary, emit)
+	}
+	if payload.FingerprintBundle != "" {
+		return &TaskError{Reason: "this task requires web-probe-worker and its assigned fingerprint bundle", Retryable: false}
+	}
 	timeout := minDuration(boundedTimeout(payload.TimeoutSeconds, 12*time.Second), 12*time.Second)
 	if hasEnabledHTTPXCFF(payload.Rules) {
 		cff, ok := a.ruleSets.cff(payload.RulesRef)
@@ -210,7 +217,7 @@ func (a *Agent) fetchHTTP(ctx context.Context, ep Endpoint, timeout time.Duratio
 
 func (a *Agent) fetchHTTPOnce(ctx context.Context, ep Endpoint, timeout time.Duration) Observation {
 	targetURL, err := endpointURL(ep)
-	obs := Observation{Kind: "http", Target: endpointTarget(ep)}
+	obs := Observation{Kind: "http", WorkKey: ep.WorkKey, Target: endpointTarget(ep)}
 	if err != nil {
 		obs.Error = err.Error()
 		return obs

@@ -8,10 +8,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -23,6 +26,10 @@ const (
 	maxNucleiLine          = 1 << 20
 	maxNucleiSavedResponse = 192 << 10
 )
+
+var nucleiVersionPattern = regexp.MustCompile(`Nuclei Engine Version:\s*v?([0-9]+\.[0-9]+\.[0-9]+)`)
+
+const nucleiSingleResponseProfile = "nuclei-3.11.1-single-http-response-v1"
 
 func (a *Agent) supportsNucleiOriginal() bool {
 	a.nucleiOriginalOnce.Do(func() {
@@ -43,6 +50,12 @@ func (a *Agent) supportsNucleiOriginal() bool {
 			}
 		}
 		a.nucleiOriginalOK = true
+		versionOutput, err := exec.CommandContext(ctx, binary, "-version").CombinedOutput()
+		if err == nil {
+			if match := nucleiVersionPattern.FindStringSubmatch(string(versionOutput)); len(match) == 2 {
+				a.nucleiEngineVersion = match[1]
+			}
+		}
 	})
 	return a.nucleiOriginalOK
 }
@@ -118,6 +131,16 @@ func (a *Agent) runNucleiPoC(ctx context.Context, ep Endpoint, baseURL *url.URL,
 	if err != nil {
 		return pocError(obs, "resolve nuclei executable: "+err.Error())
 	}
+	_ = a.supportsNucleiOriginal()
+	obs.EngineVersion = a.nucleiEngineVersion
+	// The checked CLI profile proves a negative only for a single planned
+	// request. Multi-request plans still run within their existing scope, but
+	// a lone negative event does not prove the other requests were evaluated.
+	if obs.EngineVersion == "3.11.1" && len(scopeRequests) == 1 {
+		obs.EvidenceProfile = nucleiSingleResponseProfile
+	}
+	digest := sha256.Sum256(templateBytes)
+	obs.ContentSHA256 = fmt.Sprintf("%x", digest[:])
 	workDir, err := os.MkdirTemp("", "scanplatform-nuclei-")
 	if err != nil {
 		return pocError(obs, "create nuclei workspace: "+err.Error())
@@ -229,6 +252,7 @@ func nucleiOutcome(obs Observation, rule rulelib.Rule, expectedTemplateID string
 	scanner := bufio.NewScanner(bytes.NewReader(output))
 	scanner.Buffer(make([]byte, 64<<10), maxNucleiLine)
 	matched, events, truncated := false, 0, false
+	completeResponses := true
 	var requests, responses bytes.Buffer
 	var jsonEvidence bytes.Buffer
 	for scanner.Scan() {
@@ -252,6 +276,7 @@ func nucleiOutcome(obs Observation, rule rulelib.Rule, expectedTemplateID string
 		if !proxy.ResultAllowed(event.MatchedAt, event.Request) {
 			return nucleiError(obs, fmt.Sprintf("nuclei returned out-of-scope result matched-at=%q host=%q path=%q", event.MatchedAt, event.Host, event.Path), proxy)
 		}
+		completeResponses = completeResponses && completeNucleiResponse(event, proxy)
 		events++
 		if *event.MatcherStatus {
 			matched = true
@@ -287,6 +312,13 @@ func nucleiOutcome(obs Observation, rule rulelib.Rule, expectedTemplateID string
 		obs.FindingStatus = "matched"
 		obs.Evidence = "nuclei matcher status matched"
 	} else {
+		obs.CanProveNoMatch = obs.EvidenceProfile == nucleiSingleResponseProfile &&
+			obs.EngineVersion == "3.11.1" && obs.ContentSHA256 != "" && completeResponses
+		if !obs.CanProveNoMatch {
+			obs.FindingStatus = "incomplete"
+			obs.Evidence = "nuclei returned no match, but this execution does not prove complete matcher coverage"
+			return obs
+		}
 		obs.FindingStatus = "not_matched"
 		obs.Evidence = "nuclei completed the scoped read-only request; matchers did not match"
 	}
@@ -294,6 +326,27 @@ func nucleiOutcome(obs Observation, rule rulelib.Rule, expectedTemplateID string
 		obs.Evidence += "; JSONL: " + jsonEvidence.String()
 	}
 	return obs
+}
+
+// A CONNECT count or a matcher-status field by itself is not response evidence.
+// The single-request profile requires a scoped raw request and a complete raw
+// HTTP response, including its declared body when present.
+func completeNucleiResponse(event nucleiEvent, proxy *scopeProxy) bool {
+	if event.Request == "" || event.Response == "" || !proxy.ResultAllowed("", event.Request) {
+		return false
+	}
+	request, err := http.ReadRequest(bufio.NewReader(strings.NewReader(event.Request)))
+	if err != nil {
+		return false
+	}
+	defer request.Body.Close()
+	response, err := http.ReadResponse(bufio.NewReader(strings.NewReader(event.Response)), request)
+	if err != nil {
+		return false
+	}
+	defer response.Body.Close()
+	body, err := io.ReadAll(io.LimitReader(response.Body, maxNucleiSavedResponse+1))
+	return err == nil && len(body) <= maxNucleiSavedResponse && response.StatusCode >= 100
 }
 
 func hasNegativeBodyMatcher(rule rulelib.Rule) bool {

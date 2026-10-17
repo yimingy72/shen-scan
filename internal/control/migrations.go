@@ -36,6 +36,7 @@ ALTER TABLE runs ADD COLUMN IF NOT EXISTS last_claim_at timestamptz NOT NULL DEF
 ALTER TABLE runs ADD COLUMN IF NOT EXISTS last_claim_target_key text NOT NULL DEFAULT '';
 CREATE INDEX IF NOT EXISTS runs_active_claim_idx ON runs(last_claim_at,created_at,id) WHERE status IN ('pending','running');
 ALTER TABLE workers ADD COLUMN IF NOT EXISTS metrics jsonb NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE workers ADD COLUMN IF NOT EXISTS maintenance boolean NOT NULL DEFAULT false;
 
 CREATE TABLE IF NOT EXISTS worker_pool (
   singleton boolean PRIMARY KEY DEFAULT true CHECK (singleton),
@@ -91,6 +92,65 @@ CREATE INDEX IF NOT EXISTS tasks_claim_idx ON tasks (type, created_at)
 CREATE INDEX IF NOT EXISTS tasks_run_idx ON tasks (run_id);
 ALTER TABLE tasks ADD COLUMN IF NOT EXISTS target_key text NOT NULL DEFAULT '';
 ALTER TABLE tasks ADD COLUMN IF NOT EXISTS execution_failures integer NOT NULL DEFAULT 0;
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS first_started_at timestamptz;
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS accepted_attempt_no integer;
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS completion_id text;
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS outcome text NOT NULL DEFAULT '';
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS coverage text NOT NULL DEFAULT 'unconfirmed';
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS reserved_until timestamptz;
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS completion_scope_sha256 text;
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS completion_manifest jsonb;
+CREATE TABLE IF NOT EXISTS task_item_completions (
+ task_id text NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+ work_key text NOT NULL,
+ accepted_attempt_no integer NOT NULL,
+ completion_id text NOT NULL UNIQUE,
+ outcome text NOT NULL,
+ coverage text NOT NULL,
+ observation_id text NOT NULL,
+ PRIMARY KEY(task_id,work_key)
+);
+UPDATE tasks SET accepted_attempt_no=attempt_no,completion_id=id||':'||attempt_no::text,
+ coverage='complete' WHERE state='completed' AND accepted_attempt_no IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS tasks_completion_id_idx ON tasks(completion_id) WHERE completion_id IS NOT NULL;
+CREATE TABLE IF NOT EXISTS port_range_manifest (
+ run_id text NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
+ target_key text NOT NULL,
+ port_start integer NOT NULL CHECK(port_start BETWEEN 1 AND 65535),
+ port_end integer NOT NULL CHECK(port_end BETWEEN port_start AND 65535),
+ task_id text NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+ PRIMARY KEY(run_id,target_key,port_start),
+ UNIQUE(task_id,target_key)
+);
+CREATE TABLE IF NOT EXISTS target_quotas (
+ epoch text PRIMARY KEY,
+ task_id text NOT NULL,
+ attempt_no integer NOT NULL,
+ worker_id text NOT NULL REFERENCES workers(id),
+ instance_id text NOT NULL,
+ session_id text NOT NULL,
+ scope text NOT NULL,
+ dimension text NOT NULL,
+ amount integer NOT NULL CHECK(amount>0),
+ enforcement_class text NOT NULL DEFAULT 'cooperative',
+ state text NOT NULL CHECK(state IN('reserved','active','suspect','revoking','released')),
+ valid_until timestamptz NOT NULL,
+ suspect_since timestamptz,
+ revoke_deadline timestamptz,
+ stop_evidence text NOT NULL DEFAULT '',
+ released_at timestamptz,
+ UNIQUE(task_id,attempt_no,worker_id,session_id,scope,dimension)
+);
+ALTER TABLE target_quotas DROP CONSTRAINT IF EXISTS target_quotas_task_id_fkey;
+CREATE INDEX IF NOT EXISTS target_quotas_occupied_idx ON target_quotas(scope,dimension) WHERE state<>'released';
+CREATE INDEX IF NOT EXISTS target_quotas_worker_idx ON target_quotas(worker_id,session_id,state);
+CREATE TABLE IF NOT EXISTS port_start_tickets (
+ worker_id text NOT NULL REFERENCES workers(id),session_id text NOT NULL,request_id text NOT NULL,
+ root_task_id text NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+ task_id text REFERENCES tasks(id) ON DELETE CASCADE,
+ profile text NOT NULL, collect_until timestamptz NOT NULL, expires_at timestamptz NOT NULL,
+ PRIMARY KEY(worker_id,session_id,request_id)
+);
 CREATE INDEX IF NOT EXISTS tasks_run_target_idx ON tasks (run_id,target_key);
 CREATE INDEX IF NOT EXISTS tasks_ready_target_idx ON tasks(run_id,target_key,created_at,id) WHERE state IN ('queued','leased');
 CREATE INDEX IF NOT EXISTS tasks_worker_target_active_idx ON tasks(worker_id,session_id,target_key,type,lease_until) WHERE state='leased';

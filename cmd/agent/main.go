@@ -34,6 +34,7 @@ func main() {
 		HTTPXBinary:       env("HTTPX_BINARY", "httpx"),
 		HTTPXMaxProcesses: envInt("HTTPX_MAX_PROCESSES", 2),
 		HTTPXThreads:      envInt("HTTPX_THREADS", 8),
+		NmapBinary:        env("NMAP_BINARY", "nmap"),
 		NucleiBinary:      env("NUCLEI_BINARY", "nuclei"),
 	}
 	worker, err := agent.New(cfg)

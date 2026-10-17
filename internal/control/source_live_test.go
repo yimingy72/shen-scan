@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"scanplatform/internal/webevidence"
 	"testing"
 	"time"
 
@@ -53,7 +54,7 @@ func TestLiveRuleSourcesAndClaimCapacity(t *testing.T) {
 	callAPI(t, handler, http.MethodPost, "/api/runs", "admin-policy", map[string]any{
 		"name": "claim capacity", "targets": []string{"https://capacity.example"}, "modes": []string{"http"}, "poc_enabled": true,
 	}, http.StatusCreated, &run)
-	claimBody := map[string]any{"worker_id": worker.WorkerID, "session_id": "capacity-session", "request_id": "capacity-claim", "types": []string{"http"}, "supports_httpx_cff": true}
+	claimBody := map[string]any{"worker_id": worker.WorkerID, "session_id": "capacity-session", "service_profile": "nmap-light-v1", "web_evidence_profile": webevidence.Profile, "fingerprint_bundle": webevidence.FingerprintBundle, "supports_confirmed_stop": true, "request_id": "capacity-claim", "types": []string{"http"}, "supports_httpx_cff": true}
 	uncompressed := recordAPI(handler, http.MethodPost, "/api/tasks/claim", worker.WorkerToken, claimBody)
 	if uncompressed.Code != http.StatusOK || uncompressed.Body.Len() >= 4<<20 {
 		t.Fatalf("uncompressed claim status/bytes=%d/%d", uncompressed.Code, uncompressed.Body.Len())
@@ -84,7 +85,7 @@ func TestLiveRuleSourcesAndClaimCapacity(t *testing.T) {
 	callAPI(t, handler, http.MethodPost, "/api/runs", "admin-policy", map[string]any{
 		"name": "claim reference capacity", "targets": []string{"https://capacity-ref.example"}, "modes": []string{"http"}, "poc_enabled": true,
 	}, http.StatusCreated, &refRun)
-	refBody := map[string]any{"worker_id": worker.WorkerID, "session_id": "capacity-session", "request_id": "capacity-ref-claim", "types": []string{"http"}, "use_rule_sets": true, "supports_httpx_cff": true}
+	refBody := map[string]any{"worker_id": worker.WorkerID, "session_id": "capacity-session", "service_profile": "nmap-light-v1", "web_evidence_profile": webevidence.Profile, "fingerprint_bundle": webevidence.FingerprintBundle, "supports_confirmed_stop": true, "request_id": "capacity-ref-claim", "types": []string{"http"}, "use_rule_sets": true, "supports_httpx_cff": true}
 	reference := recordAPI(handler, http.MethodPost, "/api/tasks/claim", worker.WorkerToken, refBody)
 	if reference.Code != http.StatusOK || reference.Body.Len() >= 2048 {
 		t.Fatalf("reference claim status/bytes=%d/%d", reference.Code, reference.Body.Len())

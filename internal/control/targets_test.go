@@ -10,12 +10,48 @@ func TestDomainProducesOnlyHTTPTask(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(seeds) != 1 || seeds[0].typeName != "http" {
-		t.Fatalf("expected one HTTP task, got %#v", seeds)
+	if len(seeds) != 2 {
+		t.Fatalf("expected independent HTTP and HTTPS tasks, got %#v", seeds)
 	}
-	payload, _ := json.Marshal(seeds[0].payload)
-	if string(payload) != `{"endpoints":[{"host":"example.com","url":"http://example.com"},{"host":"example.com","url":"https://example.com"}],"execution_timeout_seconds":180,"timeout_seconds":12}` {
-		t.Fatalf("unexpected payload: %s", payload)
+	for i, scheme := range []string{"http", "https"} {
+		payload, _ := json.Marshal(seeds[i].payload)
+		var p struct {
+			Endpoints         []taskEndpoint
+			FingerprintBundle string `json:"fingerprint_bundle"`
+			WebProfile        string `json:"web_profile"`
+		}
+		if seeds[i].typeName != "http" || json.Unmarshal(payload, &p) != nil || len(p.Endpoints) != 1 || p.Endpoints[0].Host != "example.com" || p.Endpoints[0].URL != scheme+"://example.com" || p.FingerprintBundle == "" || p.WebProfile == "" {
+			t.Fatalf("unexpected entry: %s", payload)
+		}
+	}
+}
+
+func TestP0WebInputSchemes(t *testing.T) {
+	for _, target := range []string{"192.0.2.1", "2001:db8::1"} {
+		seeds, err := buildTaskSeeds([]string{target}, []string{"http"}, false)
+		if err != nil || len(seeds) != 2 {
+			t.Fatalf("%s: seeds=%v error=%v", target, seeds, err)
+		}
+		host := target
+		if target == "2001:db8::1" {
+			host = "[" + target + "]"
+		}
+		for i, scheme := range []string{"http", "https"} {
+			endpoints := seeds[i].payload.(map[string]any)["endpoints"].([]map[string]any)
+			if len(endpoints) != 1 || endpoints[0]["url"] != scheme+"://"+host || endpoints[0]["ip"] != target {
+				t.Fatalf("%s: unexpected endpoint %v", target, endpoints)
+			}
+		}
+	}
+	for _, target := range []string{"http://example.com/only-http?q=1", "https://example.com/only-https?q=2"} {
+		seeds, err := buildTaskSeeds([]string{target}, []string{"http"}, false)
+		if err != nil || len(seeds) != 1 {
+			t.Fatalf("explicit URL %s: seeds=%v error=%v", target, seeds, err)
+		}
+		endpoints := seeds[0].payload.(map[string]any)["endpoints"].([]map[string]any)
+		if len(endpoints) != 1 || endpoints[0]["url"] != target {
+			t.Fatalf("explicit URL changed: %v", endpoints)
+		}
 	}
 }
 

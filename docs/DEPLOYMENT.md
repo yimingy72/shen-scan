@@ -51,9 +51,18 @@ SCAN_AGENT_PACKAGE_SHA256=填写真实的64位SHA256
 4. 发布生成的 `bin/release/scan-agent-linux-amd64.tar.gz`，将输出 SHA-256 填入配置。
 5. 同时发布 `bin/masscan/masscan-source-1.3.2-scan-platform.tar.gz`，保留对应许可证。
 
-发布包包含 Agent、Masscan、Nuclei、HTTPx、公开 CA，以及第三方许可证和 Masscan 对应源码。cloud-init 下载并校验固定包，安装必要依赖并启动 Agent。包不应包含 AK/SK 或管理员令牌；Worker 只获得注册所需的引导配置。
+发布包包含 Agent、Masscan、Nuclei、HTTPx、web-probe-worker、fingerprint-worker、公开 CA，以及第三方声明和 Masscan 对应源码。bootstrap 安装系统 Nmap 与 probes 数据；两个 helper 使用独立 Go module 构建。cloud-init 下载并校验固定包，安装必要依赖并启动 Agent。包不应包含 AK/SK 或管理员令牌；Worker 只获得注册所需的引导配置。
 
-更新 Agent 包地址和哈希主要影响后续新建实例；当前版本没有完整的自动滚动升级流程。应在空闲或维护窗口排空旧节点后替换，避免直接杀掉仍在回传结果的进程。
+更新 Agent 包地址和哈希影响后续新建实例。现有节点通过维护状态分批升级：
+
+1. 先上传并校验新包、预装工具依赖，再为目标 Worker 开启维护；维护只阻止新认领，不更改节点池状态或缩容。
+2. 等维护接口返回 `active_tasks=0` 后停止 Agent，确认服务及其进程组退出，备份并替换文件。
+3. 重启 Agent，验证新版本、session、工具能力及心跳；用当前 `session_id` 关闭维护后继续下一批。建议先1台，再每批2台。
+4. 保留包与旧二进制用于回滚。不能用停止节点池或 `draining` 充当升级维护，前者会释放实例。
+
+从旧控制面迁移P0时，先阻止旧Worker认领并等已有执行自然结束；停旧服务后再次确认 `leased=0`，再启动新版迁移。新控制面只给声明 `supports_confirmed_stop` 的Agent新增执行，旧Agent仍可心跳和处理合法历史回放。不要把缺失停发确认解释为已经停止。
+
+维护接口：`POST /api/workers/{id}/maintenance`，请求 `{"enabled":true,"expected_session_id":"当前session"}`；关闭维护必须带当前session。响应包含 `maintenance` 和保守的 `active_tasks`。Worker页面提供维护/恢复调度按钮。自动滚动编排仍由发布流程完成，不会因为上传包就自动重启所有节点。
 
 ## 调整扫描策略
 

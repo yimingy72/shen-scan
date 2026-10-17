@@ -11,7 +11,9 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"strings"
+	"sync"
 	"time"
 
 	"scanplatform/internal/rulelib"
@@ -23,11 +25,17 @@ const (
 )
 
 type Client struct {
-	baseURL     string
-	joinToken   string
-	workerToken string
-	control     *http.Client
-	upload      *http.Client
+	serviceCapabilityOnce sync.Once
+	nmapBinary            string
+	serviceProfile        string
+	webCapabilityOnce     sync.Once
+	webEvidenceProfile    string
+	fingerprintBundle     string
+	baseURL               string
+	joinToken             string
+	workerToken           string
+	control               *http.Client
+	upload                *http.Client
 }
 
 func NewClient(baseURL, joinToken, caFile string) (*Client, error) {
@@ -76,14 +84,34 @@ func (c *Client) Heartbeat(ctx context.Context, in HeartbeatRequest) (HeartbeatR
 	return out, err
 }
 
-func (c *Client) Claim(ctx context.Context, workerID, sessionID, requestID string, types []string, supportsNucleiOriginal bool) (*Task, error) {
+func (c *Client) Claim(ctx context.Context, workerID, sessionID, requestID string, types []string, supportsNucleiOriginal bool, portStartReserved ...bool) (*Task, error) {
 	var out struct {
 		Task *Task `json:"task"`
 	}
+	reserved := len(portStartReserved) > 0 && portStartReserved[0]
+	c.serviceCapabilityOnce.Do(func() {
+		binary := c.nmapBinary
+		if binary == "" {
+			binary = "nmap"
+		}
+		probeCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+		defer cancel()
+		cmd := exec.CommandContext(probeCtx, binary, "--version")
+		setProcessGroup(cmd)
+		output, err := cmd.CombinedOutput()
+		if err == nil && strings.Contains(string(output), "Nmap version ") {
+			c.serviceProfile = "nmap-light-v1"
+		}
+	})
+	c.webCapabilityOnce.Do(func() { c.webEvidenceProfile, c.fingerprintBundle = discoverWebCapabilities() })
 	sentAt, err := c.do(ctx, c.control, http.MethodPost, "/api/tasks/claim", c.workerToken, map[string]any{
 		"worker_id": workerID, "session_id": sessionID, "request_id": requestID,
 		"types": types, "use_rule_sets": true, "supports_httpx_cff": true,
 		"supports_nuclei_http_original": supportsNucleiOriginal,
+		"supports_confirmed_stop":       true,
+		"service_profile":               c.serviceProfile,
+		"supports_port_ranges":          true, "port_start_reserved": reserved,
+		"web_evidence_profile": c.webEvidenceProfile, "fingerprint_bundle": c.fingerprintBundle,
 	}, &out)
 	if out.Task != nil {
 		out.Task.requestSentAt = sentAt
@@ -152,6 +180,7 @@ func (c *Client) Release(ctx context.Context, workerID, sessionID string, task T
 	_, err := c.do(ctx, c.upload, http.MethodPost, "/api/tasks/"+url.PathEscape(task.ID)+"/release", c.workerToken, map[string]any{
 		"worker_id": workerID, "session_id": sessionID, "attempt_no": task.AttemptNo,
 		"reason": reason, "retryable": retryable, "failure_class": failureClass,
+		"stopped": true,
 	}, &out)
 	if err == nil && !out.Released {
 		return fmt.Errorf("task was not released")

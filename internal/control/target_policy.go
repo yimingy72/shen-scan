@@ -12,15 +12,29 @@ const openFloodThreshold = 1024
 // Port evidence is never capped. Dense targets get a bounded, explicit
 // fingerprint policy so one wildcard SYN responder cannot fill every queue.
 func fingerprintPorts(ctx context.Context, tx pgx.Tx, runID, target string, ports []int) ([]int, error) {
-	var limit int
-	err := tx.QueryRow(ctx, `INSERT INTO run_target_policies(run_id,target_key,open_flood,open_port_count,fingerprint_limit)
- VALUES($1,$2,$3,$4,1024) ON CONFLICT(run_id,target_key) DO UPDATE SET open_flood=EXCLUDED.open_flood,
- open_port_count=EXCLUDED.open_port_count,updated_at=now() RETURNING fingerprint_limit`, runID, target, len(ports) > openFloodThreshold, len(ports)).Scan(&limit)
+	// Port shards share one target policy. Count accepted prior shards plus the
+	// completing shard, and spend only the remaining downstream allowance.
+	var priorPorts, alreadySelected, limit int
+	err := tx.QueryRow(ctx, `SELECT count(DISTINCT (a.observation->>'port')::int) FROM assets a JOIN tasks t ON t.id=a.task_id
+        WHERE a.run_id=$1 AND a.target_key=$2 AND a.observation->>'kind'='port' AND t.state='completed'
+        AND a.attempt_no=COALESCE(t.accepted_attempt_no,t.attempt_no)`, runID, target).Scan(&priorPorts)
 	if err != nil {
 		return nil, err
 	}
-	selected := sampleFingerprintPorts(ports, max(1, min(limit, 65535)))
-	_, err = tx.Exec(ctx, `UPDATE run_target_policies SET fingerprint_count=$3 WHERE run_id=$1 AND target_key=$2`, runID, target, len(selected))
+	err = tx.QueryRow(ctx, `INSERT INTO run_target_policies(run_id,target_key,open_flood,open_port_count,fingerprint_limit)
+        VALUES($1,$2,$3,$4,1024) ON CONFLICT(run_id,target_key) DO UPDATE SET
+        open_flood=run_target_policies.open_flood OR EXCLUDED.open_flood,
+        open_port_count=GREATEST(run_target_policies.open_port_count,EXCLUDED.open_port_count),updated_at=now()
+        RETURNING fingerprint_limit,fingerprint_count`, runID, target, priorPorts+len(ports) > openFloodThreshold, priorPorts+len(ports)).Scan(&limit, &alreadySelected)
+	if err != nil {
+		return nil, err
+	}
+	remaining := max(0, limit-alreadySelected)
+	selected := []int{}
+	if remaining > 0 {
+		selected = sampleFingerprintPorts(ports, remaining)
+	}
+	_, err = tx.Exec(ctx, `UPDATE run_target_policies SET fingerprint_count=fingerprint_count+$3 WHERE run_id=$1 AND target_key=$2`, runID, target, len(selected))
 	return selected, err
 }
 

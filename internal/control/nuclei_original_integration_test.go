@@ -44,7 +44,7 @@ func TestOriginalNucleiCapabilityClaim(t *testing.T) {
 	handler := server.Handler()
 	var run Run
 	callAPI(t, handler, http.MethodPost, "/api/runs", "admin-original", map[string]any{
-		"name": "original capability", "targets": []string{"127.0.0.1"}, "modes": []string{"http"}, "poc_enabled": true,
+		"name": "original capability", "targets": []string{"192.0.2.21"}, "modes": []string{"http"}, "poc_enabled": true,
 	}, http.StatusCreated, &run)
 
 	template := "id: fixture-original\ninfo:\n  name: Fixture original\n  author: shen\n  severity: info\n  metadata:\n    product: FixtureApp\nhttp:\n  - method: GET\n    path: [\"{{BaseURL}}/health\"]\n    matchers:\n      - type: status\n        status: [200]\n"
@@ -70,7 +70,7 @@ func TestOriginalNucleiCapabilityClaim(t *testing.T) {
 	}, http.StatusOK, nil)
 	var snapshotRun Run
 	callAPI(t, handler, http.MethodPost, "/api/runs", "admin-original", map[string]any{
-		"name": "original snapshot", "targets": []string{"127.0.0.1"}, "modes": []string{"http"}, "poc_enabled": true,
+		"name": "original snapshot", "targets": []string{"192.0.2.21"}, "modes": []string{"http"}, "poc_enabled": true,
 	}, http.StatusCreated, &snapshotRun)
 	var snapshotRaw []byte
 	if err = server.db.QueryRow(ctx, `SELECT rules_snapshot FROM runs WHERE id=$1`, snapshotRun.ID).Scan(&snapshotRaw); err != nil {
@@ -93,7 +93,7 @@ func TestOriginalNucleiCapabilityClaim(t *testing.T) {
 		t.Fatal(err)
 	}
 	payload, _ := json.Marshal(map[string]any{
-		"endpoint": map[string]any{"ip": "127.0.0.1", "port": 8080, "url": "http://127.0.0.1:8080/app"},
+		"endpoint": map[string]any{"ip": "192.0.2.21", "port": 8080, "url": "http://192.0.2.21:8080/app"},
 		"rules":    []rulelib.Rule{rule}, "execution_timeout_seconds": 90,
 	})
 	var targetKey string
@@ -118,7 +118,7 @@ func TestOriginalNucleiCapabilityClaim(t *testing.T) {
 		Task *Task `json:"task"`
 	}
 	callAPI(t, handler, http.MethodPost, "/api/tasks/claim", worker.WorkerToken, map[string]any{
-		"worker_id": worker.WorkerID, "session_id": "original-session", "request_id": "old-agent", "types": []string{"poc"},
+		"worker_id": worker.WorkerID, "session_id": "original-session", "supports_confirmed_stop": true, "request_id": "old-agent", "types": []string{"poc"},
 	}, http.StatusOK, &oldClaim)
 	if oldClaim.Task != nil {
 		t.Fatal("agent without original YAML capability claimed the new-format task")
@@ -127,7 +127,7 @@ func TestOriginalNucleiCapabilityClaim(t *testing.T) {
 		Task *Task `json:"task"`
 	}
 	callAPI(t, handler, http.MethodPost, "/api/tasks/claim", worker.WorkerToken, map[string]any{
-		"worker_id": worker.WorkerID, "session_id": "original-session", "request_id": "new-agent", "types": []string{"poc"},
+		"worker_id": worker.WorkerID, "session_id": "original-session", "supports_confirmed_stop": true, "request_id": "new-agent", "types": []string{"poc"},
 		"supports_nuclei_http_original": true,
 	}, http.StatusOK, &newClaim)
 	if newClaim.Task == nil {

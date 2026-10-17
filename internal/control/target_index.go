@@ -116,6 +116,32 @@ func observationTarget(typeName string, payload []byte, source string, item *Obs
 		if item.Target != "" && !contains(keys, canonicalTarget(item.Target)) {
 			return "", errors.New("HTTP observation belongs to a different source target")
 		}
+		var p struct {
+			Endpoints []taskEndpoint `json:"endpoints"`
+		}
+		if json.Unmarshal(payload, &p) != nil {
+			return "", errors.New("invalid HTTP task payload")
+		}
+		if item.URL != "" {
+			inside := false
+			for _, ep := range p.Endpoints {
+				if _, ok := observedEndpoint(ep, item.URL); ok {
+					if item.WorkKey != "" && ep.WorkKey != "" && item.WorkKey != ep.WorkKey {
+						return "", errors.New("HTTP work binding does not match assigned entry")
+					}
+					if ep.WorkKey != "" {
+						item.WorkKey = ep.WorkKey
+					}
+					inside = true
+					break
+				}
+			}
+			if !inside {
+				return "", errors.New("HTTP observation URL is outside assigned entry")
+			}
+		} else if item.Error == "" {
+			return "", errors.New("HTTP observation must include URL or an explicit error")
+		}
 		return source, nil
 	}
 	value := item.IP
@@ -129,11 +155,24 @@ func observationTarget(typeName string, payload []byte, source string, item *Obs
 	if item.Port < 1 || item.Port > 65535 {
 		return "", errors.New("observation port is outside TCP 1–65535")
 	}
+	if typeName == "port" {
+		var p struct {
+			Ports string `json:"ports"`
+		}
+		if json.Unmarshal(payload, &p) != nil {
+			return "", errors.New("invalid port range payload")
+		}
+		lo, hi, err := parsePortInterval(p.Ports)
+		if err != nil || item.Port < lo || item.Port > hi {
+			return "", errors.New("observation port is outside the assigned range")
+		}
+	}
 	if typeName == "service" {
 		var p struct {
 			Endpoints []struct {
-				IP   string
-				Port int
+				IP      string
+				Port    int
+				WorkKey string `json:"work_key"`
 			} `json:"endpoints"`
 		}
 		if json.Unmarshal(payload, &p) != nil {
@@ -142,6 +181,12 @@ func observationTarget(typeName string, payload []byte, source string, item *Obs
 		found := false
 		for _, ep := range p.Endpoints {
 			if canonicalTarget(ep.IP) == key && ep.Port == item.Port {
+				if item.WorkKey != "" && ep.WorkKey != "" && item.WorkKey != ep.WorkKey {
+					return "", errors.New("service work binding does not match assigned endpoint")
+				}
+				if ep.WorkKey != "" {
+					item.WorkKey = ep.WorkKey
+				}
 				found = true
 				break
 			}
@@ -173,8 +218,19 @@ func validatePOCObservation(payload []byte, item *Observation) error {
 	if item.Purpose == "verification" {
 		item.Verification = rule.Verification
 	}
-	if item.FindingStatus != "matched" && item.FindingStatus != "not_matched" && item.FindingStatus != "error" {
+	if item.FindingStatus != "matched" && item.FindingStatus != "not_matched" && item.FindingStatus != "error" && item.FindingStatus != "incomplete" && item.FindingStatus != "unknown" && item.FindingStatus != "skipped" {
 		return errors.New("PoC observation finding_status is invalid")
+	}
+	proofProfile := item.CanProveNoMatch && !item.Truncated && item.Error == "" && item.RequestRaw != "" && item.ResponseRaw != ""
+	if item.Engine == "native" {
+		proofProfile = proofProfile && item.EvidenceProfile == "native-http-matcher-v1" && len(item.Checks) == len(rule.Definition.Requests)
+	} else {
+		proofProfile = proofProfile && item.EngineVersion == "3.11.1" && item.EvidenceProfile == "nuclei-3.11.1-single-http-response-v1" && item.ContentSHA256 != ""
+	}
+	if item.FindingStatus == "not_matched" && !proofProfile {
+		item.FindingStatus = "incomplete"
+		item.Coverage = "partial"
+		item.Outcome = "incomplete"
 	}
 	base, err := endpointBaseURL(assignment.Endpoint)
 	if err != nil {

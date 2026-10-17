@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"scanplatform/internal/webevidence"
 	"strconv"
 	"strings"
 	"testing"
@@ -168,7 +169,7 @@ func TestRuleLibraryAndPOCClosure(t *testing.T) {
 	}, http.StatusOK, &worker)
 	claim := func(requestID string, types []string, output any) {
 		callAPI(t, handler, http.MethodPost, "/api/tasks/claim", worker.WorkerToken, map[string]any{
-			"worker_id": worker.WorkerID, "session_id": "session-library", "request_id": requestID, "types": types,
+			"worker_id": worker.WorkerID, "session_id": "session-library", "service_profile": "nmap-light-v1", "web_evidence_profile": webevidence.Profile, "fingerprint_bundle": webevidence.FingerprintBundle, "supports_confirmed_stop": true, "request_id": requestID, "types": types,
 		}, http.StatusOK, output)
 	}
 	var httpClaim struct {
@@ -193,7 +194,7 @@ func TestRuleLibraryAndPOCClosure(t *testing.T) {
 		Task *Task `json:"task"`
 	}
 	callAPI(t, handler, http.MethodPost, "/api/tasks/claim", worker.WorkerToken, map[string]any{
-		"worker_id": worker.WorkerID, "session_id": "session-library", "request_id": "http-ref", "types": []string{"http"}, "use_rule_sets": true,
+		"worker_id": worker.WorkerID, "session_id": "session-library", "service_profile": "nmap-light-v1", "web_evidence_profile": webevidence.Profile, "fingerprint_bundle": webevidence.FingerprintBundle, "supports_confirmed_stop": true, "request_id": "http-ref", "types": []string{"http"}, "use_rule_sets": true,
 	}, http.StatusOK, &refClaim)
 	var refPayload struct {
 		RulesRef string          `json:"rules_ref"`
@@ -217,8 +218,13 @@ func TestRuleLibraryAndPOCClosure(t *testing.T) {
 		{Kind: "http", Target: "https://example.com", URL: "https://example.com/", StatusCode: 200},
 		{Kind: "http", Target: "https://example.com", URL: "https://redirect.example.net/", StatusCode: 200},
 	}
+	// Cross-origin observations are rejected before storing any batch; only the
+	// assigned entry can contribute fingerprints or downstream PoC work.
 	callAPI(t, handler, http.MethodPost, "/api/tasks/"+httpClaim.Task.ID+"/batches", worker.WorkerToken, map[string]any{
 		"worker_id": worker.WorkerID, "session_id": "session-library", "attempt_no": httpClaim.Task.AttemptNo, "batch_seq": 0, "items": httpItems,
+	}, http.StatusUnprocessableEntity, nil)
+	callAPI(t, handler, http.MethodPost, "/api/tasks/"+httpClaim.Task.ID+"/batches", worker.WorkerToken, map[string]any{
+		"worker_id": worker.WorkerID, "session_id": "session-library", "attempt_no": httpClaim.Task.AttemptNo, "batch_seq": 0, "items": httpItems[:1],
 	}, http.StatusOK, nil)
 	callAPI(t, handler, http.MethodPost, "/api/tasks/"+httpClaim.Task.ID+"/complete", worker.WorkerToken, map[string]any{
 		"worker_id": worker.WorkerID, "session_id": "session-library", "attempt_no": httpClaim.Task.AttemptNo, "last_batch_seq": 0,

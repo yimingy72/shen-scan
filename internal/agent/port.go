@@ -48,10 +48,18 @@ func (a *Agent) runPort(ctx context.Context, task Task, emit func(Observation) e
 			return &TaskError{Reason: err.Error()}
 		}
 	}
+	if _, _, err := parseTCPPortRange(payload.Ports); err != nil {
+		return &TaskError{Reason: err.Error(), Retryable: false}
+	}
 	if a.portExecutor == "connect" {
 		return a.runConnectPorts(ctx, payload, emit)
 	}
+	first, last, _ := parseTCPPortRange(payload.Ports)
+	controlPort, _ := strconv.Atoi(a.policy.controlPort)
 	for _, target := range payload.Targets {
+		if controlPort < first || controlPort > last {
+			continue
+		}
 		if err := a.policy.validateEndpoint(ctx, target, a.policy.controlPort); err != nil {
 			return &TaskError{Reason: "full-port scan would include " + err.Error(), Retryable: false}
 		}
@@ -60,8 +68,9 @@ func (a *Agent) runPort(ctx context.Context, task Task, emit func(Observation) e
 }
 
 func (a *Agent) runMasscan(ctx context.Context, payload portPayload, emit func(Observation) error) error {
-	if payload.Ports != "1-65535" {
-		return &TaskError{Reason: "production port task must request ports 1-65535", Retryable: false}
+	first, last, err := parseTCPPortRange(payload.Ports)
+	if err != nil {
+		return &TaskError{Reason: err.Error(), Retryable: false}
 	}
 	rate := payload.RatePPS
 	if rate <= 0 {
@@ -84,7 +93,7 @@ func (a *Agent) runMasscan(ctx context.Context, payload portPayload, emit func(O
 	timeout := boundedTimeout(payload.TimeoutSeconds, 180*time.Second)
 	runCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	args := []string{"-p1-65535", "--rate", strconv.Itoa(rate), "--wait", strconv.Itoa(wait), "-oL", "-"}
+	args := []string{"-p" + payload.Ports, "--rate", strconv.Itoa(rate), "--wait", strconv.Itoa(wait), "-oL", "-"}
 	if a.cfg.MasscanInterface != "" {
 		args = append(args, "--adapter", a.cfg.MasscanInterface)
 	}
@@ -132,7 +141,16 @@ func (a *Agent) runMasscan(ctx context.Context, payload portPayload, emit func(O
 	go func() {
 		spoolDone <- watchMasscanSpool(runCtx, spoolPath, processDone, cancel)
 	}()
-	scanErr := scanMasscan(&followingFileReader{ctx: runCtx, file: spoolReader, processDone: processDone}, emit)
+	targets := make(map[string]bool, len(payload.Targets))
+	for _, target := range payload.Targets {
+		targets[target] = true
+	}
+	scanErr := scanMasscan(&followingFileReader{ctx: runCtx, file: spoolReader, processDone: processDone}, func(obs Observation) error {
+		if !targets[obs.IP] || obs.Port < first || obs.Port > last {
+			return &TaskError{Reason: "masscan emitted an endpoint outside its assigned range", Retryable: false}
+		}
+		return emit(obs)
+	})
 	if scanErr != nil {
 		cancel()
 	}
@@ -221,7 +239,7 @@ func watchMasscanSpool(ctx context.Context, path string, processDone <-chan stru
 func captureLossError(stderr string) error {
 	index := strings.LastIndex(stderr, "scan_capture: received=")
 	if index < 0 {
-		return nil // System Masscan versions predating the bundled capture patch.
+		return &TaskError{Reason: "masscan capture statistics missing; coverage cannot be confirmed (use the bundled patched binary)", Retryable: false}
 	}
 	var received, dropped, ifDropped uint64
 	if n, err := fmt.Sscanf(stderr[index:], "scan_capture: received=%d dropped=%d if_dropped=%d", &received, &dropped, &ifDropped); err != nil || n != 3 {
@@ -297,12 +315,16 @@ func scanMasscan(r io.Reader, emit func(Observation) error) error {
 	scanner.Buffer(make([]byte, 4096), 1<<20)
 	for scanner.Scan() {
 		fields := strings.Fields(scanner.Text())
-		if len(fields) < 4 || fields[0] != "open" || fields[1] != "tcp" {
+		if len(fields) == 0 || strings.HasPrefix(fields[0], "#") {
 			continue
 		}
+		if len(fields) < 4 || fields[0] != "open" || fields[1] != "tcp" {
+			return &TaskError{Reason: "invalid masscan list record", Retryable: false}
+		}
 		port, err := strconv.Atoi(fields[2])
-		if err != nil || port < 1 || port > 65535 {
-			continue
+		ip, ipErr := netip.ParseAddr(fields[3])
+		if err != nil || port < 1 || port > 65535 || ipErr != nil || !ip.Is4() {
+			return &TaskError{Reason: "invalid masscan TCP endpoint", Retryable: false}
 		}
 		if err := emit(Observation{Kind: "port", Target: fields[3], IP: fields[3], Port: port, Protocol: "tcp"}); err != nil {
 			return err
@@ -341,4 +363,35 @@ func (a *Agent) runConnectPorts(ctx context.Context, payload portPayload, emit f
 		}
 	}
 	return nil
+}
+
+// parseTCPPortRange accepts one inclusive interval. The control plane owns the
+// manifest whose union is 1..65535; a worker must execute exactly its interval.
+func parseTCPPortRange(value string) (first, last int, err error) {
+	parts := strings.Split(value, "-")
+	if len(parts) < 1 || len(parts) > 2 {
+		return 0, 0, fmt.Errorf("invalid TCP port range %q", value)
+	}
+	for _, part := range parts {
+		if part == "" {
+			return 0, 0, fmt.Errorf("invalid TCP port range %q", value)
+		}
+		for _, ch := range part {
+			if ch < '0' || ch > '9' {
+				return 0, 0, fmt.Errorf("invalid TCP port range %q", value)
+			}
+		}
+	}
+	first, err = strconv.Atoi(parts[0])
+	if err != nil {
+		return 0, 0, fmt.Errorf("invalid TCP port range %q", value)
+	}
+	last = first
+	if len(parts) == 2 {
+		last, err = strconv.Atoi(parts[1])
+	}
+	if err != nil || first < 1 || last > 65535 || last < first {
+		return 0, 0, fmt.Errorf("invalid TCP port range %q", value)
+	}
+	return first, last, nil
 }

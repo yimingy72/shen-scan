@@ -64,7 +64,7 @@ func backfillTargetKeys(ctx context.Context, db *pgxpool.Pool) error {
 
 const currentResults = `WITH rt AS (SELECT t.id,t.type,t.state,t.attempt_no,t.updated_at,t.error,tt.target_key FROM tasks t JOIN task_targets tt ON tt.task_id=t.id WHERE t.run_id=$1),
  ob AS (SELECT a.id,a.task_id,a.observed_at,a.observation,a.target_key,t.payload task_payload FROM assets a JOIN tasks t
- ON t.id=a.task_id AND t.attempt_no=a.attempt_no WHERE a.run_id=$1)`
+ ON t.id=a.task_id AND COALESCE(t.accepted_attempt_no,t.attempt_no)=a.attempt_no AND t.state='completed' WHERE a.run_id=$1)`
 
 const targetResults = currentResults + `,
  ts AS (SELECT target_key AS target,count(*) task_total,count(*) FILTER(WHERE state='completed') task_done,
@@ -154,7 +154,7 @@ func (s *Server) listPortResults(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	const grouped = `WITH latest AS (SELECT DISTINCT ON(a.observation->>'kind',a.observation->>'port') a.id,a.observed_at,a.observation
-	 FROM assets a JOIN tasks t ON t.id=a.task_id AND t.attempt_no=a.attempt_no
+	 FROM assets a JOIN tasks t ON t.id=a.task_id AND COALESCE(t.accepted_attempt_no,t.attempt_no)=a.attempt_no AND t.state='completed'
 	 WHERE a.run_id=$1 AND a.target_key=$2 AND a.observation->>'kind' IN('port','service')
 	 ORDER BY a.observation->>'kind',a.observation->>'port',(COALESCE(a.observation->>'error','')='') DESC,a.observed_at DESC,a.id DESC),
  ports AS (SELECT (observation->>'port')::int port,bool_or(observation->>'kind'='port') is_open,
@@ -167,7 +167,7 @@ func (s *Server) listPortResults(w http.ResponseWriter, r *http.Request) {
 	 http_latest AS (SELECT DISTINCT ON((a.observation->>'port')::int,a.observation->>'url')
 	  (a.observation->>'port')::int port,a.observation->>'url' url,
 	  jsonb_build_object('id',a.id,'url',a.observation->>'url','status_code',a.observation->'status_code','title',a.observation->>'title','technologies',a.observation->'technologies') item
-	 FROM assets a JOIN tasks t ON t.id=a.task_id AND t.attempt_no=a.attempt_no
+	 FROM assets a JOIN tasks t ON t.id=a.task_id AND COALESCE(t.accepted_attempt_no,t.attempt_no)=a.attempt_no AND t.state='completed'
 	 WHERE a.run_id=$1 AND a.target_key=$2 AND a.observation->>'kind'='http' AND a.observation->>'ip'=$2 AND COALESCE((a.observation->>'status_code')::int,0)>0
 	 ORDER BY (a.observation->>'port')::int,a.observation->>'url',a.observed_at DESC,a.id DESC),
 	 http_by_port AS (SELECT port,jsonb_agg(item ORDER BY url) http FROM (
@@ -222,7 +222,7 @@ func (s *Server) listFindings(w http.ResponseWriter, r *http.Request) {
 	if status == "" {
 		status = "all"
 	}
-	if !contains([]string{"matched", "not_matched", "error", "all"}, status) {
+	if !contains([]string{"matched", "not_matched", "error", "incomplete", "all"}, status) {
 		writeError(w, http.StatusBadRequest, "unknown finding status")
 		return
 	}
@@ -242,11 +242,11 @@ func (s *Server) listFindings(w http.ResponseWriter, r *http.Request) {
 	 AND ($3='' OR observation->>'severity'=$3) AND ($4='' OR
 	 (observation-'request_raw'-'response_raw'-'body_excerpt'-'headers')::text ILIKE '%'||$4||'%' OR target_key ILIKE '%'||$4||'%')
 	 AND ($5='' OR COALESCE(NULLIF(observation->>'purpose',''),'discovery')=$5))`
-	var total, matched, notMatched, failed, verificationMatched, checkMatched, discoveryMatched int64
+	var total, matched, notMatched, failed, incomplete, verificationMatched, checkMatched, discoveryMatched int64
 	var items json.RawMessage
 	err = s.db.QueryRow(r.Context(), findings+`, page AS (SELECT * FROM filtered ORDER BY observed_at DESC,id DESC LIMIT $6 OFFSET $7)
 	 SELECT (SELECT count(*) FROM filtered),count(*) FILTER(WHERE observation->>'finding_status'='matched'),
-	 count(*) FILTER(WHERE observation->>'finding_status'='not_matched'),count(*) FILTER(WHERE observation->>'finding_status'='error'),
+	 count(*) FILTER(WHERE observation->>'finding_status'='not_matched'),count(*) FILTER(WHERE observation->>'finding_status'='error'),count(*) FILTER(WHERE observation->>'finding_status'='incomplete'),
 	 count(*) FILTER(WHERE observation->>'finding_status'='matched' AND COALESCE(NULLIF(observation->>'purpose',''),'discovery')='verification'),
 	 count(*) FILTER(WHERE observation->>'finding_status'='matched' AND COALESCE(NULLIF(observation->>'purpose',''),'discovery')='check'),
 	 count(*) FILTER(WHERE observation->>'finding_status'='matched' AND COALESCE(NULLIF(observation->>'purpose',''),'discovery')='discovery'),
@@ -255,13 +255,13 @@ func (s *Server) listFindings(w http.ResponseWriter, r *http.Request) {
 	 'matched_products',COALESCE(task_payload->'matched_products','[]'::jsonb),'trigger_reason',COALESCE(task_payload->>'trigger_reason',''))
 	 ORDER BY observed_at DESC,id DESC) FROM page),'[]'::jsonb)
 	 FROM findings`, r.PathValue("id"), status, severity, query, purpose, limit, offset).Scan(
-		&total, &matched, &notMatched, &failed, &verificationMatched, &checkMatched, &discoveryMatched, &items)
+		&total, &matched, &notMatched, &failed, &incomplete, &verificationMatched, &checkMatched, &discoveryMatched, &items)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "load findings failed")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"items": items, "total": total,
-		"summary": map[string]int64{"matched": matched, "not_matched": notMatched, "error": failed,
+		"summary": map[string]int64{"matched": matched, "not_matched": notMatched, "error": failed, "incomplete": incomplete,
 			"verification_matched": verificationMatched, "check_matched": checkMatched, "discovery_matched": discoveryMatched}})
 }
 

@@ -157,6 +157,13 @@ func (a *Agent) runNativePoC(ctx context.Context, ep Endpoint, base *url.URL, ru
 		obs.FindingStatus, obs.Evidence = "matched", match.Evidence
 		obs.Service, obs.Product, obs.Version = match.Service, match.Product, match.Version
 	} else {
+		obs.CanProveNoMatch = !obs.Truncated && len(inputs) == len(rule.Definition.Requests) && !incompleteChecks(obs.Checks)
+		obs.EvidenceProfile = "native-http-matcher-v1"
+		obs.EngineVersion = a.cfg.AgentVersion
+		if !obs.CanProveNoMatch {
+			obs.FindingStatus, obs.Evidence = "incomplete", "native matcher coverage could not be proved from complete responses"
+			return obs
+		}
 		obs.FindingStatus = "not_matched"
 		obs.Evidence = fmt.Sprintf("completed %d read-only request(s); matchers did not match", len(inputs))
 	}

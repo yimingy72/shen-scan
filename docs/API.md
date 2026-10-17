@@ -36,7 +36,8 @@ API 前缀为 `/api`，请求及响应使用 JSON。除健康检查外，管理�
 | `GET /api/library/sources/{id}/files/raw?path=...` | 原始文件字节；可带 `revision` |
 | `GET /api/library/sources/{id}/export` | 流式导出 revision ZIP；可带 `revision` |
 | `GET /api/library/export?kind=http` | 导出完整规则 JSON；支持与列表相同的 `purpose` 等筛选 |
-| `GET /api/workers` | Worker、指标和当前任务 |
+| `GET /api/workers` | Worker、指标、当前任务及 `maintenance/session_id` |
+| `POST /api/workers/{id}/maintenance` | 独立维护开关，阻止新认领，不停止当前任务或变更云容量 |
 | `GET /api/worker-pool` | 节点池状态及配置版本 |
 | `PATCH /api/worker-pool` | 设置目标数量、启停池，需提供 `expected_generation` |
 | `GET /api/cloud/aliyun` | 脱敏云配置 |
@@ -58,13 +59,23 @@ API 前缀为 `/api`，请求及响应使用 JSON。除健康检查外，管理�
 
 列表使用 `limit`、`offset` 分页。结果按当前执行版本计算，旧 attempt 的观测不会混入本次覆盖统计。`task_total` 是内部执行步骤数，派生指纹任务后会增加；目标完成进度使用 `target_done / target_count`。
 
+## Worker 维护
+
+管理员调用 `POST /api/workers/{id}/maintenance`，请求 `{"enabled":true,"expected_session_id":"当前会话"}`。开启时 session 可省略；提供但不匹配则返回409。关闭必须提交 `{"enabled":false,"expected_session_id":"当前会话"}`；缺少会话返回400，重注册导致会话变化时返回409，避免错误恢复节点。会话来自 Worker 列表或开启维护响应。
+
+成功响应为 `{"worker_id":"...","session_id":"...","maintenance":true,"active_tasks":0}`。开关与 claim 使用同一 Worker advisory lock；开启响应前已提交的认领计入 active_tasks，开启后不再创建执行或启动额度。active_tasks 保守计入所有 leased 任务及 active/suspect/revoking 配额对应任务，不把过期租约当作已停证明。维护期间同一 request_id 的有效历史认领仍可重放，已有执行可以续租、回传和完成。开启后使用不同 request_id 的认领返回200和 `task:null`，原因 `worker_maintenance`。
+
+维护标志在重注册和心跳后保留；它不更改 ready/running/draining/offline 状态、池 enabled/desired_workers 或 drain_reason。滚动升级先开启维护并等待 active_tasks 为0，再停止本机服务、安装并启动新 Agent，读取新 session_id 后关闭维护。不要用停用池或减少期望数量实现维护；这些仍属于云回收操作。
+
+首次引入执行配额版本前，须在旧控制面以认领锁阻止新认领，等待所有 leased 任务自然完成，停止旧控制面后再次确认 leased 为0，再启动新控制面迁移。迁移不会为旧活跃任务伪造配额或停止证明。target_quotas保留独立的任务和实例/会话身份，删除run/task不会级联删除未知停止额度；仍需对应instance/session的真实停止证据释放。
+
 ## Agent 协议
 
 Agent 以引导令牌调用 `POST /api/workers/register`，获得独立会话令牌。随后通过 heartbeat、claim、renew、batches、complete、release 接口工作。
 
-新版 Agent 在 claim 中提交 `use_rule_sets:true`。HTTP / service 任务返回 `rules_ref`，Agent 使用 Worker bearer token 调用 `GET /api/tasks/{id}/rules?worker_id=...&session_id=...&attempt_no=N` 下载冻结规则；控制面校验当前 lease、worker、session 和 attempt。
+新版 Agent 在 claim 中必须声明 `supports_confirmed_stop:true`，表示执行器及其子进程退出后才发送 `release.stopped:true`。缺少该字段或为false的旧 Agent不能取得任何新执行或启动额度，认领返回200和 `{"task":null,"blocked_reason":"agent_upgrade_required"}`，仍可心跳和重放有效历史认领。新 Agent另提交 `use_rule_sets:true`。HTTP / service 任务返回 `rules_ref`，Agent 使用 Worker bearer token 调用 `GET /api/tasks/{id}/rules?worker_id=...&session_id=...&attempt_no=N` 下载冻结规则；控制面校验当前 lease、worker、session 和 attempt。
 
-支持完整 Wapp 的 Agent 还提交 `supports_httpx_cff:true`。含 HTTPx 指纹的新 run 标记 `requires_httpx_cff`；未同时声明 rules_ref 和 HTTPx capability 的旧 Agent 不能领取该 run 的 HTTP task，但仍可领取其他任务类型。这样不会把 `httpx-cff` 规则交给不认识该 engine 的旧节点。
+支持完整 Wapp 的 Agent 还提交 `supports_httpx_cff:true`。含 HTTPx 指纹的新 run 标记 `requires_httpx_cff`；未同时声明 rules_ref 和 HTTPx capability 的旧 Agent 不能领取该 run 的 HTTP task；已声明停止确认能力时，其他任务类型继续按各自能力过滤。这样不会把 `httpx-cff` 规则交给不认识该 engine 的旧节点。
 
 `request_id` 保证认领重试幂等；`attempt_no` 隔离旧执行；`batch_seq` 和内容校验防止重复批次污染数据。任务在完成结果排空、批次确认和完成确认后才算完成。
 

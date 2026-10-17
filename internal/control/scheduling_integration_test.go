@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"scanplatform/internal/webevidence"
 )
 
 func TestPostgresSchedulingInvariants(t *testing.T) {
@@ -64,7 +65,38 @@ func TestPostgresSchedulingInvariants(t *testing.T) {
 		"instance_id": "integration-worker", "hostname": "local", "agent_version": "test", "session_id": "session-1", "spec": map[string]any{},
 	}, http.StatusOK, &registered)
 	claimBody := func(requestID string, types []string) map[string]any {
-		return map[string]any{"worker_id": registered.WorkerID, "session_id": "session-1", "request_id": requestID, "types": types}
+		return map[string]any{"worker_id": registered.WorkerID, "session_id": "session-1", "supports_confirmed_stop": true, "request_id": requestID, "types": types,
+			"service_profile": "nmap-light-v1", "web_evidence_profile": webevidence.Profile, "fingerprint_bundle": webevidence.FingerprintBundle}
+	}
+	// Logical cancellation does not prove a fixture executor has stopped. Model
+	// that acknowledgement before reusing this worker for the next scenario.
+	confirmCancelledStopped := func(runID string) {
+		t.Helper()
+		rows, err := server.db.Query(ctx, `SELECT id,attempt_no FROM tasks WHERE run_id=$1 AND state='cancelled' AND worker_id=$2 AND session_id='session-1'`, runID, registered.WorkerID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		type execution struct {
+			id      string
+			attempt int
+		}
+		var executions []execution
+		for rows.Next() {
+			var v execution
+			if err := rows.Scan(&v.id, &v.attempt); err != nil {
+				rows.Close()
+				t.Fatal(err)
+			}
+			executions = append(executions, v)
+		}
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			t.Fatal(err)
+		}
+		for _, v := range executions {
+			callAPI(t, handler, http.MethodPost, "/api/tasks/"+v.id+"/release", registered.WorkerToken,
+				map[string]any{"worker_id": registered.WorkerID, "session_id": "session-1", "attempt_no": v.attempt, "stopped": true, "reason": "fixture executor exited"}, http.StatusOK, nil)
+		}
 	}
 	var firstClaim struct {
 		Task *Task `json:"task"`
@@ -118,9 +150,9 @@ func TestPostgresSchedulingInvariants(t *testing.T) {
 	identity := map[string]any{"worker_id": registered.WorkerID, "session_id": "session-1", "attempt_no": firstClaim.Task.AttemptNo, "last_batch_seq": 0}
 	callAPI(t, handler, http.MethodPost, "/api/tasks/"+firstClaim.Task.ID+"/complete", registered.WorkerToken, identity, http.StatusOK, nil)
 	for index, target := range portTargets {
-		wantService, wantHTTP, wantPorts := 1, 1, 1
+		wantService, wantHTTP, wantPorts := 1, 0, 1
 		if index == 0 {
-			wantService, wantHTTP, wantPorts = 32, 128, 1025
+			wantService, wantHTTP, wantPorts = 32, 0, 1025
 		}
 		var serviceTasks, httpTasks int
 		if err := server.db.QueryRow(ctx, `SELECT count(*) FILTER (WHERE type='service'),count(*) FILTER (WHERE type='http')
@@ -132,14 +164,24 @@ func TestPostgresSchedulingInvariants(t *testing.T) {
 		}
 		var invalidPayloads int
 		if err := server.db.QueryRow(ctx, `SELECT count(*) FROM tasks WHERE run_id=$1 AND target_key=$2 AND id<>$3 AND
-			((type='service' AND (jsonb_array_length(payload->'endpoints')>32 OR (payload->>'timeout_seconds')::int<>5)) OR
-		 (type='http' AND (jsonb_array_length(payload->'endpoints')>8 OR (payload->>'timeout_seconds')::int<>12)) OR
-			 (payload->>'execution_timeout_seconds')::int<>180 OR payload->'endpoints'->0->>'ip'<>target_key)`,
+			((type='service' AND (jsonb_array_length(payload->'endpoints')>32 OR (payload->>'timeout_seconds')::int<>60 OR payload->>'service_profile'<>'nmap-light-v1')) OR
+		 (type='http' AND (jsonb_array_length(payload->'endpoints')<>1 OR (payload->>'timeout_seconds')::int<>8)) OR
+			 (payload->>'execution_timeout_seconds')::int<>90 OR payload->'endpoints'->0->>'ip'<>target_key)`,
 			portRun.ID, target, firstClaim.Task.ID).Scan(&invalidPayloads); err != nil {
 			t.Fatal(err)
 		}
 		if invalidPayloads != 0 {
 			t.Fatalf("derived payload invariant failures for %s: %d", target, invalidPayloads)
+		}
+		var selectedEndpoints, distinctEndpoints int
+		var allSameIP bool
+		if err := server.db.QueryRow(ctx, `SELECT count(*),count(DISTINCT (e->>'ip',e->>'port')),bool_and(e->>'ip'=$2)
+            FROM tasks t CROSS JOIN LATERAL jsonb_array_elements(t.payload->'endpoints') e
+            WHERE t.run_id=$1 AND t.target_key=$2 AND t.type='service'`, portRun.ID, target).Scan(&selectedEndpoints, &distinctEndpoints, &allSameIP); err != nil {
+			t.Fatal(err)
+		}
+		if selectedEndpoints != min(wantPorts, 1024) || distinctEndpoints != selectedEndpoints || !allSameIP {
+			t.Fatalf("service batches lost, duplicated or mixed endpoints for %s: %d/%d same_ip=%v", target, selectedEndpoints, distinctEndpoints, allSameIP)
 		}
 		var openFlood bool
 		var openPortCount, fingerprintCount int
@@ -156,6 +198,7 @@ func TestPostgresSchedulingInvariants(t *testing.T) {
 		t.Fatalf("completed claim replay must expire: %#v", replay)
 	}
 	callAPI(t, handler, http.MethodPost, "/api/runs/"+portRun.ID+"/cancel", "admin-test", nil, http.StatusOK, nil)
+	confirmCancelledStopped(portRun.ID)
 
 	bigRunID, smallRunID := newID(), newID()
 	if _, err := server.db.Exec(ctx, `INSERT INTO runs(id,name,targets,modes,status,created_at) VALUES
@@ -166,7 +209,7 @@ func TestPostgresSchedulingInvariants(t *testing.T) {
 	for index, seed := range []struct{ runID, target string }{
 		{bigRunID, "198.51.100.1"}, {bigRunID, "198.51.100.1"}, {bigRunID, "198.51.100.2"}, {smallRunID, "198.51.100.10"},
 	} {
-		payload, _ := json.Marshal(map[string]any{"endpoints": []map[string]any{{"ip": seed.target, "port": 80}}, "timeout_seconds": 5})
+		payload, _ := json.Marshal(map[string]any{"endpoints": []map[string]any{{"ip": seed.target, "port": 80}}, "timeout_seconds": 60, "execution_timeout_seconds": 90, "service_profile": "nmap-light-v1"})
 		if _, err := server.db.Exec(ctx, `INSERT INTO tasks(id,run_id,type,payload,derived_key,target_key) VALUES($1,$2,'service',$3,$4,$5)`,
 			newID(), seed.runID, payload, "fair:"+string(rune('a'+index)), seed.target); err != nil {
 			t.Fatal(err)
@@ -183,18 +226,37 @@ func TestPostgresSchedulingInvariants(t *testing.T) {
 		t.Fatalf("run fairness did not rotate to small run: %#v", fairClaims)
 	}
 	callAPI(t, handler, http.MethodPost, "/api/runs/"+bigRunID+"/cancel", "admin-test", nil, http.StatusOK, nil)
+	confirmCancelledStopped(bigRunID)
 	callAPI(t, handler, http.MethodPost, "/api/runs/"+smallRunID+"/cancel", "admin-test", nil, http.StatusOK, nil)
+	confirmCancelledStopped(smallRunID)
 	expiredRunID, expiredTaskID, queuedTaskID := newID(), newID(), newID()
 	if _, err := server.db.Exec(ctx, `INSERT INTO runs(id,name,targets,modes,status,last_claim_target_key)
 		VALUES($1,'retry priority','["198.51.100.10","198.51.100.20","198.51.100.30"]','{port}','running','198.51.100.25')`, expiredRunID); err != nil {
 		t.Fatal(err)
 	}
-	expiredPayload, _ := json.Marshal(map[string]any{"endpoints": []map[string]any{{"ip": "198.51.100.20", "port": 80}}, "timeout_seconds": 5})
-	queuedPayload, _ := json.Marshal(map[string]any{"endpoints": []map[string]any{{"ip": "198.51.100.30", "port": 80}}, "timeout_seconds": 5})
+	expiredPayload, _ := json.Marshal(map[string]any{"endpoints": []map[string]any{{"ip": "198.51.100.20", "port": 80}}, "timeout_seconds": 60, "execution_timeout_seconds": 90, "service_profile": "nmap-light-v1"})
+	queuedPayload, _ := json.Marshal(map[string]any{"endpoints": []map[string]any{{"ip": "198.51.100.30", "port": 80}}, "timeout_seconds": 60, "execution_timeout_seconds": 90, "service_profile": "nmap-light-v1"})
 	if _, err := server.db.Exec(ctx, `INSERT INTO tasks(id,run_id,type,payload,state,attempt_no,worker_id,session_id,lease_until,derived_key,target_key) VALUES
 		($1,$2,'service',$3,'leased',1,$4,'session-1',now()-interval '1 minute','expired','198.51.100.20'),
 		($5,$2,'service',$6,'queued',0,NULL,NULL,NULL,'queued','198.51.100.30')`, expiredTaskID, expiredRunID, expiredPayload,
 		registered.WorkerID, queuedTaskID, queuedPayload); err != nil {
+		t.Fatal(err)
+	}
+	// Lease expiry fences results but does not prove the old network process
+	// stopped. Keep its quota frozen until this fixture supplies stop evidence.
+	if _, err := server.db.Exec(ctx, `INSERT INTO target_quotas(epoch,task_id,attempt_no,worker_id,instance_id,session_id,scope,dimension,amount,state,valid_until)
+        SELECT $1,$2,1,id,instance_id,'session-1','198.51.100.20','service_jobs',1,'active',now()-interval '1 minute' FROM workers WHERE id=$3`, newID(), expiredTaskID, registered.WorkerID); err != nil {
+		t.Fatal(err)
+	}
+	var frozenClaim struct {
+		Task *Task `json:"task"`
+	}
+	callAPI(t, handler, http.MethodPost, "/api/tasks/claim", registered.WorkerToken,
+		claimBody("expired-unconfirmed-stop", []string{"service"}), http.StatusOK, &frozenClaim)
+	if frozenClaim.Task != nil {
+		t.Fatalf("expired quota was recycled without stop evidence: %+v", frozenClaim.Task)
+	}
+	if err := server.ConfirmWorkerStopped(ctx, "integration-worker", "session-1", "fixture expired executor exit confirmed"); err != nil {
 		t.Fatal(err)
 	}
 	var expiredClaim struct {
@@ -206,7 +268,7 @@ func TestPostgresSchedulingInvariants(t *testing.T) {
 		t.Fatalf("expired lease was not reclaimed before queued task %s: %#v", queuedTaskID, expiredClaim.Task)
 	}
 	retryTaskID := newID()
-	retryPayload, _ := json.Marshal(map[string]any{"endpoints": []map[string]any{{"ip": "198.51.100.10", "port": 80}}, "timeout_seconds": 5})
+	retryPayload, _ := json.Marshal(map[string]any{"endpoints": []map[string]any{{"ip": "198.51.100.10", "port": 80}}, "timeout_seconds": 60, "execution_timeout_seconds": 90, "service_profile": "nmap-light-v1"})
 	if _, err := server.db.Exec(ctx, `INSERT INTO tasks(id,run_id,type,payload,state,attempt_no,derived_key,target_key)
 		VALUES($1,$2,'service',$3,'queued',1,'released-retry','198.51.100.10')`, retryTaskID, expiredRunID, retryPayload); err != nil {
 		t.Fatal(err)
@@ -220,9 +282,10 @@ func TestPostgresSchedulingInvariants(t *testing.T) {
 		t.Fatalf("queued retry was not reclaimed before queued task %s: %#v", queuedTaskID, retryClaim.Task)
 	}
 	callAPI(t, handler, http.MethodPost, "/api/runs/"+expiredRunID+"/cancel", "admin-test", nil, http.StatusOK, nil)
+	confirmCancelledStopped(expiredRunID)
 	var raceRun Run
 	callAPI(t, handler, http.MethodPost, "/api/runs", "admin-test", map[string]any{
-		"name": "claim cancel race", "targets": []string{"race.example.com"}, "modes": []string{"http"},
+		"name": "claim cancel race", "targets": []string{"https://race.example.com/"}, "modes": []string{"http"},
 	}, http.StatusCreated, &raceRun)
 	type concurrentResult struct {
 		operation string
@@ -253,9 +316,10 @@ func TestPostgresSchedulingInvariants(t *testing.T) {
 	if raceOpen != 0 {
 		t.Fatalf("cancel left %d claimable tasks", raceOpen)
 	}
+	confirmCancelledStopped(raceRun.ID)
 	var poolRaceRun Run
 	callAPI(t, handler, http.MethodPost, "/api/runs", "admin-test", map[string]any{
-		"name": "claim pool stop race", "targets": []string{"pool-race.example.com"}, "modes": []string{"http"},
+		"name": "claim pool stop race", "targets": []string{"https://pool-race.example.com/"}, "modes": []string{"http"},
 	}, http.StatusCreated, &poolRaceRun)
 	poolResults := make(chan concurrentResult, 2)
 	poolStart := make(chan struct{})
@@ -301,12 +365,13 @@ func TestPostgresSchedulingInvariants(t *testing.T) {
 		t.Fatalf("disabled pool issued task: %#v", stoppedClaim.Task)
 	}
 	callAPI(t, handler, http.MethodPost, "/api/runs/"+poolRaceRun.ID+"/cancel", "admin-test", nil, http.StatusOK, nil)
+	confirmCancelledStopped(poolRaceRun.ID)
 	if _, err := server.db.Exec(ctx, `UPDATE worker_pool SET enabled=true,generation=generation+1`); err != nil {
 		t.Fatal(err)
 	}
 	var receiptRun Run
 	callAPI(t, handler, http.MethodPost, "/api/runs", "admin-test", map[string]any{
-		"name": "old attempt receipt", "targets": []string{"receipt.example.com"}, "modes": []string{"http"},
+		"name": "old attempt receipt", "targets": []string{"https://receipt.example.com/"}, "modes": []string{"http"},
 	}, http.StatusCreated, &receiptRun)
 	var receiptAttempt1 struct {
 		Task *Task `json:"task"`
@@ -322,7 +387,7 @@ func TestPostgresSchedulingInvariants(t *testing.T) {
 	callAPI(t, handler, http.MethodPost, "/api/tasks/"+receiptAttempt1.Task.ID+"/batches", registered.WorkerToken, receiptBatch, http.StatusOK, nil)
 	callAPI(t, handler, http.MethodPost, "/api/tasks/"+receiptAttempt1.Task.ID+"/release", registered.WorkerToken,
 		map[string]any{"worker_id": registered.WorkerID, "session_id": "session-1", "attempt_no": receiptAttempt1.Task.AttemptNo,
-			"reason": "retry receipt", "retryable": true}, http.StatusOK, nil)
+			"reason": "retry receipt", "retryable": true, "stopped": true}, http.StatusOK, nil)
 	var receiptAttempt2 struct {
 		Task *Task `json:"task"`
 	}
@@ -334,10 +399,28 @@ func TestPostgresSchedulingInvariants(t *testing.T) {
 	callAPI(t, handler, http.MethodPost, "/api/tasks/"+receiptAttempt1.Task.ID+"/batches", registered.WorkerToken, receiptBatch, http.StatusOK, nil)
 	receiptBatch["batch_seq"] = 1
 	callAPI(t, handler, http.MethodPost, "/api/tasks/"+receiptAttempt1.Task.ID+"/batches", registered.WorkerToken, receiptBatch, http.StatusConflict, nil)
+	var accepted struct {
+		Total int     `json:"total"`
+		Items []Asset `json:"items"`
+	}
+	callAPI(t, handler, http.MethodGet, "/api/assets?run_id="+receiptRun.ID, "admin-test", nil, http.StatusOK, &accepted)
+	if accepted.Total != 0 {
+		t.Fatal("unsealed receipt attempt appeared in accepted result view")
+	}
+	currentBatch := map[string]any{"worker_id": registered.WorkerID, "session_id": "session-1", "attempt_no": receiptAttempt2.Task.AttemptNo, "batch_seq": 0,
+		"items": []Observation{{Kind: "http", Target: "https://receipt.example.com/", URL: "https://receipt.example.com/", StatusCode: 201, Coverage: "complete", Outcome: "identified"}}}
+	callAPI(t, handler, http.MethodPost, "/api/tasks/"+receiptAttempt2.Task.ID+"/batches", registered.WorkerToken, currentBatch, http.StatusOK, nil)
+	callAPI(t, handler, http.MethodPost, "/api/tasks/"+receiptAttempt2.Task.ID+"/complete", registered.WorkerToken,
+		map[string]any{"worker_id": registered.WorkerID, "session_id": "session-1", "attempt_no": receiptAttempt2.Task.AttemptNo, "last_batch_seq": 0}, http.StatusOK, nil)
+	callAPI(t, handler, http.MethodGet, "/api/assets?run_id="+receiptRun.ID, "admin-test", nil, http.StatusOK, &accepted)
+	if accepted.Total != 1 || len(accepted.Items) != 1 || accepted.Items[0].Observation.StatusCode != 201 {
+		t.Fatalf("accepted view mixed old attempt: %+v", accepted)
+	}
 	callAPI(t, handler, http.MethodPost, "/api/runs/"+receiptRun.ID+"/cancel", "admin-test", nil, http.StatusOK, nil)
+	confirmCancelledStopped(receiptRun.ID)
 	var timeoutRun Run
 	callAPI(t, handler, http.MethodPost, "/api/runs", "admin-test", map[string]any{
-		"name": "execution timeout budget", "targets": []string{"timeout.example.com"}, "modes": []string{"http"},
+		"name": "execution timeout budget", "targets": []string{"https://timeout.example.com/"}, "modes": []string{"http"},
 	}, http.StatusCreated, &timeoutRun)
 	timeoutClasses := []string{"execution_timeout", "", "execution_timeout", "execution_timeout"}
 	wantFailures := []int{1, 1, 2, 3}
@@ -351,7 +434,7 @@ func TestPostgresSchedulingInvariants(t *testing.T) {
 			t.Fatalf("timeout attempt %d claim=%#v", index+1, claim.Task)
 		}
 		release := map[string]any{"worker_id": registered.WorkerID, "session_id": "session-1", "attempt_no": claim.Task.AttemptNo,
-			"reason": "masscan execution deadline exceeded", "retryable": true}
+			"reason": "fixture execution deadline exceeded", "retryable": true, "stopped": true}
 		if failureClass != "" {
 			release["failure_class"] = failureClass
 		}
@@ -376,7 +459,7 @@ func TestPostgresSchedulingInvariants(t *testing.T) {
 
 	var httpRun Run
 	callAPI(t, handler, http.MethodPost, "/api/runs", "admin-test", map[string]any{
-		"name": "precise stop", "targets": []string{"one.example.com", "two.example.com"}, "modes": []string{"http"},
+		"name": "precise stop", "targets": []string{"https://one.example.com/", "https://two.example.com/"}, "modes": []string{"http"},
 	}, http.StatusCreated, &httpRun)
 	var httpClaims [2]struct {
 		Task *Task `json:"task"`
@@ -400,6 +483,7 @@ func TestPostgresSchedulingInvariants(t *testing.T) {
 	if heartbeat.Action != "continue" || !contains(heartbeat.StopTaskIDs, httpClaims[0].Task.ID) || !contains(heartbeat.StopTaskIDs, httpClaims[1].Task.ID) {
 		t.Fatalf("heartbeat must stop only cancelled tasks: %#v", heartbeat)
 	}
+	confirmCancelledStopped(httpRun.ID)
 	var workers struct {
 		Items []Worker `json:"items"`
 	}

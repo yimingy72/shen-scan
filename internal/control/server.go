@@ -133,6 +133,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/cloud/aliyun/verify", s.admin(s.handleCloudAdmin))
 	mux.HandleFunc("GET /api/cloud/aliyun/instances", s.admin(s.handleCloudAdmin))
 	mux.HandleFunc("GET /api/workers", s.admin(s.listWorkers))
+	mux.HandleFunc("POST /api/workers/{id}/maintenance", s.admin(s.setWorkerMaintenance))
 	mux.HandleFunc("GET /api/worker-pool", s.admin(s.getPool))
 	mux.HandleFunc("PATCH /api/worker-pool", s.admin(s.patchPool))
 	mux.HandleFunc("POST /api/worker-pool/setup-cloud", s.admin(s.setupCloud))
@@ -303,7 +304,7 @@ func (s *Server) WorkerInstances(ctx context.Context) (map[string]Worker, error)
 	_, _ = s.db.Exec(ctx, `UPDATE workers SET status='offline'
 		WHERE last_heartbeat < now()-interval '45 seconds' AND status <> 'offline'`)
 	rows, err := s.db.Query(ctx, `SELECT id,instance_id,hostname,status,agent_version,last_heartbeat,
-		COALESCE(current_task_id,''),az,spec,metrics FROM workers`)
+		COALESCE(current_task_id,''),az,spec,metrics,maintenance,session_id FROM workers`)
 	if err != nil {
 		return nil, err
 	}
@@ -312,7 +313,7 @@ func (s *Server) WorkerInstances(ctx context.Context) (map[string]Worker, error)
 	for rows.Next() {
 		var w Worker
 		var metrics []byte
-		if err := rows.Scan(&w.ID, &w.InstanceID, &w.Hostname, &w.Status, &w.AgentVersion, &w.LastHeartbeat, &w.CurrentTaskID, &w.AZ, &w.Spec, &metrics); err != nil {
+		if err := rows.Scan(&w.ID, &w.InstanceID, &w.Hostname, &w.Status, &w.AgentVersion, &w.LastHeartbeat, &w.CurrentTaskID, &w.AZ, &w.Spec, &metrics, &w.Maintenance, &w.SessionID); err != nil {
 			return nil, err
 		}
 		if err := json.Unmarshal(metrics, &w.Metrics); err != nil {

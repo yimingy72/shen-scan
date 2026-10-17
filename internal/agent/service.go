@@ -14,6 +14,7 @@ import (
 )
 
 type servicePayload struct {
+	Executor       string         `json:"executor,omitempty"`
 	Endpoints      []Endpoint     `json:"endpoints"`
 	TimeoutSeconds int            `json:"timeout_seconds"`
 	Rules          []rulelib.Rule `json:"rules"`
@@ -27,6 +28,12 @@ func (a *Agent) runService(ctx context.Context, task Task, emit func(Observation
 	}
 	if len(payload.Endpoints) == 0 {
 		return &TaskError{Reason: "service task has no endpoints"}
+	}
+	if payload.Executor == "" || payload.Executor == "nmap" {
+		return a.runNmapService(ctx, payload, emit)
+	}
+	if payload.Executor != "builtin" {
+		return &TaskError{Reason: "unsupported service executor", Retryable: false}
 	}
 	rules, err := a.resolveTaskRules(ctx, task, payload.RulesRef, payload.Rules, "port")
 	if err != nil {

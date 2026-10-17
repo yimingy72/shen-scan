@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"scanplatform/internal/webevidence"
 	"strings"
 	"testing"
 )
@@ -31,7 +32,7 @@ func TestBinaryObservationBatchRoundTrip(t *testing.T) {
 			Task *Task `json:"task"`
 		}
 		callAPI(t, handler, http.MethodPost, "/api/tasks/claim", worker.WorkerToken, map[string]any{
-			"worker_id": worker.WorkerID, "session_id": "binary-session", "request_id": kind, "types": []string{kind},
+			"worker_id": worker.WorkerID, "session_id": "binary-session", "service_profile": "nmap-light-v1", "web_evidence_profile": webevidence.Profile, "fingerprint_bundle": webevidence.FingerprintBundle, "supports_confirmed_stop": true, "request_id": kind, "types": []string{kind},
 		}, http.StatusOK, &out)
 		if out.Task == nil {
 			t.Fatalf("no %s task", kind)
@@ -55,7 +56,13 @@ func TestBinaryObservationBatchRoundTrip(t *testing.T) {
 	complete(port)
 	for _, kind := range []string{"service", "http"} {
 		task := claim(kind)
-		item := Observation{Kind: kind, Target: "192.0.2.20", IP: "192.0.2.20", Port: 3306, Protocol: "tcp"}
+		var payload struct {
+			Endpoints []taskEndpoint `json:"endpoints"`
+		}
+		if err := json.Unmarshal(task.Payload, &payload); err != nil || len(payload.Endpoints) != 1 {
+			t.Fatalf("invalid assigned entry: %s %v", task.Payload, err)
+		}
+		item := Observation{Kind: kind, Target: "192.0.2.20", IP: "192.0.2.20", Port: 3306, Protocol: "tcp", WorkKey: payload.Endpoints[0].WorkKey}
 		if kind == "service" {
 			item.Banner = "J\x00\x00\x00\x0a8.4.11\x00 literal \\u0000 and ␀"
 			item.Service, item.Product, item.Version = "mysql", "MySQL", "8.4.11"

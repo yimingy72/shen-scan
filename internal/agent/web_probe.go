@@ -1,0 +1,414 @@
+package agent
+
+import (
+	"bufio"
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"net/http/httputil"
+	"net/url"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
+
+	"scanplatform/internal/rulelib"
+	"scanplatform/internal/webevidence"
+)
+
+func webProbeBinary() (string, bool) {
+	value := strings.TrimSpace(os.Getenv("WEB_PROBE_BINARY"))
+	if value == "disabled" {
+		return "", false
+	}
+	if value == "" {
+		value = "web-probe-worker"
+	}
+	binary, err := exec.LookPath(value)
+	if err != nil {
+		return value, os.Getenv("WEB_PROBE_BINARY") != ""
+	}
+	return binary, true
+}
+
+func (a *Agent) runWebProbe(ctx context.Context, payload httpPayload, binary string, emit func(Observation) error) error {
+	if payload.FingerprintBundle == "" {
+		payload.FingerprintBundle = webevidence.FingerprintBundle
+	}
+	cff, cached := a.ruleSets.cff(payload.RulesRef)
+	if !cached {
+		var err error
+		cff, err = buildHTTPXCFF(payload.Rules)
+		if err != nil {
+			return &TaskError{Reason: err.Error()}
+		}
+	}
+	return runEndpointsWithLimit(ctx, payload.Endpoints, a.endpointSlots, 2, func(ctx context.Context, ep Endpoint) Observation {
+		select {
+		case a.httpxSlots <- struct{}{}:
+			defer func() { <-a.httpxSlots }()
+		case <-ctx.Done():
+			return webFailure(ep, context.Cause(ctx))
+		}
+		release, err := a.acquireHTTPTarget(ctx, httpTargetKey(ep))
+		if err != nil {
+			return webFailure(ep, err)
+		}
+		defer release()
+		ctx, cancel := context.WithTimeout(ctx, 90*time.Second)
+		defer cancel()
+		raw, err := endpointURL(ep)
+		if err != nil {
+			return webFailure(ep, err)
+		}
+		parsed, err := url.Parse(raw)
+		if err != nil {
+			return webFailure(ep, err)
+		}
+		targets, err := prepareHTTPXTargets(ctx, a, []Endpoint{ep})
+		if err != nil {
+			return webFailure(ep, err)
+		}
+		raw = targets[0].url.String()
+		parsed = targets[0].url
+		ip, err := a.httpDialHost(ctx, parsed.Hostname(), urlPort(parsed), ep.IP, parsed.Hostname())
+		if err != nil {
+			return webFailure(ep, err)
+		}
+		input := webevidence.ProbeRequest{Protocol: webevidence.Protocol, URL: raw, ConnectIP: ip, AlternateScheme: ep.URL == "", TimeoutMillis: int(minDuration(boundedTimeout(payload.TimeoutSeconds, 8*time.Second), 8*time.Second) / time.Millisecond), EntryTimeoutMillis: 90000, CFF: cff, CFFSHA256: webevidence.SHA256(cff)}
+		data, _ := json.Marshal(input)
+		output, err := runWebHelper(ctx, binary, data)
+		if err != nil {
+			return webFailure(ep, err)
+		}
+		var result webevidence.ProbeResult
+		if err = json.Unmarshal(output, &result); err != nil {
+			return webFailure(ep, fmt.Errorf("decode web helper: %w", err))
+		}
+		if result.Protocol != webevidence.Protocol || result.CFFSHA256 != input.CFFSHA256 {
+			return webFailure(ep, fmt.Errorf("web helper contract/digest mismatch"))
+		}
+		observed, err := url.Parse(result.Response.URL)
+		if err != nil || observed.Host != parsed.Host || observed.EscapedPath() != parsed.EscapedPath() || observed.RawQuery != parsed.RawQuery || observed.User != nil || observed.Fragment != "" || (observed.Scheme != parsed.Scheme && !input.AlternateScheme) || result.Response.ConnectIP != ip {
+			return webFailure(ep, fmt.Errorf("web helper returned an unrelated endpoint"))
+		}
+		obs := webProbeObservation(ep, result, payload.Rules)
+		if result.Response.StatusCode > 0 && result.Response.Completeness == "full" {
+			match, matchErr := sharedFingerprints.match(ctx, webevidence.MatchRequest{Protocol: webevidence.Protocol, ID: webevidence.SHA256([]byte(raw)) + "/" + result.Response.BodySHA256, ExpectedBundle: payload.FingerprintBundle, Response: result.Response, Icons: result.Icons})
+			if matchErr != nil {
+				obs.Error = joinWebError(obs.Error, "passive fingerprint: "+matchErr.Error())
+				obs.Outcome = "incomplete"
+			} else {
+				var additional []Technology
+				for _, m := range match.Matches {
+					additional = append(additional, Technology{Name: m.Name, Version: m.Version, RuleID: "fingers:" + m.Engine + ":" + m.Name, Evidence: string(m.Evidence)})
+				}
+				obs.Technologies = mergeTechnologies(obs.Technologies, additional)
+			}
+			// Retain per-engine matches even when display merges a product name.
+			evidence := struct {
+				Probe       webevidence.ProbeResult `json:"probe"`
+				Fingerprint webevidence.MatchResult `json:"fingerprint"`
+			}{compactProbe(result), match}
+			encoded, _ := json.Marshal(evidence)
+			obs.Evidence = string(encoded)
+		}
+		return obs
+	}, emit)
+}
+func joinWebError(old, next string) string {
+	if old == "" {
+		return next
+	}
+	return old + "; " + next
+}
+func webFailure(ep Endpoint, err error) Observation {
+	return Observation{Kind: "http", WorkKey: ep.WorkKey, Target: endpointTarget(ep), IP: ep.IP, Port: ep.Port, URL: ep.URL, Engine: "web-probe-worker", Outcome: "error", Coverage: "incomplete", Error: err.Error()}
+}
+func compactProbe(result webevidence.ProbeResult) webevidence.ProbeResult {
+	result.Attempts = append([]webevidence.Response(nil), result.Attempts...)
+	result.Icons = append([]webevidence.Response(nil), result.Icons...)
+	// Wire evidence storage remains bounded by the existing ingest contract. The
+	// full bounded body is handed directly to the matcher; persisted excerpts are
+	// explicitly incomplete if larger than the response storage budget.
+	result.Response.Body = nil
+	result.Response.BodyStorage = "hash_only"
+	for i := range result.Attempts {
+		result.Attempts[i].Body = nil
+		result.Attempts[i].BodyStorage = "hash_only"
+	}
+	for i := range result.Icons {
+		result.Icons[i].Body = nil
+		result.Icons[i].BodyStorage = "hash_only"
+	}
+	return result
+}
+func webProbeObservation(ep Endpoint, result webevidence.ProbeResult, rules []rulelib.Rule) Observation {
+	response := result.Response
+	obs := Observation{Kind: "http", WorkKey: ep.WorkKey, Target: endpointTarget(ep), URL: response.URL, IP: response.ConnectIP, StatusCode: response.StatusCode, Headers: response.Headers, Title: result.Title, Server: response.Headers.Get("Server"), Error: response.Error, Engine: result.Engine, ExecutionProfile: result.Profile, ContentSHA256: response.BodySHA256, Coverage: response.Completeness, Outcome: "identified", EvidenceProfile: "bounded-excerpt-v1"}
+	parsed, _ := url.Parse(response.URL)
+	if parsed != nil {
+		obs.Protocol = parsed.Scheme
+		obs.Port, _ = strconv.Atoi(urlPort(parsed))
+	}
+	obs.Title, _ = truncateBytes([]byte(obs.Title), 2048)
+	if obs.Coverage == "full" {
+		obs.Coverage = "complete"
+	}
+	var truncated bool
+	obs.RequestRaw, obs.Truncated = truncateBytes([]byte(response.RequestRaw), maxRawRequest)
+	obs.ResponseRaw, truncated = truncateBytes(normalizedWebResponse(response), maxRawResponse)
+	obs.Truncated = obs.Truncated || truncated || response.Completeness != "full"
+	obs.BodyExcerpt, _ = truncateBytes(response.Body, maxBodyExcerpt)
+	obs.httpBody, obs.httpHeader = string(response.Body), response.HeaderRaw
+	if response.Completeness == "full" {
+		obs.Technologies = mergeTechnologies(httpxTechnologies(result.Technologies, rules), matchHTTPRules(nativeHTTPRules(rules), obs))
+	}
+	obs.httpBody, obs.httpHeader = "", ""
+	if response.StatusCode == 0 {
+		obs.Outcome = "no_response"
+	} else if response.Completeness != "full" {
+		obs.Outcome = "incomplete"
+	}
+	encoded, _ := json.Marshal(compactProbe(result))
+	obs.Evidence = string(encoded)
+	return obs
+}
+
+// The decoder body is not the compressed wire body. Store a replayable
+// normalized response and keep the actual wire headers in the evidence envelope.
+func normalizedWebResponse(response webevidence.Response) []byte {
+	headers := response.Headers.Clone()
+	headers.Del("Content-Encoding")
+	headers.Del("Transfer-Encoding")
+	headers.Del("Content-Length")
+	normalized := &http.Response{StatusCode: response.StatusCode, Status: fmt.Sprintf("%d %s", response.StatusCode, http.StatusText(response.StatusCode)), Proto: response.Proto, ProtoMajor: 1, ProtoMinor: 1, Header: headers, Body: io.NopCloser(bytes.NewReader(response.Body)), ContentLength: int64(len(response.Body))}
+	raw, err := httputil.DumpResponse(normalized, true)
+	if err != nil {
+		return []byte(response.HeaderRaw + string(response.Body))
+	}
+	return raw
+}
+
+func runWebHelper(ctx context.Context, binary string, input []byte) ([]byte, error) {
+	cmd := exec.CommandContext(ctx, binary)
+	setProcessGroup(cmd)
+	cmd.Stdin = bytes.NewReader(input)
+	var stdout cappedWebBuffer
+	stderr := &stderrTail{limit: 32 << 10}
+	cmd.Stdout = &stdout
+	cmd.Stderr = stderr
+	// No cloud credentials or ambient proxy/config is inherited by tools.
+	dir, err := os.MkdirTemp("", "shen-web-")
+	if err != nil {
+		return nil, err
+	}
+	defer os.RemoveAll(dir)
+	for _, name := range []string{"home", "config", "cache", "tmp"} {
+		if err := os.Mkdir(filepath.Join(dir, name), 0700); err != nil {
+			return nil, err
+		}
+	}
+	cmd.Env = httpxEnvironment(dir)
+	cmd.Dir = dir
+	if err := cmd.Start(); err != nil {
+		return nil, err
+	}
+	done := make(chan error, 1)
+	go func() { done <- cmd.Wait() }()
+	select {
+	case <-ctx.Done():
+		killProcessGroup(cmd.Process)
+		<-done
+		return nil, context.Cause(ctx)
+	case err := <-done:
+		if err != nil {
+			return nil, fmt.Errorf("web helper: %w: %s", err, strings.TrimSpace(stderr.String()))
+		}
+	}
+	if stdout.overflow {
+		return nil, fmt.Errorf("web helper response exceeded IPC limit")
+	}
+	return stdout.Bytes(), nil
+}
+
+type cappedWebBuffer struct {
+	bytes.Buffer
+	overflow bool
+}
+
+func (b *cappedWebBuffer) Write(p []byte) (int, error) {
+	n := len(p)
+	remaining := webevidence.MaxMessage - b.Len()
+	if len(p) > remaining {
+		b.overflow = true
+		p = p[:remaining]
+	}
+	_, _ = b.Buffer.Write(p)
+	return n, nil
+}
+
+// ponytail: one active fingerprint bundle, serialized requests. Measure matcher
+// memory/CPU before introducing multiple resident engines on small Workers.
+var sharedFingerprints = fingerprintProcess{slot: make(chan struct{}, 1)}
+
+type fingerprintProcess struct {
+	slot    chan struct{}
+	cmd     *exec.Cmd
+	stdin   io.WriteCloser
+	scanner *bufio.Scanner
+	stderr  *stderrTail
+	done    chan error
+	binary  string
+}
+
+func (p *fingerprintProcess) match(ctx context.Context, input webevidence.MatchRequest) (webevidence.MatchResult, error) {
+	select {
+	case p.slot <- struct{}{}:
+		defer func() { <-p.slot }()
+	case <-ctx.Done():
+		return webevidence.MatchResult{}, context.Cause(ctx)
+	}
+	binary := os.Getenv("FINGERPRINT_WORKER_BINARY")
+	if binary == "" {
+		binary = "fingerprint-worker"
+	}
+	if p.cmd != nil && p.binary != binary {
+		p.stop()
+	}
+	if p.cmd == nil {
+		path, err := exec.LookPath(binary)
+		if err != nil {
+			return webevidence.MatchResult{}, err
+		}
+		p.cmd = exec.CommandContext(context.Background(), path)
+		setProcessGroup(p.cmd)
+		p.binary = binary
+		p.cmd.Env = []string{"NO_COLOR=1"}
+		p.stderr = &stderrTail{limit: 32 << 10}
+		p.cmd.Stderr = p.stderr
+		p.stdin, err = p.cmd.StdinPipe()
+		if err != nil {
+			p.cmd = nil
+			return webevidence.MatchResult{}, err
+		}
+		output, err := p.cmd.StdoutPipe()
+		if err != nil {
+			p.stdin.Close()
+			p.cmd = nil
+			return webevidence.MatchResult{}, err
+		}
+		p.scanner = bufio.NewScanner(output)
+		p.scanner.Buffer(make([]byte, 64<<10), webevidence.MaxMessage)
+		if err = p.cmd.Start(); err != nil {
+			p.stdin.Close()
+			output.Close()
+			p.cmd = nil
+			return webevidence.MatchResult{}, err
+		}
+		p.done = make(chan error, 1)
+		go func(cmd *exec.Cmd, done chan error) { done <- cmd.Wait() }(p.cmd, p.done)
+	}
+	type reply struct {
+		result webevidence.MatchResult
+		err    error
+	}
+	done := make(chan reply, 1)
+	stdin, scanner := p.stdin, p.scanner
+	go func() {
+		if err := json.NewEncoder(stdin).Encode(input); err != nil {
+			done <- reply{err: err}
+			return
+		}
+		if !scanner.Scan() {
+			err := scanner.Err()
+			if err == nil {
+				err = io.ErrUnexpectedEOF
+			}
+			done <- reply{err: err}
+			return
+		}
+		var output webevidence.MatchResult
+		err := json.Unmarshal(scanner.Bytes(), &output)
+		if err == nil && (output.Protocol != webevidence.Protocol || output.ID != input.ID) {
+			err = fmt.Errorf("fingerprint helper reply identity mismatch")
+		}
+		if err == nil && output.Error != "" {
+			err = fmt.Errorf("%s", output.Error)
+		}
+		done <- reply{output, err}
+	}()
+	select {
+	case <-ctx.Done():
+		p.stop()
+		<-done
+		return webevidence.MatchResult{}, context.Cause(ctx)
+	case reply := <-done:
+		if reply.err != nil {
+			detail := p.stderr.String()
+			p.stop()
+			return reply.result, fmt.Errorf("%w: %s", reply.err, strings.TrimSpace(detail))
+		}
+		return reply.result, nil
+	}
+}
+func (p *fingerprintProcess) stop() {
+	if p.cmd == nil {
+		return
+	}
+	killProcessGroup(p.cmd.Process)
+	p.stdin.Close()
+	<-p.done
+	p.cmd = nil
+	p.scanner = nil
+	p.stdin = nil
+}
+
+// Identity is checked once per Agent/client lifetime. Tools are changed during a
+// drained Worker upgrade, followed by Agent restart, never underneath a run.
+func discoverWebCapabilities() (string, string) {
+	binary, present := webProbeBinary()
+	if !present {
+		return "", ""
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	identity := func(binary, argument string) ([]byte, error) {
+		cmd := exec.CommandContext(ctx, binary, argument)
+		setProcessGroup(cmd)
+		cmd.Env = []string{"NO_COLOR=1"}
+		var output cappedWebBuffer
+		cmd.Stdout = &output
+		cmd.Stderr = &stderrTail{limit: 4096}
+		err := cmd.Run()
+		if output.overflow {
+			return nil, fmt.Errorf("tool capability response exceeds limit")
+		}
+		return output.Bytes(), err
+	}
+	raw, err := identity(binary, "--capabilities")
+	if err != nil {
+		return "", ""
+	}
+	var profile struct {
+		Protocol string `json:"protocol"`
+		Profile  string `json:"profile"`
+	}
+	if json.Unmarshal(raw, &profile) != nil || profile.Protocol != webevidence.Protocol || profile.Profile != webevidence.Profile {
+		return "", ""
+	}
+	matcher := os.Getenv("FINGERPRINT_WORKER_BINARY")
+	if matcher == "" {
+		matcher = "fingerprint-worker"
+	}
+	raw, err = identity(matcher, "--bundle")
+	if err != nil || strings.TrimSpace(string(raw)) != webevidence.FingerprintBundle {
+		return "", ""
+	}
+	return profile.Profile, strings.TrimSpace(string(raw))
+}

@@ -233,7 +233,19 @@ func (c *controller) reconcileManual(ctx context.Context, pool control.Pool) err
 			draining++
 		}
 	}
-	return c.server.UpdatePoolRuntime(ctx, "manual", true, healthy, 0, draining, "")
+	quotaError := ""
+	allocations, err := c.server.UnknownWorkerQuotas(ctx)
+	if err != nil {
+		quotaError = "load unknown worker allocations: " + err.Error()
+	} else {
+		for _, allocation := range allocations {
+			if !allocation.RevokeDeadline.IsZero() && time.Now().After(allocation.RevokeDeadline) {
+				quotaError = "blocked_quota_unknown: manual worker stop requires confirmation; target allocations remain reserved"
+				break
+			}
+		}
+	}
+	return c.server.UpdatePoolRuntime(ctx, "manual", true, healthy, 0, draining, quotaError)
 }
 
 func joinErrors(errs ...error) string {

@@ -51,10 +51,12 @@ if ! file "$nuclei_binary" | grep -Eq 'ELF 64-bit.*x86-64'; then
   exit 1
 fi
 mkdir -p "$release_dir"
+release_dir=$(CDPATH= cd -- "$release_dir" && pwd)
 staging_dir=$(mktemp -d "$release_dir/.agent.XXXXXX")
 trap 'rm -rf "$staging_dir"' EXIT INT TERM
 CGO_ENABLED=0 GOOS=linux GOARCH="$target_arch" go build -trimpath -ldflags '-s -w' -o "$release_dir/scan-server" ./cmd/server
 CGO_ENABLED=0 GOOS=linux GOARCH="$target_arch" go build -trimpath -ldflags '-s -w' -o "$staging_dir/scan-agent" ./cmd/agent
+WEB_HELPERS_OUTPUT_DIR="$staging_dir" TARGET_OS=linux TARGET_ARCH="$target_arch" sh deploy/build-web-helpers.sh
 cp deploy/agent-bootstrap.sh deploy/cloud-fixture.sh "$staging_dir/"
 cp "$masscan_binary" "$staging_dir/masscan"
 cp "$nuclei_binary" "$staging_dir/nuclei"
@@ -64,11 +66,31 @@ mkdir -p "$staging_dir/licenses"
 cp "$(dirname -- "$nuclei_binary")/LICENSE.nuclei" "$staging_dir/licenses/"
 cp "$(dirname -- "$httpx_binary")/LICENSE.httpx" "$httpx_binary.sha256" "$staging_dir/licenses/"
 cp internal/rulelib/THIRD_PARTY_NOTICES.md "$staging_dir/licenses/RULES-NOTICES.md"
+cp deploy/WEB_HELPERS.md "$staging_dir/licenses/WEB-HELPERS.md"
+for helper in web-probe-worker fingerprint-worker; do
+  cp "$project_dir/cmd/$helper/go.mod" "$staging_dir/licenses/$helper.go.mod"
+  cp "$project_dir/cmd/$helper/go.sum" "$staging_dir/licenses/$helper.go.sum"
+done
+(
+  cd "$project_dir/cmd/web-probe-worker"
+  for module in httpx wappalyzergo; do
+    module_dir=$(go list -m -f '{{.Dir}}' "github.com/projectdiscovery/$module")
+    cp "$module_dir/LICENSE.md" "$staging_dir/licenses/LICENSE.$module-sdk"
+  done
+)
+(
+  cd "$project_dir/cmd/fingerprint-worker"
+  module_dir=$(go list -m -f '{{.Dir}}' github.com/chainreactors/fingers)
+  cp "$module_dir/README.md" "$staging_dir/licenses/FINGERS-UPSTREAM-README.md"
+  for notice in "$module_dir/LICENSE" "$module_dir/LICENSE.md" "$module_dir/NOTICE"; do
+    if [ -f "$notice" ]; then cp "$notice" "$staging_dir/licenses/FINGERS-$(basename "$notice")"; fi
+  done
+)
 cp "$nuclei_binary.sha256" "$staging_dir/licenses/nuclei.sha256"
 cp "$masscan_source" deploy/masscan/LICENSE.masscan deploy/masscan/SOURCE.md "$staging_dir/licenses/"
 cp "$masscan_binary.sha256" "$masscan_source.sha256" "$staging_dir/licenses/"
 tar -xOf "$masscan_source" masscan-source-1.3.2-scan-platform/AGPL-3.0.txt > "$staging_dir/licenses/AGPL-3.0.txt"
-chmod 0755 "$staging_dir/"*.sh "$staging_dir/scan-agent" "$staging_dir/masscan" "$staging_dir/nuclei" "$staging_dir/httpx"
+chmod 0755 "$staging_dir/"*.sh "$staging_dir/scan-agent" "$staging_dir/masscan" "$staging_dir/nuclei" "$staging_dir/httpx" "$staging_dir/web-probe-worker" "$staging_dir/fingerprint-worker"
 COPYFILE_DISABLE=1 tar -czf "$release_dir/scan-agent-linux-$target_arch.tar.gz.next" -C "$staging_dir" .
 mv "$release_dir/scan-agent-linux-$target_arch.tar.gz.next" "$release_dir/scan-agent-linux-$target_arch.tar.gz"
 shasum -a 256 "$release_dir/scan-agent-linux-$target_arch.tar.gz"

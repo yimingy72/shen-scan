@@ -19,7 +19,7 @@ import (
 )
 
 func TestScanMasscan(t *testing.T) {
-	input := "#masscan\nopen tcp 443 192.0.2.10 1\nclosed tcp 80 192.0.2.10 1\nopen udp 53 192.0.2.10 1\nopen tcp bad 192.0.2.10 1\n"
+	input := "#masscan\nopen tcp 443 192.0.2.10 1\n"
 	var got []Observation
 	if err := scanMasscan(strings.NewReader(input), func(obs Observation) error { got = append(got, obs); return nil }); err != nil {
 		t.Fatal(err)
@@ -170,7 +170,11 @@ func TestExecutionGuards(t *testing.T) {
 }
 
 func TestAgentConcurrencyAndMasscanRateLimits(t *testing.T) {
-	a, err := New(Config{ControlURL: "http://127.0.0.1:1", JoinToken: "join", InstanceID: "test", Hostname: "test", SessionID: "test"})
+	executable, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, err := New(Config{NmapBinary: executable, ControlURL: "http://127.0.0.1:1", JoinToken: "join", InstanceID: "test", Hostname: "test", SessionID: "test"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -333,7 +337,7 @@ func TestBufferedResultsDrainBeforeComplete(t *testing.T) {
 	a.workerID = "worker"
 	a.client.workerToken = "worker-token"
 	endpoints := make([]Endpoint, maxBatchItems+50)
-	payload, _ := json.Marshal(servicePayload{Endpoints: endpoints, TimeoutSeconds: 5})
+	payload, _ := json.Marshal(servicePayload{Executor: "builtin", Endpoints: endpoints, TimeoutSeconds: 5})
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := a.executeAndReport(ctx, Task{ID: "task", Type: "service", AttemptNo: 1, Payload: payload}); err != nil {

@@ -276,7 +276,7 @@ func (a *Agent) runHTTPXBatch(ctx context.Context, endpoints []Endpoint, rules [
 		return emit(observation)
 	}}
 	stderr := &stderrTail{limit: 64 << 10}
-	cmd := exec.Command(binary, args...)
+	cmd := exec.CommandContext(ctx, binary, args...)
 	setProcessGroup(cmd)
 	cmd.Dir = workDir
 	cmd.Env = httpxEnvironment(workDir)
@@ -356,7 +356,7 @@ func httpxObservation(result httpxResult, proxy *httpxScopeProxy, rules []ruleli
 	if err != nil || httpxOrigin(observed) != target.origin || observed.User != nil || observed.Fragment != "" {
 		return Observation{}, fmt.Errorf("httpx returned out-of-scope URL %q", result.URL)
 	}
-	observation := Observation{Kind: "http", Target: endpointTarget(target.endpoint), URL: result.URL, Title: result.Title, Server: result.WebServer, StatusCode: result.StatusCode}
+	observation := Observation{Kind: "http", WorkKey: target.endpoint.WorkKey, Target: endpointTarget(target.endpoint), URL: result.URL, Title: result.Title, Server: result.WebServer, StatusCode: result.StatusCode}
 	observation.Protocol = target.url.Scheme
 	observation.Port, _ = strconv.Atoi(urlPort(target.url))
 	if target.endpoint.IP != "" {

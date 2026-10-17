@@ -11,19 +11,25 @@ test -x "$source_dir/scan-agent"
 test -x "$source_dir/masscan"
 test -x "$source_dir/nuclei"
 test -x "$source_dir/httpx"
+test -x "$source_dir/web-probe-worker"
+test -x "$source_dir/fingerprint-worker"
 test -s "$source_dir/ca.crt"
 test -f "$source_dir/agent.env"
 test -x "$source_dir/cloud-fixture.sh"
 
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
-apt-get install -y --no-install-recommends masscan iproute2 python3 ca-certificates
+apt-get install -y --no-install-recommends masscan nmap iproute2 python3 ca-certificates
 install -m 0755 "$source_dir/masscan" /usr/local/bin/masscan.next
 mv -f /usr/local/bin/masscan.next /usr/local/bin/masscan
 install -m 0755 "$source_dir/nuclei" /usr/local/bin/nuclei.next
 mv -f /usr/local/bin/nuclei.next /usr/local/bin/nuclei
 install -m 0755 "$source_dir/httpx" /usr/local/bin/httpx.next
 mv -f /usr/local/bin/httpx.next /usr/local/bin/httpx
+for helper in web-probe-worker fingerprint-worker; do
+  install -m 0755 "$source_dir/$helper" "/usr/local/bin/$helper.next"
+  mv -f "/usr/local/bin/$helper.next" "/usr/local/bin/$helper"
+done
 
 install -d -m 0755 "$install_dir"
 if [ "$source_dir" != "$install_dir" ]; then
@@ -37,6 +43,9 @@ fi
 chmod 0600 "$install_dir/agent.env"
 test -s "$install_dir/ca.crt"
 grep -Eq '^AGENT_CONTROL_URL=https://' "$install_dir/agent.env"
+nmap --version > "$install_dir/nmap-version.txt"
+test -s /usr/share/nmap/nmap-service-probes
+fingerprint-worker --bundle > "$install_dir/fingerprint-bundle.txt"
 
 metadata=$(/usr/bin/python3 <<'PY'
 import time

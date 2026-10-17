@@ -221,6 +221,12 @@ func (s *Server) claimTask(w http.ResponseWriter, r *http.Request) {
 		UseRuleSets                bool     `json:"use_rule_sets"`
 		SupportsHTTPXCFF           bool     `json:"supports_httpx_cff"`
 		SupportsNucleiHTTPOriginal bool     `json:"supports_nuclei_http_original"`
+		SupportsPortRanges         bool     `json:"supports_port_ranges"`
+		SupportsConfirmedStop      bool     `json:"supports_confirmed_stop"`
+		PortStartReserved          bool     `json:"port_start_reserved"`
+		ServiceProfile             string   `json:"service_profile"`
+		WebEvidenceProfile         string   `json:"web_evidence_profile"`
+		FingerprintBundle          string   `json:"fingerprint_bundle"`
 	}
 	if err := decodeJSON(w, r, &request); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
@@ -238,6 +244,16 @@ func (s *Server) claimTask(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
+	}
+	if err := s.reconcileExpiredWork(r.Context()); err != nil {
+		writeError(w, 503, "reconcile execution limits failed")
+		return
+	}
+	if request.SupportsConfirmedStop && request.SupportsPortRanges && request.PortStartReserved && contains(types, "port") {
+		if err := s.preparePortStart(r.Context(), request.WorkerID, request.SessionID, request.RequestID); err != nil {
+			writeError(w, 503, "prepare startup reservation failed")
+			return
+		}
 	}
 	httpxCapable := request.SupportsHTTPXCFF && request.UseRuleSets
 	originalNucleiCapable := request.SupportsNucleiHTTPOriginal
@@ -257,10 +273,20 @@ func (s *Server) claimTask(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusServiceUnavailable, "database unavailable")
 		return
 	}
+	if err = expireQuotas(r.Context(), tx); err != nil {
+		writeError(w, 503, "quota reconciliation failed")
+		return
+	}
 	var workerStatus string
-	if err = tx.QueryRow(r.Context(), `SELECT status FROM workers WHERE id=$1 AND session_id=$2`,
-		request.WorkerID, request.SessionID).Scan(&workerStatus); err != nil {
+	var maintenance bool
+	if err = tx.QueryRow(r.Context(), `SELECT status,maintenance FROM workers WHERE id=$1 AND session_id=$2`,
+		request.WorkerID, request.SessionID).Scan(&workerStatus, &maintenance); err != nil {
 		writeError(w, http.StatusUnauthorized, "worker session is invalid")
+		return
+	}
+	var sessionSuspect bool
+	if err = tx.QueryRow(r.Context(), `SELECT EXISTS(SELECT 1 FROM target_quotas WHERE worker_id=$1 AND state IN('suspect','revoking'))`, request.WorkerID).Scan(&sessionSuspect); err != nil {
+		writeError(w, 503, "quota reconciliation failed")
 		return
 	}
 	inserted, err := tx.Exec(r.Context(), `INSERT INTO claim_requests(worker_id,session_id,request_id,response)
@@ -269,12 +295,20 @@ func (s *Server) claimTask(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "claim task failed")
 		return
 	}
-	if inserted.RowsAffected() == 1 && (!poolEnabled || workerStatus == "draining" || workerStatus == "offline") {
+	if inserted.RowsAffected() == 1 && (!poolEnabled || workerStatus == "draining" || workerStatus == "offline" || sessionSuspect || maintenance || !request.SupportsConfirmedStop) {
 		if err := tx.Commit(r.Context()); err != nil {
 			writeError(w, http.StatusServiceUnavailable, "database unavailable")
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"task": nil})
+		response := map[string]any{"task": nil}
+		if !request.SupportsConfirmedStop {
+			response["blocked_reason"] = "agent_upgrade_required"
+		} else if maintenance {
+			response["blocked_reason"] = "worker_maintenance"
+		} else if sessionSuspect {
+			response["blocked_reason"] = "blocked_quota_unknown"
+		}
+		writeJSON(w, http.StatusOK, response)
 		return
 	}
 	var previousTaskID *string
@@ -298,6 +332,16 @@ func (s *Server) claimTask(w http.ResponseWriter, r *http.Request) {
 				if checkErr == nil && requiresOriginal {
 					expired = true
 				}
+			}
+			if !expired {
+				var incompatible bool
+				checkErr := tx.QueryRow(r.Context(), `SELECT type='http' AND COALESCE(payload->>'web_profile','')<>'' AND
+                    (payload->>'web_profile'<>$2 OR payload->>'fingerprint_bundle'<>$3) FROM tasks WHERE id=$1`, *previousTaskID, request.WebEvidenceProfile, request.FingerprintBundle).Scan(&incompatible)
+				if checkErr != nil {
+					writeError(w, 500, "load claim compatibility failed")
+					return
+				}
+				expired = incompatible
 			}
 			if !expired {
 				valid, validErr := claimStillValid(r.Context(), tx, *previousTaskID, *previousAttempt, request.WorkerID, request.SessionID)
@@ -338,11 +382,30 @@ func (s *Server) claimTask(w http.ResponseWriter, r *http.Request) {
 	}
 	var runID, lastTargetKey string
 	var requiresHTTPXCFF bool
-	err = tx.QueryRow(r.Context(), `SELECT r.id,r.last_claim_target_key,r.requires_httpx_cff FROM runs r
+	// Startup-selected workers wait briefly for their reserved run lock rather
+	// than losing the reserved slot to SKIP LOCKED and a polling delay.
+	var reservedRunID string
+	reserveErr := tx.QueryRow(r.Context(), `SELECT t.run_id FROM port_start_tickets p JOIN tasks t ON t.id=p.task_id
+        WHERE p.worker_id=$1 AND p.session_id=$2 AND p.request_id=$3 AND t.state='queued' AND t.reserved_until>now()`, request.WorkerID, request.SessionID, request.RequestID).Scan(&reservedRunID)
+	if reserveErr != nil && !errors.Is(reserveErr, pgx.ErrNoRows) {
+		writeError(w, 503, "load startup reservation failed")
+		return
+	}
+	if reservedRunID != "" {
+		err = tx.QueryRow(r.Context(), `SELECT id,last_claim_target_key,requires_httpx_cff FROM runs WHERE id=$1 AND status IN('pending','running') FOR UPDATE`, reservedRunID).Scan(&runID, &lastTargetKey, &requiresHTTPXCFF)
+	} else {
+		err = tx.QueryRow(r.Context(), `SELECT r.id,r.last_claim_target_key,r.requires_httpx_cff FROM runs r
 		WHERE r.status IN ('pending','running') AND EXISTS (
 			SELECT 1 FROM tasks t WHERE t.run_id=r.id AND t.type=ANY($1)
 			AND (t.state='queued' OR (t.state='leased' AND t.lease_until <= now()))
-			AND (t.type<>'http' OR NOT r.requires_httpx_cff OR $4)
+            AND t.attempt_no<6 AND (t.first_started_at IS NULL OR t.first_started_at>now()-interval '30 minutes')
+            AND (t.type<>'port' OR $6 OR t.payload->>'ports'='1-65535')
+            AND (t.state<>'queued' OR t.worker_id IS NULL OR t.reserved_until<=now() OR (t.worker_id=$2 AND t.session_id=$3))
+            AND NOT EXISTS(SELECT 1 FROM port_start_tickets p WHERE p.root_task_id=t.id AND p.task_id IS NULL AND p.expires_at>now())
+            AND NOT EXISTS(SELECT 1 FROM target_quotas q WHERE q.task_id=t.id AND q.attempt_no=t.attempt_no AND q.state IN('active','suspect','revoking'))
+			AND (t.type<>'service' OR COALESCE(t.payload->>'service_profile','')='' OR t.payload->>'service_profile'=$9)
+            AND (t.type<>'http' OR NOT r.requires_httpx_cff OR $4)
+            AND (t.type<>'http' OR COALESCE(t.payload->>'web_profile','')='' OR (t.payload->>'web_profile'=$7 AND t.payload->>'fingerprint_bundle'=$8))
 			AND (t.type<>'poc' OR COALESCE(t.payload->'rules'->0->'nuclei'->>'execution_profile','') <> 'http-basic-v1' OR $5)
 			AND ((t.type='port' AND NOT EXISTS (SELECT 1 FROM tasks active_port
 				WHERE active_port.worker_id=$2 AND active_port.session_id=$3 AND active_port.type='port'
@@ -350,9 +413,12 @@ func (s *Server) claimTask(w http.ResponseWriter, r *http.Request) {
 			OR (t.type<>'port' AND NOT EXISTS (SELECT 1 FROM tasks active_target
 				WHERE active_target.worker_id=$2 AND active_target.session_id=$3
 				AND active_target.type IN ('service','http','poc') AND active_target.target_key=t.target_key
+                AND (t.type<>'http' OR active_target.type<>'http' OR
+                    ((active_target.payload->'endpoints'->0) - 'work_key') = ((t.payload->'endpoints'->0) - 'work_key'))
 				AND active_target.state='leased' AND active_target.lease_until > now()))))
 		ORDER BY r.last_claim_at,r.created_at,r.id FOR UPDATE OF r SKIP LOCKED LIMIT 1`,
-		types, request.WorkerID, request.SessionID, httpxCapable, originalNucleiCapable).Scan(&runID, &lastTargetKey, &requiresHTTPXCFF)
+			types, request.WorkerID, request.SessionID, httpxCapable, originalNucleiCapable, request.SupportsPortRanges, request.WebEvidenceProfile, request.FingerprintBundle, request.ServiceProfile).Scan(&runID, &lastTargetKey, &requiresHTTPXCFF)
+	}
 	if errors.Is(err, pgx.ErrNoRows) {
 		if err := tx.Commit(r.Context()); err != nil {
 			writeError(w, http.StatusInternalServerError, "record empty claim failed")
@@ -376,7 +442,14 @@ func (s *Server) claimTask(w http.ResponseWriter, r *http.Request) {
 			AND (($5 AND ((t.state='leased' AND t.lease_until<=now()) OR (t.state='queued' AND t.attempt_no>0)))
 				OR (NOT $5 AND t.state='queued' AND t.attempt_no=0))
 			AND (NOT $6 OR t.target_key>$7)
-			AND (t.type<>'http' OR NOT $8 OR $9)
+            AND t.attempt_no<6 AND (t.first_started_at IS NULL OR t.first_started_at>now()-interval '30 minutes')
+            AND (t.type<>'port' OR $11 OR t.payload->>'ports'='1-65535')
+            AND (t.state<>'queued' OR t.worker_id IS NULL OR t.reserved_until<=now() OR (t.worker_id=$3 AND t.session_id=$4))
+            AND NOT EXISTS(SELECT 1 FROM port_start_tickets p WHERE p.root_task_id=t.id AND p.task_id IS NULL AND p.expires_at>now())
+            AND NOT EXISTS(SELECT 1 FROM target_quotas q WHERE q.task_id=t.id AND q.attempt_no=t.attempt_no AND q.state IN('active','suspect','revoking'))
+			AND (t.type<>'service' OR COALESCE(t.payload->>'service_profile','')='' OR t.payload->>'service_profile'=$14)
+            AND (t.type<>'http' OR NOT $8 OR $9)
+            AND (t.type<>'http' OR COALESCE(t.payload->>'web_profile','')='' OR (t.payload->>'web_profile'=$12 AND t.payload->>'fingerprint_bundle'=$13))
 			AND (t.type<>'poc' OR COALESCE(t.payload->'rules'->0->'nuclei'->>'execution_profile','') <> 'http-basic-v1' OR $10)
 			AND ((t.type='port' AND NOT EXISTS (SELECT 1 FROM tasks active_port
 				WHERE active_port.worker_id=$3 AND active_port.session_id=$4 AND active_port.type='port'
@@ -384,10 +457,12 @@ func (s *Server) claimTask(w http.ResponseWriter, r *http.Request) {
 			OR (t.type<>'port' AND NOT EXISTS (SELECT 1 FROM tasks active_target
 				WHERE active_target.worker_id=$3 AND active_target.session_id=$4
 				AND active_target.type IN ('service','http','poc') AND active_target.target_key=t.target_key
+                AND (t.type<>'http' OR active_target.type<>'http' OR
+                    ((active_target.payload->'endpoints'->0) - 'work_key') = ((t.payload->'endpoints'->0) - 'work_key'))
 				AND active_target.state='leased' AND active_target.lease_until > now())))
-			ORDER BY t.target_key,t.created_at,t.id FOR UPDATE OF t SKIP LOCKED LIMIT 1`,
+			ORDER BY (t.worker_id=$3 AND t.session_id=$4 AND t.reserved_until>now()) DESC NULLS LAST,t.target_key,t.created_at,t.id FOR UPDATE OF t SKIP LOCKED LIMIT 1`,
 			runID, types, request.WorkerID, request.SessionID, candidate.retry, candidate.afterCursor, lastTargetKey,
-			requiresHTTPXCFF, httpxCapable, originalNucleiCapable).Scan(
+			requiresHTTPXCFF, httpxCapable, originalNucleiCapable, request.SupportsPortRanges, request.WebEvidenceProfile, request.FingerprintBundle, request.ServiceProfile).Scan(
 			&taskID, &runID, &typeName, &payload, &targetKey)
 		if !errors.Is(err, pgx.ErrNoRows) {
 			break
@@ -407,9 +482,31 @@ func (s *Server) claimTask(w http.ResponseWriter, r *http.Request) {
 	}
 	serverTime := utcNow()
 	leaseUntil, rateUntil := serverTime.Add(leaseDuration), serverTime.Add(rateDuration)
+	var previousAttemptNo int
+	if err = tx.QueryRow(r.Context(), `SELECT attempt_no FROM tasks WHERE id=$1`, taskID).Scan(&previousAttemptNo); err != nil {
+		writeError(w, 500, "load execution identity failed")
+		return
+	}
+	allowed, quotaErr := acquireTaskQuota(r.Context(), tx, taskID, previousAttemptNo+1, request.WorkerID, request.SessionID, typeName, payload, rateUntil)
+	if quotaErr != nil {
+		writeError(w, 500, "reserve target quota failed")
+		return
+	}
+	if !allowed {
+		if _, err = tx.Exec(r.Context(), `UPDATE runs SET last_claim_at=now(),last_claim_target_key=$2 WHERE id=$1`, runID, targetKey); err != nil {
+			writeError(w, 503, "record blocked claim failed")
+			return
+		}
+		if err = tx.Commit(r.Context()); err != nil {
+			writeError(w, 503, "record blocked claim failed")
+			return
+		}
+		writeJSON(w, 200, map[string]any{"task": nil, "blocked_reason": "target_quota_unavailable"})
+		return
+	}
 	var attempt int
-	err = tx.QueryRow(r.Context(), `UPDATE tasks SET state='leased',attempt_no=attempt_no+1,worker_id=$1,session_id=$2,
-		lease_until=$3,rate_until=$4,last_batch_seq=-1,updated_at=now() WHERE id=$5 RETURNING attempt_no`,
+	err = tx.QueryRow(r.Context(), `UPDATE tasks SET state='leased' ,attempt_no=attempt_no+1,worker_id=$1,session_id=$2,
+		lease_until=$3,rate_until=$4,last_batch_seq=-1,first_started_at=COALESCE(first_started_at,now()),reserved_until=NULL,updated_at=now() WHERE id=$5 RETURNING attempt_no`,
 		request.WorkerID, request.SessionID, leaseUntil, rateUntil, taskID).Scan(&attempt)
 	if err == nil {
 		_, err = tx.Exec(r.Context(), `UPDATE runs SET status='running',last_claim_at=now(),
@@ -556,11 +653,12 @@ func (s *Server) renewTask(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "renew task failed")
 		return
 	}
-	var state string
+	var state, typeName string
+	var payload []byte
 	var currentLease *time.Time
-	err = tx.QueryRow(r.Context(), `SELECT state,lease_until FROM tasks
+	err = tx.QueryRow(r.Context(), `SELECT state,lease_until,type,payload FROM tasks
 		WHERE id=$1 AND run_id=$2 AND worker_id=$3 AND session_id=$4 AND attempt_no=$5 FOR UPDATE`,
-		r.PathValue("id"), runID, identity.WorkerID, identity.SessionID, identity.AttemptNo).Scan(&state, &currentLease)
+		r.PathValue("id"), runID, identity.WorkerID, identity.SessionID, identity.AttemptNo).Scan(&state, &currentLease, &typeName, &payload)
 	if errors.Is(err, pgx.ErrNoRows) {
 		writeError(w, http.StatusConflict, "task execution is stale")
 		return
@@ -578,7 +676,14 @@ func (s *Server) renewTask(w http.ResponseWriter, r *http.Request) {
 		action, reason = "drain", "run paused"
 	} else {
 		leaseUntil, rateUntil = serverTime.Add(leaseDuration), serverTime.Add(rateDuration)
-		_, err = tx.Exec(r.Context(), `UPDATE tasks SET lease_until=$1,rate_until=$2,updated_at=now() WHERE id=$3`, leaseUntil, rateUntil, r.PathValue("id"))
+		var allowed bool
+		allowed, err = renewTaskQuota(r.Context(), tx, r.PathValue("id"), identity.AttemptNo, identity.WorkerID, identity.SessionID, typeName, payload, rateUntil)
+		if err == nil && !allowed {
+			action, reason = "stop", "execution quota expired or stop is unconfirmed"
+			leaseUntil, rateUntil = time.Time{}, time.Time{}
+		} else if err == nil {
+			_, err = tx.Exec(r.Context(), `UPDATE tasks SET lease_until=$1,rate_until=$2,updated_at=now() WHERE id=$3`, leaseUntil, rateUntil, r.PathValue("id"))
+		}
 	}
 	if err != nil || tx.Commit(r.Context()) != nil {
 		writeError(w, http.StatusInternalServerError, "renew task failed")
@@ -786,11 +891,12 @@ func (s *Server) completeTask(w http.ResponseWriter, r *http.Request) {
 	}
 	var typeName, state, sourceTarget string
 	var payload json.RawMessage
-	var attempt int
+	var attempt, committedLastSeq int
+	var acceptedCompletionID *string
 	var leaseUntil *time.Time
-	err = tx.QueryRow(r.Context(), `SELECT type,state,attempt_no,payload,target_key,lease_until FROM tasks
+	err = tx.QueryRow(r.Context(), `SELECT type,state,attempt_no,payload,target_key,lease_until,last_batch_seq,completion_id FROM tasks
 		WHERE id=$1 AND run_id=$2 AND worker_id=$3 AND session_id=$4 FOR UPDATE`,
-		r.PathValue("id"), runID, request.WorkerID, request.SessionID).Scan(&typeName, &state, &attempt, &payload, &sourceTarget, &leaseUntil)
+		r.PathValue("id"), runID, request.WorkerID, request.SessionID).Scan(&typeName, &state, &attempt, &payload, &sourceTarget, &leaseUntil, &committedLastSeq, &acceptedCompletionID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		writeError(w, http.StatusNotFound, "task not found")
 		return
@@ -800,8 +906,12 @@ func (s *Server) completeTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if state == "completed" && attempt == request.AttemptNo {
+		if committedLastSeq != request.LastBatchSeq {
+			writeError(w, http.StatusConflict, "completion receipt has a different final batch")
+			return
+		}
 		_ = tx.Commit(r.Context())
-		writeJSON(w, http.StatusOK, map[string]bool{"completed": true})
+		writeJSON(w, http.StatusOK, map[string]any{"completed": true, "completion_id": acceptedCompletionID})
 		return
 	}
 	if state != "leased" || attempt != request.AttemptNo || leaseUntil == nil || !leaseUntil.After(utcNow()) {
@@ -820,20 +930,43 @@ func (s *Server) completeTask(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusConflict, "complete batch sequence is not committed")
 		return
 	}
+	outcome, coverage, err := completeOutcome(r.Context(), tx, r.PathValue("id"), typeName, request.AttemptNo, payload)
+	if err != nil {
+		writeError(w, http.StatusUnprocessableEntity, err.Error())
+		return
+	}
+	if err = finishTaskQuota(r.Context(), tx, r.PathValue("id"), request.AttemptNo, request.WorkerID, request.SessionID, true, "agent completed after process exit"); err != nil {
+		writeError(w, 500, "release completion quota failed")
+		return
+	}
 	if typeName == "port" {
 		if err := derivePortTasks(r.Context(), tx, r.PathValue("id"), runID, request.AttemptNo, payload); err != nil {
 			writeError(w, http.StatusUnprocessableEntity, err.Error())
 			return
 		}
 	}
-	if typeName == "http" || typeName == "service" {
+	if typeName == "service" {
+		if err := deriveServiceWebTasks(r.Context(), tx, r.PathValue("id"), runID, request.AttemptNo, payload); err != nil {
+			writeError(w, http.StatusUnprocessableEntity, err.Error())
+			return
+		}
+	}
+	if typeName == "http" {
 		if err := derivePOCTasks(r.Context(), tx, r.PathValue("id"), runID, request.AttemptNo, typeName, sourceTarget, payload); err != nil {
 			writeError(w, http.StatusUnprocessableEntity, err.Error())
 			return
 		}
 	}
+	completionID := newID()
 	_, err = tx.Exec(r.Context(), `UPDATE tasks SET state='completed',last_batch_seq=$1,lease_until=NULL,rate_until=NULL,
-		completed_at=now(),updated_at=now() WHERE id=$2`, request.LastBatchSeq, r.PathValue("id"))
+		completed_at=now(),updated_at=now(),accepted_attempt_no=attempt_no,completion_id=$3,outcome=$4,coverage=$5 WHERE id=$2`, request.LastBatchSeq, r.PathValue("id"), completionID, outcome, coverage)
+	if err == nil {
+		err = sealCompletionEvidence(r.Context(), tx, r.PathValue("id"), typeName, request.AttemptNo, payload)
+	}
+	if err == nil {
+		_, err = tx.Exec(r.Context(), `UPDATE tasks SET payload=payload||jsonb_build_object('source_completion_id',$3::text)
+      WHERE run_id=$1 AND payload->>'source_task_id'=$2 AND state='queued'`, runID, r.PathValue("id"), completionID)
+	}
 	if err == nil {
 		_, err = tx.Exec(r.Context(), `UPDATE workers SET status=CASE WHEN status='draining' THEN status ELSE 'ready' END,current_task_id=NULL
 			WHERE id=$1 AND session_id=$2`, request.WorkerID, request.SessionID)
@@ -845,7 +978,7 @@ func (s *Server) completeTask(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "complete task failed")
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]bool{"completed": true})
+	writeJSON(w, http.StatusOK, map[string]any{"completed": true, "completion_id": completionID})
 }
 
 func derivePortTasks(ctx context.Context, tx pgx.Tx, taskID, runID string, attempt int, payload json.RawMessage) error {
@@ -895,27 +1028,18 @@ func derivePortTasks(ctx context.Context, tx pgx.Tx, taskID, runID string, attem
 		if err != nil {
 			return err
 		}
-		taskTypes := []struct {
-			name               string
-			chunkSize, timeout int
-		}{{"service", 32, 5}}
-		if config.HTTPEnabled {
-			taskTypes = append(taskTypes, struct {
-				name               string
-				chunkSize, timeout int
-			}{"http", 8, 12})
-		}
-		for _, taskType := range taskTypes {
-			for start := 0; start < len(ports); start += taskType.chunkSize {
-				end := min(start+taskType.chunkSize, len(ports))
-				endpoints := make([]map[string]any, 0, end-start)
-				for _, port := range ports[start:end] {
-					endpoints = append(endpoints, map[string]any{"ip": ip, "port": port})
-				}
-				if err := insertDerivedTask(ctx, tx, runID, taskID, taskType.name, ip,
-					start/taskType.chunkSize, taskType.timeout, endpoints); err != nil {
-					return err
-				}
+		for start := 0; start < len(ports); start += 32 {
+			end := min(start+32, len(ports))
+			endpoints := make([]map[string]any, 0, end-start)
+			for _, port := range ports[start:end] {
+				endpoints = append(endpoints, map[string]any{"ip": ip, "port": port, "work_key": fmt.Sprintf("service:%s:%d", ip, port)})
+			}
+			chunk := start / 32
+			if err := insertDerivedTask(ctx, tx, runID, taskID, "service", ip, chunk, 60, endpoints); err != nil {
+				return err
+			}
+			if _, err := tx.Exec(ctx, `UPDATE tasks SET payload=payload||jsonb_build_object('http_enabled',$3::boolean) WHERE run_id=$1 AND derived_key=$2`, runID, fmt.Sprintf("derived:%s:service:%s:%d", taskID, ip, chunk), config.HTTPEnabled); err != nil {
+				return err
 			}
 		}
 	}
@@ -923,10 +1047,11 @@ func derivePortTasks(ctx context.Context, tx pgx.Tx, taskID, runID string, attem
 }
 
 type taskEndpoint struct {
-	IP   string `json:"ip,omitempty"`
-	Port int    `json:"port,omitempty"`
-	Host string `json:"host,omitempty"`
-	URL  string `json:"url,omitempty"`
+	WorkKey string `json:"work_key,omitempty"`
+	IP      string `json:"ip,omitempty"`
+	Port    int    `json:"port,omitempty"`
+	Host    string `json:"host,omitempty"`
+	URL     string `json:"url,omitempty"`
 }
 
 func endpointBaseURL(endpoint taskEndpoint) (*url.URL, error) {
@@ -1142,6 +1267,7 @@ func deriveFingerprintPOCTasks(ctx context.Context, tx pgx.Tx, triggerTaskID, ru
 	httpRows, err := tx.Query(ctx, `SELECT a.task_id,a.attempt_no,a.target_key,a.observation,t.payload
 		FROM assets a JOIN tasks t ON t.id=a.task_id AND t.attempt_no=a.attempt_no
 		WHERE a.run_id=$1 AND a.observation->>'kind'='http' AND COALESCE((a.observation->>'status_code')::int,0)>0
+        AND COALESCE(a.observation->>'error','')='' AND COALESCE(a.observation->>'coverage','') NOT IN('partial','incomplete','missing','unconfirmed')
 		AND (($2='http' AND t.id=$3 AND t.attempt_no=$4) OR ($2='service' AND a.target_key=$5 AND t.state='completed'))
 		ORDER BY a.task_id,a.attempt_no,a.batch_seq,a.item_index`, runID, triggerType, triggerTaskID, triggerAttempt, sourceTarget)
 	if err != nil {
@@ -1273,7 +1399,7 @@ func appendUniqueString(values []string, value string) []string {
 
 func insertPOCTask(ctx context.Context, tx pgx.Tx, runID, parentID string, attempt int, endpointKey, targetKey string, endpoint taskEndpoint, rule rulelib.Rule, matchedProducts []string, triggerReason string, fingerprintPolicy bool) error {
 	payload, _ := json.Marshal(map[string]any{"endpoint": endpoint, "rules": []rulelib.Rule{rule}, "execution_timeout_seconds": 90,
-		"matched_products": matchedProducts, "trigger_reason": triggerReason})
+		"matched_products": matchedProducts, "trigger_reason": triggerReason, "source_task_id": parentID, "source_attempt_no": attempt})
 	taskID := newID()
 	derivedKey := fmt.Sprintf("poc:%s:%d:%s:%s", parentID, attempt, endpointKey, rule.ID)
 	if fingerprintPolicy {
@@ -1289,7 +1415,33 @@ func insertPOCTask(ctx context.Context, tx pgx.Tx, runID, parentID string, attem
 }
 
 func insertDerivedTask(ctx context.Context, tx pgx.Tx, runID, parentID, typeName, targetKey string, chunk, timeout int, endpoints []map[string]any) error {
-	payload, _ := json.Marshal(map[string]any{"endpoints": endpoints, "timeout_seconds": timeout, "execution_timeout_seconds": 180})
+	profile := map[string]any{"endpoints": endpoints, "timeout_seconds": timeout, "execution_timeout_seconds": 90, "source_task_id": parentID}
+	if typeName == "service" {
+		var required string
+		if err := tx.QueryRow(ctx, `SELECT COALESCE(rules_snapshot->>'service_profile','') FROM runs WHERE id=$1`, runID).Scan(&required); err != nil {
+			return err
+		}
+		if required != "" {
+			profile["service_profile"] = required
+		}
+	}
+	if typeName == "http" {
+		var bundle, webProfile string
+		if err := tx.QueryRow(ctx, `SELECT COALESCE(rules_snapshot->>'fingerprint_bundle',''),COALESCE(rules_snapshot->>'web_profile','') FROM runs WHERE id=$1`, runID).Scan(&bundle, &webProfile); err != nil {
+			return err
+		}
+		if bundle != "" {
+			profile["fingerprint_bundle"] = bundle
+			profile["web_profile"] = webProfile
+		}
+		for i := range endpoints {
+			endpoints[i]["work_key"] = fmt.Sprintf("web:%s:%d", targetKey, chunk)
+		}
+		profile["max_requests"] = 8
+		profile["max_body_bytes"] = 2 << 20
+		profile["max_icons"] = 2
+	}
+	payload, _ := json.Marshal(profile)
 	taskID := newID()
 	result, err := tx.Exec(ctx, `INSERT INTO tasks(id,run_id,type,payload,derived_key,target_key) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (run_id,derived_key) DO NOTHING`,
 		taskID, runID, typeName, payload, fmt.Sprintf("derived:%s:%s:%s:%d", parentID, typeName, targetKey, chunk), targetKey)
@@ -1305,6 +1457,7 @@ func (s *Server) releaseTask(w http.ResponseWriter, r *http.Request) {
 		Reason       string `json:"reason"`
 		Retryable    bool   `json:"retryable"`
 		FailureClass string `json:"failure_class"`
+		Stopped      bool   `json:"stopped"`
 	}
 	if err := decodeJSON(w, r, &request); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
@@ -1340,15 +1493,18 @@ func (s *Server) releaseTask(w http.ResponseWriter, r *http.Request) {
 	}
 	var finalState string
 	err = tx.QueryRow(r.Context(), `UPDATE tasks SET
-		state=CASE WHEN $1 AND ($2='' OR execution_failures+1<3) THEN 'queued' ELSE 'failed' END,
+		state=CASE WHEN state='cancelled' THEN 'cancelled' WHEN $1 AND ($2='' OR execution_failures+1<3) AND attempt_no<6 AND COALESCE(first_started_at,now())>now()-interval '30 minutes' THEN 'queued' ELSE 'failed' END,
 		execution_failures=execution_failures+CASE WHEN $2='execution_timeout' THEN 1 ELSE 0 END,
 		error=$3,worker_id=NULL,session_id=NULL,lease_until=NULL,rate_until=NULL,updated_at=now()
-		WHERE id=$4 AND run_id=$5 AND worker_id=$6 AND session_id=$7 AND attempt_no=$8 AND state='leased'
+		WHERE id=$4 AND run_id=$5 AND worker_id=$6 AND session_id=$7 AND attempt_no=$8 AND state IN('leased','cancelled')
 		RETURNING run_id,state`, request.Retryable, request.FailureClass, request.Reason, r.PathValue("id"), runID,
 		request.WorkerID, request.SessionID, request.AttemptNo).Scan(&runID, &finalState)
 	if errors.Is(err, pgx.ErrNoRows) {
 		writeError(w, http.StatusConflict, "task execution is stale")
 		return
+	}
+	if err == nil {
+		err = finishTaskQuota(r.Context(), tx, r.PathValue("id"), request.AttemptNo, request.WorkerID, request.SessionID, request.Stopped, request.Reason)
 	}
 	if err == nil {
 		_, err = tx.Exec(r.Context(), `UPDATE workers SET status=CASE WHEN status='draining' THEN status ELSE 'ready' END,current_task_id=NULL WHERE id=$1`, request.WorkerID)
@@ -1371,12 +1527,12 @@ func finalizeRun(ctx context.Context, tx pgx.Tx, runID string) error {
 	if pending {
 		return nil
 	}
-	var failed, completed int
-	if err := tx.QueryRow(ctx, `SELECT count(*) FILTER (WHERE state='failed'),count(*) FILTER (WHERE state='completed') FROM tasks WHERE run_id=$1`, runID).Scan(&failed, &completed); err != nil {
+	var failed, completed, incomplete int
+	if err := tx.QueryRow(ctx, `SELECT count(*) FILTER (WHERE state='failed'),count(*) FILTER (WHERE state='completed'),count(*) FILTER(WHERE state='completed' AND coverage='partial') FROM tasks WHERE run_id=$1`, runID).Scan(&failed, &completed, &incomplete); err != nil {
 		return err
 	}
 	status := "completed"
-	if failed > 0 && completed > 0 {
+	if incomplete > 0 || (failed > 0 && completed > 0) {
 		status = "partial"
 	} else if failed > 0 {
 		status = "failed"
