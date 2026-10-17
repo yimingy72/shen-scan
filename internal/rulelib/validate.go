@@ -55,6 +55,26 @@ func Validate(rule Rule) error {
 			return err
 		}
 	}
+	if rule.Kind != "poc" && len(rule.AppliesTo) != 0 {
+		return fmt.Errorf("applies_to is only valid for poc rules")
+	}
+	if len(rule.AppliesTo) > 32 {
+		return fmt.Errorf("too many applies_to products")
+	}
+	seenProducts := make(map[string]bool, len(rule.AppliesTo))
+	for _, product := range rule.AppliesTo {
+		if err := bounded("applies_to product", product, 1, 128); err != nil {
+			return err
+		}
+		normalized := normalizeProduct(product)
+		if normalized == "" || prohibitedProductBinding(normalized) {
+			return fmt.Errorf("invalid applies_to product %q", product)
+		}
+		if seenProducts[normalized] {
+			return fmt.Errorf("duplicate applies_to product %q", product)
+		}
+		seenProducts[normalized] = true
+	}
 	if err := validateDefinition(rule); err != nil {
 		return err
 	}
@@ -262,4 +282,8 @@ func oneOf(value string, choices ...string) bool {
 		}
 	}
 	return false
+}
+
+func prohibitedProductBinding(product string) bool {
+	return strings.Contains(product, "*") || oneOf(product, "/", "all", "any", "http", "https", "web")
 }

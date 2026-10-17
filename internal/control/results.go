@@ -63,7 +63,7 @@ func backfillTargetKeys(ctx context.Context, db *pgxpool.Pool) error {
 }
 
 const currentResults = `WITH rt AS (SELECT t.id,t.type,t.state,t.attempt_no,t.updated_at,t.error,tt.target_key FROM tasks t JOIN task_targets tt ON tt.task_id=t.id WHERE t.run_id=$1),
- ob AS (SELECT a.id,a.observed_at,a.observation,a.target_key FROM assets a JOIN tasks t
+ ob AS (SELECT a.id,a.task_id,a.observed_at,a.observation,a.target_key,t.payload task_payload FROM assets a JOIN tasks t
  ON t.id=a.task_id AND t.attempt_no=a.attempt_no WHERE a.run_id=$1)`
 
 const targetResults = currentResults + `,
@@ -242,7 +242,9 @@ func (s *Server) listFindings(w http.ResponseWriter, r *http.Request) {
 	 SELECT (SELECT count(*) FROM filtered),count(*) FILTER(WHERE observation->>'finding_status'='matched'),
 	 count(*) FILTER(WHERE observation->>'finding_status'='not_matched'),count(*) FILTER(WHERE observation->>'finding_status'='error'),
 	 COALESCE((SELECT jsonb_agg((observation-'request_raw'-'response_raw'-'body_excerpt'-'headers') ||
-	 jsonb_build_object('id',id,'run_id',$1::text,'source_target',target_key,'observed_at',observed_at) ORDER BY observed_at DESC,id DESC) FROM page),'[]'::jsonb)
+	 jsonb_build_object('id',id,'run_id',$1::text,'source_target',target_key,'observed_at',observed_at,
+	 'matched_products',COALESCE(task_payload->'matched_products','[]'::jsonb),'trigger_reason',COALESCE(task_payload->>'trigger_reason',''))
+	 ORDER BY observed_at DESC,id DESC) FROM page),'[]'::jsonb)
 	 FROM findings`, r.PathValue("id"), status, severity, query, limit, offset).Scan(&total, &matched, &notMatched, &failed, &items)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "load findings failed")
@@ -254,8 +256,9 @@ func (s *Server) listFindings(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) getObservation(w http.ResponseWriter, r *http.Request) {
 	var item Asset
-	var raw []byte
-	err := s.db.QueryRow(r.Context(), `SELECT id,run_id,observed_at,observation FROM assets WHERE id=$1`, r.PathValue("id")).Scan(&item.ID, &item.RunID, &item.ObservedAt, &raw)
+	var raw, taskPayload []byte
+	err := s.db.QueryRow(r.Context(), `SELECT a.id,a.run_id,a.observed_at,a.observation,t.payload
+		FROM assets a JOIN tasks t ON t.id=a.task_id WHERE a.id=$1`, r.PathValue("id")).Scan(&item.ID, &item.RunID, &item.ObservedAt, &raw, &taskPayload)
 	if errors.Is(err, pgx.ErrNoRows) {
 		writeError(w, 404, "结果不存在")
 		return
@@ -264,5 +267,14 @@ func (s *Server) getObservation(w http.ResponseWriter, r *http.Request) {
 		writeError(w, 500, "读取结果详情失败")
 		return
 	}
-	writeJSON(w, 200, item)
+	var trace struct {
+		MatchedProducts []string `json:"matched_products,omitempty"`
+		TriggerReason   string   `json:"trigger_reason,omitempty"`
+	}
+	_ = json.Unmarshal(taskPayload, &trace)
+	writeJSON(w, 200, struct {
+		Asset
+		MatchedProducts []string `json:"matched_products,omitempty"`
+		TriggerReason   string   `json:"trigger_reason,omitempty"`
+	}{Asset: item, MatchedProducts: trace.MatchedProducts, TriggerReason: trace.TriggerReason})
 }

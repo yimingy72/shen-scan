@@ -1,6 +1,6 @@
 # HTTP 与服务指纹依据
 
-当前内置 54 条 HTTP 规则、22 条端口规则，另有 7 条显式启用的只读 PoC。工作台的“指纹库”展示实际规则、启用状态和版本，可编辑、复制及导入导出；接口和格式见 [规则库说明](RULE_LIBRARY.md)。下面列举主要识别依据，完整规则以 `internal/rulelib/builtins.go` 和库内定义为准。任务使用创建时的规则快照。
+当前内置 150 条 HTTP 规则、22 条端口规则，另有 43 条显式启用的只读 PoC。工作台的“指纹库”展示实际规则、启用状态和版本，可编辑、复制及导入导出；接口和格式见 [规则库说明](RULE_LIBRARY.md)。下面列举主要识别依据，完整规则以 `internal/rulelib/builtins.go` 和库内定义为准。任务使用创建时的规则快照。
 
 HTTP 指纹只使用既有响应，不为识别 CMS、框架或版本增加请求。服务指纹优先读取连接已经返回的首段 Banner；6379 和 11211 端口分别发送一次无副作用的 `PING` 和 `version` 命令，并且只在响应符合协议时确认 Redis 或 memcached。HTTP 正文仍受现有 1 MiB 上限约束，服务响应仍受现有 4096 字节上限和单端点 5 秒总时限约束。
 
@@ -46,7 +46,7 @@ HTTP 指纹只使用既有响应，不为识别 CMS、框架或版本增加请�
 - [Redis PING 命令](https://redis.io/docs/latest/commands/ping/) 与 [memcached 文本协议](https://github.com/memcached/memcached/blob/master/doc/protocol.txt)
 - [SSH Transport Layer Protocol](https://www.rfc-editor.org/rfc/rfc4253#section-4.2)、[SMTP](https://www.rfc-editor.org/rfc/rfc5321) 和 [FTP](https://www.rfc-editor.org/rfc/rfc959) 协议文档
 
-内置规则没有复制 Wappalyzer、Nuclei templates、WhatWeb 等第三方规则库；匹配表达式和测试样本为本项目编写。Nuclei 执行引擎单独遵循 MIT 许可，随 Worker 发布包保留许可证；导入规则的版权和许可由其来源决定。
+新增的 85 个被动信号改写自 MIT 的 `projectdiscovery/wappalyzergo` 固定版本，保留 [许可证与归属](../internal/rulelib/THIRD_PARTY_NOTICES.md)；另有 11 个产品专用强信号，未打包整个上游数据文件。未复制无明确许可证的 FingerprintHub、ChainReactor 规则，也未把不支持的 favicon、JS runtime、主动请求或复杂关联语义降级成粗糙字符串判断。Nuclei 执行引擎单独遵循 MIT 许可，随 Worker 发布包保留许可证；导入规则的版权和许可由其来源决定。
 
 ## 调度边界
 
@@ -57,3 +57,5 @@ HTTP 任务内部最多并行 2 个端点；未指定 URL 时，首个协议的�
 禁用的 HTTP / 端口规则不会参与新任务匹配。空响应不识别技术；正文截断或读取失败时不据此断言某个正文标记不存在。同产品的多条规则合并显示，保留明确版本。Drupal 不把任意 X-Generator 当作依据，phpMyAdmin 不根据正文的单个产品词命中。
 
 基础协议解析仍用于确认 HTTP、SSH、SMTP 等协议；端口产品匹配由任务快照控制。PoC 的请求和结论单列，不混入普通端口产品汇总。
+
+完整来源与覆盖列表见 [规则来源记录](RULE_SOURCES.md)。端口库仍为 22 个可靠产品；当前 Agent 没有 fingerprintx 的全部主动协议握手，单纯新增端口规则不能获得这些能力。

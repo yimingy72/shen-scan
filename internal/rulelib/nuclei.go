@@ -164,11 +164,40 @@ func parseNucleiTemplate(content string) (Rule, error) {
 	rule := Rule{
 		ID: template.ID, Kind: "poc", Name: template.Info.Name,
 		Description: template.Info.Description, Engine: "nuclei", Severity: severity,
-		Enabled: false, Builtin: false, Revision: 1, Tags: []string(template.Info.Tags),
+		Enabled: false, Builtin: false, Revision: 1, Tags: []string(template.Info.Tags), AppliesTo: metadataProducts(template.Info.Metadata),
 		Source: "Imported read-only Nuclei HTTP template", Definition: Definition{Service: "http", Condition: "and", Requests: requests},
 		Template: normalized,
 	}
 	return rule, nil
+}
+
+func metadataProducts(metadata map[string]interface{}) []string {
+	value, ok := metadata["product"]
+	if !ok {
+		return nil
+	}
+	var products []string
+	switch value := value.(type) {
+	case string:
+		for _, product := range strings.Split(value, ",") {
+			if product = strings.TrimSpace(product); product != "" {
+				products = append(products, product)
+			}
+		}
+	case []interface{}:
+		for _, item := range value {
+			if product, ok := item.(string); ok && strings.TrimSpace(product) != "" {
+				products = append(products, strings.TrimSpace(product))
+			}
+		}
+	case []string:
+		for _, product := range value {
+			if product = strings.TrimSpace(product); product != "" {
+				products = append(products, product)
+			}
+		}
+	}
+	return products
 }
 
 func decodeYAMLNode(content string) (*yaml.Node, string, error) {

@@ -23,7 +23,9 @@ API 前缀为 `/api`，请求及响应使用 JSON。除健康检查外，管理�
 | `POST /api/library` | 创建规则 |
 | `PUT /api/library/{id}` | 修改规则，必须携带 `expected_revision` |
 | `PATCH /api/library/{id}` | 启停，提交 `enabled` 与 `expected_revision` |
-| `DELETE /api/library/{id}?expected_revision=N` | 删除自定义规则，内置规则只能修改或禁用 |
+| `DELETE /api/library/{id}?expected_revision=N` | 持久删除内置或自定义规则 |
+| `POST /api/library/delete` | 原子批量删除，`items:[{id,expected_revision}]`，返回 `deleted_count` |
+| `GET /api/library/products` | 可绑定产品名称，返回 `{items:[string]}` |
 | `POST /api/library/import` | 原子导入 JSON / Nuclei YAML，默认禁用 |
 | `GET /api/library/export?kind=http` | 导出完整规则 JSON |
 | `GET /api/workers` | Worker、指标和当前任务 |
@@ -58,8 +60,12 @@ Agent 以引导令牌调用 `POST /api/workers/register`，获得独立会话令
 
 ## 规则与 PoC 数据
 
-创建任务可设置 `poc_enabled:true`（必须包含 HTTP 模式）及 `poc_rule_ids:["poc-security-txt"]`。省略或空数组表示使用全部已启用 PoC；默认 `poc_enabled:false` 不创建 PoC 任务。创建时保存 HTTP / 端口 / 所选 PoC 的规则快照。
+创建任务可设置 `poc_enabled:true`（必须包含 HTTP 模式）及 `poc_rule_ids:["poc-security-txt"]`。省略或空数组表示按端点指纹自动筛选已启用的产品型 PoC；默认 `poc_enabled:false` 不创建 PoC 任务。创建时保存 HTTP / 端口 / 所选 PoC 的规则快照。
 
-规则更新采用 `expected_revision` 乐观并发控制，冲突返回 409；详情和列表都有 `revision`。列表包含精简的 `match_summary`；完整定义从详情或导出接口获取。导入提交 `{ "format": "json" | "nuclei", "content": "原始文件内容" }`，一次最多 100 条。JSON 采用导出的 `{ "items": [Rule] }` 格式。
+规则更新采用 `expected_revision` 乐观并发控制，冲突返回 409；详情和列表都有 `revision`。列表包含精简的 `match_summary`；完整定义从详情或导出接口获取。导入提交 `{ "format": "json" | "nuclei", "content": "原始文件内容" }`，一次最多 1000 条，请求体上限 8 MiB。JSON 采用导出的 `{ "items": [Rule] }` 格式。
 
 PoC 观测包含 `rule_id`、`rule_name`、`rule_revision`、`engine`、`severity`、`finding_status`、`evidence`；详情包含 `request_raw`、`response_raw`、`error`、`truncated`。`finding_status` 为 `matched`、`not_matched` 或 `error`。`findings` 接口返回 `{items,total,summary:{matched,not_matched,error}}`，只统计当前执行版本。任务的 `finding_count` 仅计命中，`poc_checked_count` 计全部检查结果。模板格式和执行边界见 [规则库说明](RULE_LIBRARY.md)。
+
+规则含 `applies_to:[产品名]`，多个产品为 OR 精确归一匹配；空绑定仅在任务显式选择该规则时执行。新快照持久化 `poc_policy:"fingerprint"` 及 `explicit_poc_rule_ids`，旧快照兼容历史行为。findings 列表和观测详情包含 `matched_products`、`trigger_reason`（`http_technology`、`service_product`、`explicit_unbound_rule` 或历史策略）。
+
+导出支持 `kind`、`q`、`enabled`、`engine`、`ids`（逗号分隔，最多 1000 个）组合，返回完整定义且不分页。批量删除采用相同版本条件，任一不存在或冲突都不删除；删除的规则不会进入列表、产品候选、导出或新任务快照。同 ID 导入可恢复删除项并增加版本，恢复项仍默认禁用。

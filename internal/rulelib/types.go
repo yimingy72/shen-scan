@@ -11,6 +11,7 @@ type Rule struct {
 	Builtin     bool       `json:"builtin" yaml:"builtin"`
 	Revision    int        `json:"revision" yaml:"revision"`
 	Tags        []string   `json:"tags,omitempty" yaml:"tags,omitempty"`
+	AppliesTo   []string   `json:"applies_to,omitempty" yaml:"applies_to,omitempty"`
 	Source      string     `json:"source,omitempty" yaml:"source,omitempty"`
 	Definition  Definition `json:"definition" yaml:"definition"`
 	Template    string     `json:"template,omitempty" yaml:"template,omitempty"`

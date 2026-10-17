@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { App, Button, Checkbox, Drawer, Form, Input, Pagination, Segmented, Select, Space, Switch, Table, Tag, Tooltip, Upload } from 'antd'
-import { CopyOutlined, DownloadOutlined, ImportOutlined, PlusOutlined } from '@ant-design/icons'
+import { CopyOutlined, DeleteOutlined, DownloadOutlined, ImportOutlined, PlusOutlined } from '@ant-design/icons'
 import { ApiClient, type LibraryRule, type RuleKind } from './api'
 import { LoadError, NoData, Refresh, number, useLoad } from './ui'
 
@@ -25,15 +25,16 @@ function RuleEditor({ api, rule, kind, close, saved }: { api: ApiClient; rule: L
   const [error, setError] = useState('')
   const existing = rule && rule !== 'new' ? rule : undefined
   const engine = existing?.engine || 'native'
+  const products = useLoad<{ items: string[] }>(api, rule && (existing?.kind || kind) === 'poc' ? '/library/products' : null)
   useEffect(() => {
     if (!rule) return
     setError('')
-    form.setFieldsValue({ id: existing?.id || `${kind}-custom-${crypto.randomUUID().slice(0, 8)}`, name: existing?.name || '', description: existing?.description || '', tags: existing?.tags || [], severity: existing?.severity || 'info', enabled: existing?.enabled || false, source: existing?.source || 'custom', content: engine === 'nuclei' ? existing?.template : JSON.stringify(existing?.definition || initialDefinition(kind), null, 2) })
+    form.setFieldsValue({ id: existing?.id || `${kind}-custom-${crypto.randomUUID().slice(0, 8)}`, name: existing?.name || '', description: existing?.description || '', tags: existing?.tags || [], applies_to: existing?.applies_to || [], severity: existing?.severity || 'info', enabled: existing?.enabled || false, source: existing?.source || 'custom', content: engine === 'nuclei' ? existing?.template : JSON.stringify(existing?.definition || initialDefinition(kind), null, 2) })
   }, [rule, kind, form, existing, engine])
   const submit = async (values: Record<string, unknown>) => {
     setBusy(true); setError('')
     try {
-      const body = { ...existing, id: String(values.id).trim(), kind: existing?.kind || kind, engine, name: String(values.name).trim(), description: values.description, severity: values.severity || existing?.severity || 'info', tags: values.tags || [], source: values.source, enabled: !!values.enabled, ...(engine === 'nuclei' ? { template: values.content } : { definition: JSON.parse(String(values.content)), template: '' }), ...(existing ? { expected_revision: existing.revision } : {}) }
+      const body = { ...existing, id: String(values.id).trim(), kind: existing?.kind || kind, engine, name: String(values.name).trim(), description: values.description, severity: values.severity || existing?.severity || 'info', tags: values.tags || [], applies_to: (existing?.kind || kind) === 'poc' ? values.applies_to || [] : [], source: values.source, enabled: !!values.enabled, ...(engine === 'nuclei' ? { template: values.content } : { definition: JSON.parse(String(values.content)), template: '' }), ...(existing ? { expected_revision: existing.revision } : {}) }
       await api.request(existing ? `/library/${encodeURIComponent(existing.id)}` : '/library', { method: existing ? 'PUT' : 'POST', body: JSON.stringify(body) })
       saved(); close()
     } catch (e) { setError(e instanceof SyntaxError ? '规则 JSON 格式不正确' : e instanceof Error ? e.message : '保存失败') } finally { setBusy(false) }
@@ -45,6 +46,7 @@ function RuleEditor({ api, rule, kind, close, saved }: { api: ApiClient; rule: L
       <Form.Item label="描述" name="description"><Input.TextArea rows={2} maxLength={4096} /></Form.Item>
       <div className="two-fields"><Form.Item label="标签" name="tags"><Select mode="tags" tokenSeparators={[',']} placeholder="输入后回车" /></Form.Item><Form.Item label="来源" name="source"><Input maxLength={1024} /></Form.Item></div>
       {(existing?.kind || kind) === 'poc' && <div className="two-fields"><Form.Item label="风险级别" name="severity"><Select options={Object.entries(severityNames).map(([value, label]) => ({ value, label }))} /></Form.Item><div className="rule-engine-field"><span>执行引擎</span><Tag>{engine === 'nuclei' ? 'Nuclei' : '原生只读检查'}</Tag></div></div>}
+      {(existing?.kind || kind) === 'poc' && <><Form.Item label="关联指纹" name="applies_to" extra="匹配任一组件后执行；留空则需在任务中手动选择该规则。"><Select mode="tags" tokenSeparators={[',']} aria-label="关联指纹" placeholder="例如 WordPress、Apache Tomcat" loading={products.loading} options={products.data?.items.map(value => ({ value, label: value })) || []} /></Form.Item><LoadError error={products.error} retry={() => void products.reload()} /></>}
       <Form.Item label={engine === 'nuclei' ? 'Nuclei 模板 · YAML' : '匹配定义 · JSON'} name="content" rules={[{ required: true, message: '请输入规则定义' }]}><Input.TextArea className="mono rule-code" rows={18} spellCheck={false} /></Form.Item>
       <div className="rule-editor-footer"><Form.Item name="enabled" valuePropName="checked" noStyle><Checkbox>启用规则</Checkbox></Form.Item>{existing && <span className="muted">{existing.builtin ? '内置' : '自定义'} · v{existing.revision}</span>}<span className="bar-spacer" /><Button onClick={close}>取消</Button><Button htmlType="submit" type="primary" loading={busy}>保存规则</Button></div>
     </Form>
@@ -60,11 +62,13 @@ function ImportRules({ api, open, close, imported }: { api: ApiClient; open: boo
   const submit = async () => {
     setBusy(true); setError('')
     try {
-      const r = await api.request<{ count: number }>('/library/import', { method: 'POST', body: JSON.stringify({ format, content }) })
+      const body = JSON.stringify({ format, content })
+      if (new Blob([body]).size > 8 * 1024 * 1024) throw new Error('导入请求不能超过 8 MB，请分批导入')
+      const r = await api.request<{ count: number }>('/library/import', { method: 'POST', body })
       message.success(`已导入 ${r.count} 条规则，默认禁用`); setContent(''); imported(); close()
     } catch (e) { setError(e instanceof Error ? e.message : '导入失败') } finally { setBusy(false) }
   }
-  return <Drawer title="导入规则" open={open} onClose={close} size={720}><LoadError error={error} /><div className="import-toolbar"><Segmented value={format} onChange={setFormat} options={[{ label: '规则 JSON', value: 'json' }, { label: 'Nuclei YAML', value: 'nuclei' }]} /><span className="bar-spacer" /><Upload accept=".json,.yaml,.yml" showUploadList={false} beforeUpload={async file => { if (file.size > 1024 * 1024) { setError('文件不能超过 1 MB'); return false }; setContent(await file.text()); setFormat(/\.ya?ml$/i.test(file.name) ? 'nuclei' : 'json'); setError(''); return false }}><Button icon={<ImportOutlined />}>选择文件</Button></Upload></div><Input.TextArea rows={23} className="mono rule-code" aria-label="导入规则内容" value={content} onChange={e => setContent(e.target.value)} placeholder={format === 'json' ? '粘贴导出的规则 JSON' : '粘贴只读 HTTP GET / HEAD 模板'} spellCheck={false} /><div className="compact-note">导入后默认禁用。Nuclei 仅接受静态同源 GET / HEAD 与 word / regex / status 匹配器。</div><div className="drawer-actions"><Button onClick={close}>取消</Button><Button type="primary" loading={busy} disabled={!content.trim()} onClick={() => void submit()}>校验并导入</Button></div></Drawer>
+  return <Drawer title="导入规则" open={open} onClose={close} size={720}><LoadError error={error} /><div className="import-toolbar"><Segmented value={format} onChange={setFormat} options={[{ label: '规则 JSON', value: 'json' }, { label: 'Nuclei YAML', value: 'nuclei' }]} /><span className="bar-spacer" /><Upload accept=".json,.yaml,.yml" showUploadList={false} beforeUpload={async file => { if (file.size > 8 * 1024 * 1024) { setError('文件不能超过 8 MB'); return false }; setContent(await file.text()); setFormat(/\.ya?ml$/i.test(file.name) ? 'nuclei' : 'json'); setError(''); return false }}><Button icon={<ImportOutlined />}>选择文件</Button></Upload></div><Input.TextArea rows={23} className="mono rule-code" aria-label="导入规则内容" value={content} onChange={e => setContent(e.target.value)} placeholder={format === 'json' ? '粘贴导出的规则 JSON，最多 1000 条' : '粘贴只读 HTTP GET / HEAD 模板'} spellCheck={false} /><div className="compact-note">导入后默认禁用；删除的规则可重新导入。Nuclei 仅接受静态同源只读模板，无关联指纹时需手动选择。</div><div className="drawer-actions"><Button onClick={close}>取消</Button><Button type="primary" loading={busy} disabled={!content.trim()} onClick={() => void submit()}>校验并导入</Button></div></Drawer>
 }
 
 export function LibraryPage({ api }: { api: ApiClient }) {
@@ -78,8 +82,11 @@ export function LibraryPage({ api }: { api: ApiClient }) {
   const [importOpen, setImportOpen] = useState(false)
   const [busyID, setBusyID] = useState('')
   const [exporting, setExporting] = useState(false)
+  const [selected, setSelected] = useState<LibraryRule[]>([])
   const path = '/library?' + new URLSearchParams({ kind, q: query, enabled, engine: kind === 'poc' ? engine : '', limit: '50', offset: String((page - 1) * 50) })
   const data = useLoad<LibraryPageData>(api, path)
+  useEffect(() => { setSelected([]) }, [kind, query, enabled, engine])
+  const reload = () => { setSelected([]); void data.reload() }
   const load = async (id: string, copy = false) => {
     setBusyID(id)
     try {
@@ -87,29 +94,43 @@ export function LibraryPage({ api }: { api: ApiClient }) {
       if (copy) {
         const copyID = `${kind}-custom-${crypto.randomUUID().slice(0, 8)}`
         const item = { ...r, id: copyID, name: `${r.name}（副本）`, builtin: false, revision: 1, enabled: false, template: r.template?.replace(/^id:\s*.+$/m, `id: ${copyID}`) }
-        await api.request('/library', { method: 'POST', body: JSON.stringify(item) }); void data.reload(); message.success('副本已创建，默认禁用')
+        await api.request('/library', { method: 'POST', body: JSON.stringify(item) }); reload(); message.success('副本已创建，默认禁用')
       } else setEditing(r)
     } catch (e) { message.error(e instanceof Error ? e.message : '读取失败') } finally { setBusyID('') }
   }
   const toggle = async (rule: LibraryRule, value: boolean) => {
     setBusyID(rule.id)
-    try { await api.request(`/library/${encodeURIComponent(rule.id)}`, { method: 'PATCH', body: JSON.stringify({ enabled: value, expected_revision: rule.revision }) }); await data.reload() }
+    try { await api.request(`/library/${encodeURIComponent(rule.id)}`, { method: 'PATCH', body: JSON.stringify({ enabled: value, expected_revision: rule.revision }) }); setSelected([]); await data.reload() }
     catch (e) { message.error(e instanceof Error ? e.message : '更新失败'); void data.reload() } finally { setBusyID('') }
   }
-  const remove = (rule: LibraryRule) => modal.confirm({ title: `删除“${rule.name}”？`, content: '已有任务继续使用创建时的规则版本。', okText: '删除', cancelText: '返回', okButtonProps: { danger: true }, onOk: async () => { await api.request(`/library/${encodeURIComponent(rule.id)}?expected_revision=${rule.revision}`, { method: 'DELETE' }); void data.reload() } })
-  const exportRules = async () => {
+  const remove = (rules: LibraryRule[]) => modal.confirm({ title: rules.length === 1 ? `删除“${rules[0].name}”？` : `删除选中的 ${number(rules.length)} 条规则？`, content: '删除后不再用于新任务，重启不会恢复；已有任务保留原规则快照。', okText: '删除', cancelText: '返回', okButtonProps: { danger: true }, onOk: async () => {
+    try { await api.request('/library/delete', { method: 'POST', body: JSON.stringify({ items: rules.map(r => ({ id: r.id, expected_revision: r.revision })) }) }); reload(); message.success(`已删除 ${number(rules.length)} 条规则`) }
+    catch (e) { message.error(e instanceof Error ? e.message : '删除失败'); void data.reload(); throw e }
+  } })
+  const exportRules = async (onlySelected = false) => {
     setExporting(true)
-    try { const r = await api.request<{ items: LibraryRule[] }>(`/library/export?kind=${kind}`); download(`shen-${kind}-rules.json`, r) }
+    try { const params = new URLSearchParams(onlySelected ? { kind, ids: selected.map(r => r.id).join(',') } : { kind, q: query, enabled, engine: kind === 'poc' ? engine : '' }); const r = await api.request<{ items: LibraryRule[] }>(`/library/export?${params}`); download(`shen-${kind}-rules${onlySelected ? '-selected' : ''}.json`, r) }
     catch (e) { message.error(e instanceof Error ? e.message : '导出失败') } finally { setExporting(false) }
   }
   const columns = [
-    { title: '规则名称', key: 'name', width: 280, render: (_: unknown, r: LibraryRule) => <div className="name-cell"><button className="text-link strong" onClick={() => void load(r.id)}>{r.name}</button><span className="cell-secondary mono">{r.id} · v{r.revision}</span></div> },
-    { title: kind === 'poc' ? '请求范围' : '匹配规则', key: 'definition', width: 320, render: (_: unknown, r: LibraryRule) => <Tooltip title={r.match_summary || r.description}><span className="line-clamp mono">{r.match_summary || r.description || '—'}</span></Tooltip> },
+    { title: '规则名称', key: 'name', width: kind === 'poc' ? 240 : 280, render: (_: unknown, r: LibraryRule) => <div className="name-cell"><button className="text-link strong" onClick={() => void load(r.id)}>{r.name}</button><span className="cell-secondary mono">{r.id} · v{r.revision}</span></div> },
+    ...(kind === 'poc' ? [{ title: '关联指纹', key: 'products', width: 180, render: (_: unknown, r: LibraryRule) => r.applies_to?.length ? <Tooltip title={r.applies_to.join(' · ')}><span className="tag-list">{r.applies_to.slice(0, 2).map(p => <Tag key={p}>{p}</Tag>)}{r.applies_to.length > 2 && <Tag>+{r.applies_to.length - 2}</Tag>}</span></Tooltip> : <Tag>手动指定</Tag> }] : []),
+    { title: kind === 'poc' ? '请求范围' : '匹配规则', key: 'definition', width: kind === 'poc' ? 235 : 320, render: (_: unknown, r: LibraryRule) => <Tooltip title={r.match_summary || r.description}><span className="line-clamp mono">{r.match_summary || r.description || '—'}</span></Tooltip> },
     ...(kind === 'poc' ? [{ title: '引擎 / 级别', key: 'engine', width: 155, render: (_: unknown, r: LibraryRule) => <Space size={4}><Tag>{r.engine === 'nuclei' ? 'Nuclei' : '原生'}</Tag><Severity value={r.severity} /></Space> }] : []),
-    { title: '标签', key: 'tags', width: 175, render: (_: unknown, r: LibraryRule) => <span className="tag-list">{r.tags?.slice(0, 3).map(t => <Tag key={t}>{t}</Tag>)}</span> },
+    ...(kind !== 'poc' ? [{ title: '标签', key: 'tags', width: 175, render: (_: unknown, r: LibraryRule) => <span className="tag-list">{r.tags?.slice(0, 3).map(t => <Tag key={t}>{t}</Tag>)}</span> }] : []),
     { title: '来源', key: 'source', width: 80, render: (_: unknown, r: LibraryRule) => <Tooltip title={r.source}><Tag>{r.builtin ? '内置' : '自定义'}</Tag></Tooltip> },
     { title: '启用', key: 'enabled', width: 65, render: (_: unknown, r: LibraryRule) => <Switch size="small" aria-label={`启用 ${r.name}`} checked={r.enabled} loading={busyID === r.id} onChange={v => void toggle(r, v)} /> },
-    { title: '', key: 'actions', width: 145, render: (_: unknown, r: LibraryRule) => <Space size={2}><Button type="link" size="small" onClick={() => void load(r.id)}>编辑</Button><Tooltip title="复制为自定义规则"><Button type="text" size="small" aria-label={`复制 ${r.name}`} icon={<CopyOutlined />} onClick={() => void load(r.id, true)} /></Tooltip>{!r.builtin && <Button type="link" danger size="small" onClick={() => void remove(r)}>删除</Button>}</Space> },
+    { title: '', key: 'actions', width: 145, render: (_: unknown, r: LibraryRule) => <Space size={2}><Button type="link" size="small" onClick={() => void load(r.id)}>编辑</Button><Tooltip title="复制为自定义规则"><Button type="text" size="small" aria-label={`复制 ${r.name}`} icon={<CopyOutlined />} onClick={() => void load(r.id, true)} /></Tooltip><Button type="link" danger size="small" onClick={() => void remove([r])}>删除</Button></Space> },
   ]
-  return <><div className="page-bar"><h1>指纹库</h1><div className="page-tabs" role="tablist" aria-label="规则库分类">{(['http', 'port', 'poc'] as const).map(k => <button key={k} role="tab" aria-selected={kind === k} onClick={() => { setKind(k); setPage(1); setQuery(''); setEngine('') }}>{kindName[k]} <span className="count-badge">{number(data.data?.counts?.[k])}</span></button>)}</div><span className="bar-spacer" /><Refresh onClick={() => void data.reload()} loading={data.loading} /><Button icon={<ImportOutlined />} onClick={() => setImportOpen(true)}>导入</Button><Button type="primary" icon={<PlusOutlined />} onClick={() => setEditing('new')}>新建规则</Button></div><LoadError error={data.error} retry={() => void data.reload()} /><section className="table-panel"><div className="filter-bar"><Select aria-label="规则状态" value={enabled} onChange={v => { setEnabled(v); setPage(1) }} options={[{ value: '', label: '全部状态' }, { value: 'true', label: '已启用' }, { value: 'false', label: '已禁用' }]} style={{ width: 125 }} />{kind === 'poc' && <Select aria-label="PoC 引擎" value={engine} onChange={v => { setEngine(v); setPage(1) }} options={[{ value: '', label: '全部引擎' }, { value: 'native', label: '原生检查' }, { value: 'nuclei', label: 'Nuclei' }]} style={{ width: 130 }} />}<Input.Search key={kind} className="result-search" aria-label="搜索规则" placeholder="搜索名称、ID 或标签" allowClear onSearch={v => { setQuery(v.trim()); setPage(1) }} /><Button type="text" icon={<DownloadOutlined />} loading={exporting} onClick={() => void exportRules()}>导出</Button></div><Table rowKey="id" size="small" tableLayout="fixed" dataSource={data.data?.items || []} columns={columns} loading={data.loading && !data.data} pagination={false} scroll={{ x: kind === 'poc' ? 1220 : 1040 }} locale={{ emptyText: <NoData text="没有符合条件的规则" /> }} /><div className="table-pagination"><span>{number(data.data?.total)} 条规则</span><Pagination size="small" current={page} pageSize={50} total={data.data?.total || 0} showSizeChanger={false} onChange={setPage} /></div></section><RuleEditor api={api} rule={editing} kind={kind} close={() => setEditing(null)} saved={() => { void data.reload(); message.success('规则已保存') }} /><ImportRules api={api} open={importOpen} close={() => setImportOpen(false)} imported={() => void data.reload()} /></>
+  return <>
+    <div className="page-bar"><h1>指纹库</h1><div className="page-tabs" role="tablist" aria-label="规则库分类">{(['http', 'port', 'poc'] as const).map(k => <button key={k} role="tab" aria-selected={kind === k} onClick={() => { setKind(k); setPage(1); setQuery(''); setEngine('') }}>{kindName[k]} <span className="count-badge">{number(data.data?.counts?.[k])}</span></button>)}</div><span className="bar-spacer" /><Refresh onClick={reload} loading={data.loading} /><Button icon={<ImportOutlined />} onClick={() => setImportOpen(true)}>导入</Button><Button type="primary" icon={<PlusOutlined />} onClick={() => setEditing('new')}>新建规则</Button></div>
+    <LoadError error={data.error} retry={reload} />
+    <section className="table-panel">
+      <div className="filter-bar"><Select aria-label="规则状态" value={enabled} onChange={v => { setEnabled(v); setPage(1) }} options={[{ value: '', label: '全部状态' }, { value: 'true', label: '已启用' }, { value: 'false', label: '已禁用' }]} style={{ width: 125 }} />{kind === 'poc' && <Select aria-label="PoC 引擎" value={engine} onChange={v => { setEngine(v); setPage(1) }} options={[{ value: '', label: '全部引擎' }, { value: 'native', label: '原生检查' }, { value: 'nuclei', label: 'Nuclei' }]} style={{ width: 130 }} />}<Input.Search key={kind} className="result-search" aria-label="搜索规则" placeholder="搜索名称、ID、标签或关联指纹" allowClear onSearch={v => { setQuery(v.trim()); setPage(1) }} /><Button type="text" icon={<DownloadOutlined />} loading={exporting} onClick={() => void exportRules()}>导出筛选结果</Button></div>
+      {!!selected.length && <div className="library-selection"><span>已选 <b>{number(selected.length)}</b> 条</span><Button size="small" type="text" onClick={() => setSelected([])}>清空选择</Button><span className="bar-spacer" /><Button size="small" icon={<DownloadOutlined />} loading={exporting} onClick={() => void exportRules(true)}>导出选中</Button><Button size="small" danger icon={<DeleteOutlined />} onClick={() => remove(selected)}>删除选中</Button></div>}
+      <Table rowKey="id" size="small" tableLayout="fixed" rowSelection={{ selectedRowKeys: selected.map(r => r.id), preserveSelectedRowKeys: true, onChange: (_, rows) => setSelected(rows.filter(Boolean).slice(0, 1000)), getCheckboxProps: r => ({ disabled: selected.length >= 1000 && !selected.some(x => x.id === r.id), 'aria-label': `选择 ${r.name}` }) }} dataSource={data.data?.items || []} columns={columns} loading={data.loading && !data.data} pagination={false} scroll={{ x: kind === 'poc' ? 1220 : 1120 }} locale={{ emptyText: <NoData text="没有符合条件的规则" /> }} />
+      <div className="table-pagination"><span>{number(data.data?.total)} 条规则</span><Pagination size="small" current={page} pageSize={50} total={data.data?.total || 0} showSizeChanger={false} onChange={setPage} /></div>
+    </section>
+    <RuleEditor api={api} rule={editing} kind={kind} close={() => setEditing(null)} saved={() => { reload(); message.success('规则已保存') }} /><ImportRules api={api} open={importOpen} close={() => setImportOpen(false)} imported={reload} />
+  </>
 }

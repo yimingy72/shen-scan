@@ -23,3 +23,5 @@
 .scanner-source{display:block;font-size:10px;color:#7b8798;margin:9px 0 3px}
 
 .rule-form .ant-form-item{margin-bottom:13px}.rule-code{font-size:12px!important;line-height:1.6!important;tab-size:2}.rule-editor-footer,.import-toolbar{display:flex;align-items:center;gap:10px}.rule-editor-footer{padding-top:12px;border-top:1px solid #e3e7ed;flex-wrap:wrap}.import-toolbar{margin-bottom:12px}.rule-engine-field{display:flex;flex-direction:column;gap:8px;padding-top:4px;font-size:12px}.rule-engine-field>.ant-tag{align-self:flex-start}.poc-choice{padding:12px;border:1px solid #e3e7ed;border-radius:5px;margin:12px 0 18px}.poc-choice .ant-select{margin-top:10px;width:100%}.finding-name{display:flex;gap:7px;align-items:center}.finding-summary{display:flex;gap:18px;align-items:center;font-size:12px;padding:8px 12px;border-bottom:1px solid #e3e7ed}.finding-summary b{font-variant-numeric:tabular-nums}
+
+.library-selection{display:flex;align-items:center;gap:8px;padding:7px 10px;background:#f4f6ff;border-bottom:1px solid #e3e7ed;font-size:12px}.rule-form .ant-form-item-extra{font-size:11px;line-height:1.6;padding-top:3px}

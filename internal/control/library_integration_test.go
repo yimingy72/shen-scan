@@ -113,16 +113,11 @@ func TestRuleLibraryAndPOCClosure(t *testing.T) {
 	if !run.POCEnabled {
 		t.Fatal("created run did not preserve explicit PoC opt-in")
 	}
-	callAPI(t, handler, http.MethodPatch, "/api/library/poc-exposed-git-head", "admin-library",
-		map[string]any{"enabled": false, "expected_revision": 1}, http.StatusOK, nil)
+	callAPI(t, handler, http.MethodDelete, "/api/library/poc-exposed-git-head?expected_revision=1", "admin-library", nil, http.StatusOK, nil)
 	if err = seedRuleLibrary(ctx, server.db); err != nil {
 		t.Fatal(err)
 	}
-	var seededAgain rulelib.Rule
-	callAPI(t, handler, http.MethodGet, "/api/library/poc-exposed-git-head", "admin-library", nil, http.StatusOK, &seededAgain)
-	if seededAgain.Enabled || seededAgain.Revision != 2 {
-		t.Fatalf("seed overwrote builtin edit: %+v", seededAgain)
-	}
+	callAPI(t, handler, http.MethodGet, "/api/library/poc-exposed-git-head", "admin-library", nil, http.StatusNotFound, nil)
 
 	if _, err = server.db.Exec(ctx, `UPDATE worker_pool SET enabled=true`); err != nil {
 		t.Fatal(err)
@@ -204,13 +199,29 @@ func TestRuleLibraryAndPOCClosure(t *testing.T) {
 		t.Fatal(err)
 	}
 	var findings struct {
-		Items   []Observation    `json:"items"`
+		Items []struct {
+			Observation
+			ID              string   `json:"id"`
+			MatchedProducts []string `json:"matched_products"`
+			TriggerReason   string   `json:"trigger_reason"`
+		} `json:"items"`
 		Total   int64            `json:"total"`
 		Summary map[string]int64 `json:"summary"`
 	}
 	callAPI(t, handler, http.MethodGet, "/api/runs/"+run.ID+"/findings?status=matched", "admin-library", nil, http.StatusOK, &findings)
 	if findings.Total != 1 || findings.Summary["matched"] != 1 {
 		t.Fatalf("findings included stale attempt: %+v", findings)
+	}
+	if len(findings.Items) != 1 || findings.Items[0].TriggerReason != "explicit_unbound_rule" || len(findings.Items[0].MatchedProducts) != 0 {
+		t.Fatalf("finding trigger trace=%+v", findings.Items)
+	}
+	var detail struct {
+		MatchedProducts []string `json:"matched_products"`
+		TriggerReason   string   `json:"trigger_reason"`
+	}
+	callAPI(t, handler, http.MethodGet, "/api/observations/"+findings.Items[0].ID, "admin-library", nil, http.StatusOK, &detail)
+	if detail.TriggerReason != "explicit_unbound_rule" || len(detail.MatchedProducts) != 0 {
+		t.Fatalf("observation trigger trace=%+v", detail)
 	}
 	callAPI(t, handler, http.MethodGet, "/api/runs/"+run.ID, "admin-library", nil, http.StatusOK, &run)
 	if run.FindingCount != 1 || run.POCCheckedCount != 1 || run.Status != "completed" {

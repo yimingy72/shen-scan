@@ -747,8 +747,8 @@ func (s *Server) completeTask(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if typeName == "http" {
-		if err := derivePOCTasks(r.Context(), tx, r.PathValue("id"), runID, request.AttemptNo, sourceTarget, payload); err != nil {
+	if typeName == "http" || typeName == "service" {
+		if err := derivePOCTasks(r.Context(), tx, r.PathValue("id"), runID, request.AttemptNo, typeName, sourceTarget, payload); err != nil {
 			writeError(w, http.StatusUnprocessableEntity, err.Error())
 			return
 		}
@@ -921,7 +921,7 @@ func observedEndpoint(endpoint taskEndpoint, raw string) (*url.URL, bool) {
 	return u, true
 }
 
-func derivePOCTasks(ctx context.Context, tx pgx.Tx, parentID, runID string, attempt int, sourceTarget string, payload json.RawMessage) error {
+func derivePOCTasks(ctx context.Context, tx pgx.Tx, triggerTaskID, runID string, triggerAttempt int, triggerType, sourceTarget string, payload json.RawMessage) error {
 	var snapshotRaw []byte
 	var enabled bool
 	if err := tx.QueryRow(ctx, `SELECT poc_enabled,rules_snapshot FROM runs WHERE id=$1`, runID).Scan(&enabled, &snapshotRaw); err != nil {
@@ -937,6 +937,19 @@ func derivePOCTasks(ctx context.Context, tx pgx.Tx, parentID, runID string, atte
 	if len(snapshot.POC) == 0 {
 		return nil
 	}
+	if snapshot.POCPolicy == "" {
+		if triggerType != "http" {
+			return nil
+		}
+		return deriveLegacyPOCTasks(ctx, tx, triggerTaskID, runID, triggerAttempt, sourceTarget, payload, snapshot.POC)
+	}
+	if snapshot.POCPolicy != "fingerprint" {
+		return fmt.Errorf("unsupported persisted PoC policy %q", snapshot.POCPolicy)
+	}
+	return deriveFingerprintPOCTasks(ctx, tx, triggerTaskID, runID, triggerAttempt, triggerType, sourceTarget, snapshot)
+}
+
+func deriveLegacyPOCTasks(ctx context.Context, tx pgx.Tx, parentID, runID string, attempt int, sourceTarget string, payload json.RawMessage, rules []rulelib.Rule) error {
 	var config struct {
 		Endpoints []taskEndpoint `json:"endpoints"`
 	}
@@ -988,8 +1001,8 @@ func derivePOCTasks(ctx context.Context, tx pgx.Tx, parentID, runID string, atte
 	}
 	sort.Strings(keys)
 	for _, endpointKey := range keys {
-		for _, rule := range snapshot.POC {
-			if err := insertPOCTask(ctx, tx, runID, parentID, attempt, endpointKey, sourceTarget, endpoints[endpointKey], rule); err != nil {
+		for _, rule := range rules {
+			if err := insertPOCTask(ctx, tx, runID, parentID, attempt, endpointKey, sourceTarget, endpoints[endpointKey], rule, nil, "legacy_all_enabled", false); err != nil {
 				return err
 			}
 		}
@@ -997,10 +1010,187 @@ func derivePOCTasks(ctx context.Context, tx pgx.Tx, parentID, runID string, atte
 	return nil
 }
 
-func insertPOCTask(ctx context.Context, tx pgx.Tx, runID, parentID string, attempt int, endpointKey, targetKey string, endpoint taskEndpoint, rule rulelib.Rule) error {
-	payload, _ := json.Marshal(map[string]any{"endpoint": endpoint, "rules": []rulelib.Rule{rule}, "execution_timeout_seconds": 90})
+type pocEndpointCandidate struct {
+	ParentID     string
+	Attempt      int
+	TargetKey    string
+	Origin       string
+	IP           string
+	Port         int
+	Endpoint     taskEndpoint
+	HTTPProducts []string
+}
+
+func productEndpointKey(targetKey, ip string, port int) string {
+	return targetKey + "\x00" + canonicalTarget(ip) + "\x00" + strconv.Itoa(port)
+}
+
+func deriveFingerprintPOCTasks(ctx context.Context, tx pgx.Tx, triggerTaskID, runID string, triggerAttempt int, triggerType, sourceTarget string, snapshot ruleSnapshot) error {
+	serviceProducts := make(map[string][]string)
+	serviceRows, err := tx.Query(ctx, `SELECT a.target_key,a.observation->>'ip',(a.observation->>'port')::int,a.observation->>'product'
+		FROM assets a JOIN tasks t ON t.id=a.task_id AND t.attempt_no=a.attempt_no
+		WHERE a.run_id=$1 AND a.target_key=$2 AND a.observation->>'kind'='service'
+		AND COALESCE(a.observation->>'product','')<>'' AND COALESCE(a.observation->>'error','')='' AND
+		(t.state='completed' OR ($3='service' AND t.id=$4 AND t.attempt_no=$5))`,
+		runID, sourceTarget, triggerType, triggerTaskID, triggerAttempt)
+	if err != nil {
+		return fmt.Errorf("load service fingerprints: %w", err)
+	}
+	for serviceRows.Next() {
+		var targetKey, ip, product string
+		var port int
+		if err = serviceRows.Scan(&targetKey, &ip, &port, &product); err != nil {
+			serviceRows.Close()
+			return fmt.Errorf("load service fingerprints: %w", err)
+		}
+		key := productEndpointKey(targetKey, ip, port)
+		serviceProducts[key] = appendUniqueString(serviceProducts[key], product)
+	}
+	serviceRows.Close()
+	if err = serviceRows.Err(); err != nil {
+		return fmt.Errorf("load service fingerprints: %w", err)
+	}
+
+	httpRows, err := tx.Query(ctx, `SELECT a.task_id,a.attempt_no,a.target_key,a.observation,t.payload
+		FROM assets a JOIN tasks t ON t.id=a.task_id AND t.attempt_no=a.attempt_no
+		WHERE a.run_id=$1 AND a.observation->>'kind'='http' AND COALESCE((a.observation->>'status_code')::int,0)>0
+		AND (($2='http' AND t.id=$3 AND t.attempt_no=$4) OR ($2='service' AND a.target_key=$5 AND t.state='completed'))
+		ORDER BY a.task_id,a.attempt_no,a.batch_seq,a.item_index`, runID, triggerType, triggerTaskID, triggerAttempt, sourceTarget)
+	if err != nil {
+		return fmt.Errorf("load HTTP fingerprints: %w", err)
+	}
+	candidates := make(map[string]*pocEndpointCandidate)
+	for httpRows.Next() {
+		var parentID, targetKey string
+		var attempt int
+		var raw, taskPayload []byte
+		if err = httpRows.Scan(&parentID, &attempt, &targetKey, &raw, &taskPayload); err != nil {
+			httpRows.Close()
+			return fmt.Errorf("load HTTP fingerprints: %w", err)
+		}
+		var observation Observation
+		var config struct {
+			Endpoints []taskEndpoint `json:"endpoints"`
+		}
+		if json.Unmarshal(raw, &observation) != nil || json.Unmarshal(taskPayload, &config) != nil {
+			httpRows.Close()
+			return errors.New("invalid persisted HTTP fingerprint")
+		}
+		for _, endpoint := range config.Endpoints {
+			observedURL, ok := observedEndpoint(endpoint, observation.URL)
+			if !ok {
+				continue
+			}
+			endpointTarget := endpoint.URL
+			if endpointTarget == "" {
+				endpointTarget = endpoint.Host
+			}
+			if endpointTarget == "" {
+				endpointTarget = endpoint.IP
+			}
+			if observation.Target != "" && canonicalTarget(observation.Target) != canonicalTarget(endpointTarget) {
+				continue
+			}
+			observedURL.Path, observedURL.RawPath, observedURL.RawQuery, observedURL.Fragment = "/", "", "", ""
+			derivedEndpoint := endpoint
+			derivedEndpoint.URL = observedURL.String()
+			ip := observation.IP
+			if ip == "" {
+				ip = endpoint.IP
+			}
+			port := observation.Port
+			if port == 0 {
+				port = urlPortNumber(observedURL)
+			}
+			key := fmt.Sprintf("%s\x00%d\x00%s", parentID, attempt, origin(observedURL))
+			candidate := candidates[key]
+			if candidate == nil {
+				candidate = &pocEndpointCandidate{ParentID: parentID, Attempt: attempt, TargetKey: targetKey,
+					Origin: origin(observedURL), IP: ip, Port: port, Endpoint: derivedEndpoint}
+				candidates[key] = candidate
+			}
+			for _, technology := range observation.Technologies {
+				if strings.TrimSpace(technology.Name) != "" {
+					candidate.HTTPProducts = appendUniqueString(candidate.HTTPProducts, technology.Name)
+				}
+			}
+			break
+		}
+	}
+	httpRows.Close()
+	if err = httpRows.Err(); err != nil {
+		return fmt.Errorf("load HTTP fingerprints: %w", err)
+	}
+
+	explicit := make(map[string]bool, len(snapshot.ExplicitPOCRuleIDs))
+	for _, id := range snapshot.ExplicitPOCRuleIDs {
+		explicit[id] = true
+	}
+	keys := make([]string, 0, len(candidates))
+	for key := range candidates {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		candidate := candidates[key]
+		service := serviceProducts[productEndpointKey(candidate.TargetKey, candidate.IP, candidate.Port)]
+		for _, rule := range snapshot.POC {
+			matchedProducts := make([]string, 0)
+			httpMatched, serviceMatched := false, false
+			for _, product := range candidate.HTTPProducts {
+				if rulelib.MatchesProducts(rule, []string{product}) {
+					matchedProducts = appendUniqueString(matchedProducts, product)
+					httpMatched = true
+				}
+			}
+			for _, product := range service {
+				if rulelib.MatchesProducts(rule, []string{product}) {
+					matchedProducts = appendUniqueString(matchedProducts, product)
+					serviceMatched = true
+				}
+			}
+			reasons := make([]string, 0, 2)
+			if httpMatched {
+				reasons = append(reasons, "http_technology")
+			}
+			if serviceMatched {
+				reasons = append(reasons, "service_product")
+			}
+			if len(rule.AppliesTo) == 0 {
+				if !explicit[rule.ID] {
+					continue
+				}
+				reasons = append(reasons, "explicit_unbound_rule")
+			} else if len(matchedProducts) == 0 {
+				continue
+			}
+			sort.Strings(matchedProducts)
+			if err := insertPOCTask(ctx, tx, runID, candidate.ParentID, candidate.Attempt, candidate.Origin,
+				candidate.TargetKey, candidate.Endpoint, rule, matchedProducts, strings.Join(reasons, "+"), true); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func appendUniqueString(values []string, value string) []string {
+	for _, existing := range values {
+		if existing == value {
+			return values
+		}
+	}
+	return append(values, value)
+}
+
+func insertPOCTask(ctx context.Context, tx pgx.Tx, runID, parentID string, attempt int, endpointKey, targetKey string, endpoint taskEndpoint, rule rulelib.Rule, matchedProducts []string, triggerReason string, fingerprintPolicy bool) error {
+	payload, _ := json.Marshal(map[string]any{"endpoint": endpoint, "rules": []rulelib.Rule{rule}, "execution_timeout_seconds": 90,
+		"matched_products": matchedProducts, "trigger_reason": triggerReason})
 	taskID := newID()
 	derivedKey := fmt.Sprintf("poc:%s:%d:%s:%s", parentID, attempt, endpointKey, rule.ID)
+	if fingerprintPolicy {
+		derivedKey = fmt.Sprintf("poc-fingerprint:%s:%s:%d", endpointKey, rule.ID, rule.Revision)
+	}
 	result, err := tx.Exec(ctx, `INSERT INTO tasks(id,run_id,type,payload,derived_key,target_key) VALUES($1,$2,'poc',$3,$4,$5)
 		ON CONFLICT(run_id,derived_key) DO NOTHING`, taskID, runID, payload, derivedKey, targetKey)
 	if err != nil || result.RowsAffected() == 0 {

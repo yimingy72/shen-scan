@@ -159,9 +159,13 @@ END $$;
 CREATE TABLE IF NOT EXISTS rule_library (
   id text PRIMARY KEY,
   rule jsonb NOT NULL,
+  deleted_at timestamptz,
+  seed_version integer NOT NULL DEFAULT 0,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
+ALTER TABLE rule_library ADD COLUMN IF NOT EXISTS deleted_at timestamptz;
+ALTER TABLE rule_library ADD COLUMN IF NOT EXISTS seed_version integer NOT NULL DEFAULT 0;
 CREATE INDEX IF NOT EXISTS rule_library_kind_idx ON rule_library((rule->>'kind'));
 CREATE INDEX IF NOT EXISTS rule_library_enabled_idx ON rule_library(((rule->>'enabled')::boolean));
 

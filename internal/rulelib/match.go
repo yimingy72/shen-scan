@@ -6,6 +6,63 @@ import (
 	"strings"
 )
 
+// MatchesProducts reports whether a PoC is explicitly bound to any detected product.
+// Empty AppliesTo is intentionally manual-only.
+func MatchesProducts(rule Rule, products []string) bool {
+	if rule.Kind != "poc" || len(rule.AppliesTo) == 0 || len(products) == 0 {
+		return false
+	}
+	detected := make(map[string]bool, len(products))
+	for _, product := range products {
+		if normalized := normalizeProduct(product); normalized != "" && !prohibitedProductBinding(normalized) {
+			detected[normalized] = true
+		}
+	}
+	for _, appliesTo := range rule.AppliesTo {
+		if normalized := normalizeProduct(appliesTo); normalized != "" && detected[normalized] {
+			return true
+		}
+	}
+	return false
+}
+
+func normalizeProduct(product string) string {
+	product = strings.ToLower(strings.Join(strings.Fields(strings.TrimSpace(product)), " "))
+	switch product {
+	case "springboot", "spring-boot", "spring_boot":
+		return "spring boot"
+	case "tomcat", "apache_tomcat", "apache-tomcat":
+		return "apache tomcat"
+	case "rabbitmq", "rabbitmq_management", "rabbitmq-management":
+		return "rabbitmq management"
+	case "apache_http_server", "apache-http-server":
+		return "apache http server"
+	case "iis", "microsoft_iis":
+		return "microsoft iis"
+	case "sharepoint", "microsoft_sharepoint":
+		return "microsoft sharepoint"
+	case "jetty", "eclipse_jetty":
+		return "eclipse jetty"
+	case "airflow", "apache_airflow":
+		return "apache airflow"
+	case "solr", "apache_solr":
+		return "apache solr"
+	case "flink", "apache_flink":
+		return "apache flink"
+	case "nifi", "apache_nifi":
+		return "apache nifi"
+	case "apache_druid":
+		return "apache druid"
+	case "hadoop", "apache_hadoop":
+		return "apache hadoop"
+	case "nextjs", "next js":
+		return "next.js"
+	case "aspnet", "asp net":
+		return "asp.net"
+	}
+	return product
+}
+
 func Match(rule Rule, input Input) (MatchResult, bool) {
 	if rule.Kind == "poc" || rule.Engine != "native" {
 		return MatchResult{}, false

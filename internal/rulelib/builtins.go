@@ -5,8 +5,10 @@ import "regexp"
 func Builtins() []Rule {
 	rules := make([]Rule, 0, 80)
 	rules = append(rules, builtinHTTPRules()...)
+	rules = append(rules, expandedHTTPRules()...)
 	rules = append(rules, builtinPortRules()...)
 	rules = append(rules, builtinPoCRules()...)
+	rules = append(rules, expandedPoCRules()...)
 	return rules
 }
 
@@ -217,10 +219,14 @@ http:
 }
 
 func pocRule(id, name, severity, product, path string, matchers []Matcher) Rule {
+	appliesTo := []string{product}
+	if id == "poc-exposed-git-head" || product == "" {
+		appliesTo = nil
+	}
 	return Rule{
 		ID: id, Kind: "poc", Name: name, Description: "Read-only same-origin endpoint check with bounded response matchers.",
 		Engine: "native", Severity: severity, Enabled: true, Builtin: true, Revision: 1,
-		Tags: []string{"poc", "read-only"}, Source: "SHEN built-in v1; documented or product-specific read-only endpoint",
+		Tags: []string{"poc", "read-only"}, AppliesTo: appliesTo, Source: "SHEN built-in v1; documented or product-specific read-only endpoint",
 		Definition: Definition{Service: "http", Product: product, Condition: "and", Requests: []Request{{
 			Method: "GET", Path: path, Condition: "and", Matchers: matchers,
 		}}},
