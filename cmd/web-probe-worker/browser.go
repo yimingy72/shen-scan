@@ -261,6 +261,17 @@ func runBrowser(parent context.Context, input browserRunInput) (output browserRu
 	if err != nil {
 		return output, err
 	}
+	// Chrome canonicalizes default ports, an empty path and hostname case.
+	// Ask its native URL parser once while this isolated page is still blank;
+	// keep the original target untouched for all Go authorization/HTTP identity.
+	canonical, err := page.Eval(`value => new URL(value).href`, target.String())
+	if err != nil {
+		return output, err
+	}
+	navigationURL := canonical.Value.Str()
+	if len(navigationURL) == 0 || len(navigationURL) > 4096 {
+		return output, errors.New("invalid browser navigation URL")
+	}
 	if input.Screenshot {
 		if err = (proto.EmulationSetScrollbarsHidden{Hidden: true}).Call(page); err != nil {
 			return output, err
@@ -403,7 +414,7 @@ func runBrowser(parent context.Context, input browserRunInput) (output browserRu
 				return
 			}
 			stateMu.Lock()
-			seed := !seeded && e.ResourceType == proto.NetworkResourceTypeDocument && e.Request.URL == target.String() && e.Request.Method == http.MethodGet
+			seed := !seeded && e.ResourceType == proto.NetworkResourceTypeDocument && e.Request.URL == navigationURL && e.Request.Method == http.MethodGet
 			if seed {
 				seeded = true
 			}
@@ -542,7 +553,7 @@ func runBrowser(parent context.Context, input browserRunInput) (output browserRu
 			output.Screenshot.Error = "some page resources were blocked or incomplete"
 		}
 	}()
-	if err = page.Navigate(target.String()); err != nil {
+	if err = page.Navigate(navigationURL); err != nil {
 		return output, err
 	}
 	// Each sample collects the entire plan in one CDP call. The bounded window is
@@ -552,7 +563,7 @@ func runBrowser(parent context.Context, input browserRunInput) (output browserRu
 		if sample > 0 {
 			waitJS = `await new Promise(resolve=>setTimeout(resolve,400));`
 		}
-		fixedURL, _ := json.Marshal(target.String())
+		fixedURL, _ := json.Marshal(navigationURL)
 		options := rod.Eval("async () => {" + waitJS + "if(location.href!==" + string(fixedURL) + ") throw new Error('browser document escaped fixed URL'); return (" + input.Eval + ")(); }")
 		options.AwaitPromise = true
 		observed, evalErr := page.Evaluate(options)

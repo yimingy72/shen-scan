@@ -132,3 +132,37 @@ PASS
 
 ## cdp-after.log
 State Recv-Q Send-Q Local Address:Port Peer Address:PortProcess
+
+
+## canonical-url-check.log
+=== RUN   TestBrowserCanonicalNavigationURL
+=== RUN   TestBrowserCanonicalNavigationURL/http://FiXtUrE.TeSt:80
+    browser_url_test.go:65: original=http://FiXtUrE.TeSt:80 browser=http://fixture.test/ seed reused, target HTTP=0
+=== RUN   TestBrowserCanonicalNavigationURL/https://FiXtUrE.TeSt:443
+    browser_url_test.go:65: original=https://FiXtUrE.TeSt:443 browser=https://fixture.test/ seed reused, target HTTP=0
+=== RUN   TestBrowserCanonicalNavigationURL/http://FiXtUrE.TeSt
+    browser_url_test.go:65: original=http://FiXtUrE.TeSt browser=http://fixture.test/ seed reused, target HTTP=0
+=== RUN   TestBrowserCanonicalNavigationURL/http://FiXtUrE.TeSt:80/sub?q=1
+    browser_url_test.go:65: original=http://FiXtUrE.TeSt:80/sub?q=1 browser=http://fixture.test/sub?q=1 seed reused, target HTTP=0
+=== NAME  TestBrowserCanonicalNavigationURL
+    browser_url_test.go:102: nil-seed: refused original:80 before dial, local recollection HTTP=1 permits=1
+--- PASS: TestBrowserCanonicalNavigationURL (4.55s)
+    --- PASS: TestBrowserCanonicalNavigationURL/http://FiXtUrE.TeSt:80 (0.85s)
+    --- PASS: TestBrowserCanonicalNavigationURL/https://FiXtUrE.TeSt:443 (0.64s)
+    --- PASS: TestBrowserCanonicalNavigationURL/http://FiXtUrE.TeSt (0.60s)
+    --- PASS: TestBrowserCanonicalNavigationURL/http://FiXtUrE.TeSt:80/sub?q=1 (0.62s)
+PASS
+
+
+## canonical-url-shot-check.log
+=== RUN   TestBrowserCanonicalNavigationURL
+=== RUN   TestBrowserCanonicalNavigationURL/http://FiXtUrE.TeSt:80
+    browser_url_test.go:75: original=http://FiXtUrE.TeSt:80 browser=http://fixture.test/ seed reused, target HTTP=0
+=== RUN   TestBrowserCanonicalNavigationURL/http://FiXtUrE.TeSt:80/sub?q=1
+    browser_url_test.go:75: original=http://FiXtUrE.TeSt:80/sub?q=1 browser=http://fixture.test/sub?q=1 seed reused, target HTTP=0
+=== NAME  TestBrowserCanonicalNavigationURL
+    browser_url_test.go:112: nil-seed: refused original:80 before dial, local recollection HTTP=1 permits=1
+--- PASS: TestBrowserCanonicalNavigationURL (3.32s)
+    --- PASS: TestBrowserCanonicalNavigationURL/http://FiXtUrE.TeSt:80 (0.85s)
+    --- PASS: TestBrowserCanonicalNavigationURL/http://FiXtUrE.TeSt:80/sub?q=1 (0.60s)
+PASS
