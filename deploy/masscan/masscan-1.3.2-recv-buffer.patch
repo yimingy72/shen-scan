@@ -196,3 +196,96 @@ diff --git a/src/main.c b/src/main.c
                  tcp_send_RST(
                      &parms->tmplset->pkts[Proto_TCP],
                      parms->stack,
+
+diff --git a/src/rawsock-adapter.h b/src/rawsock-adapter.h
+--- a/src/rawsock-adapter.h
++++ b/src/rawsock-adapter.h
+@@ -11,6 +11,8 @@
+     unsigned vlan_id;
+     double pt_start;
+     int link_type;
++    unsigned pcap_send_failed_calls;
++    unsigned pcap_send_retries;
+ };
+ 
+ 
+diff --git a/src/rawsock.c b/src/rawsock.c
+--- a/src/rawsock.c
++++ b/src/rawsock.c
+@@ -12,6 +12,7 @@
+ #include "stub-pcap.h"
+ #include "stub-pfring.h"
+ #include "pixie-timer.h"
++#include "pixie-threads.h"
+ #include "main-globals.h"
+ #include "proto-preprocess.h"
+ #include "stack-arpv4.h"
+@@ -21,6 +22,8 @@
+ #include "util-malloc.h"
+ #include <assert.h>
+ #include <ctype.h>
++#include <errno.h>
++#include <stdlib.h>
+ #if defined(__linux__)
+ #include <poll.h>
+ #endif
+@@ -335,9 +338,43 @@
+         return 0;
+     }
+ 
+-    /* LIBPCAP */
+-    if (adapter->pcap)
++    /* LIBPCAP: a rejected packet must not advance the scan as successful. */
++    if (adapter->pcap) {
++#if defined(__linux__)
++        unsigned attempt;
++        for (attempt = 0; attempt < 8; attempt++) {
++            int err;
++            int saved_errno;
++            unsigned failed_calls;
++            unsigned retries;
++
++            errno = 0;
++            err = PCAP.sendpacket(adapter->pcap, packet, length);
++            if (err == 0) {
++                if (attempt)
++                    LOG(0, "scan_send: recovered attempts=%u\n", attempt + 1);
++                return 0;
++            }
++            saved_errno = errno;
++            pixie_locked_add_u32(&adapter->pcap_send_failed_calls, 1);
++            failed_calls = pixie_locked_add_u32(&adapter->pcap_send_failed_calls, 0);
++            retries = pixie_locked_add_u32(&adapter->pcap_send_retries, 0);
++            if (attempt == 7 || (saved_errno != EINTR && saved_errno != EAGAIN && saved_errno != ENOBUFS)) {
++                LOG(0, "scan_send: fatal failed_calls=%u retries=%u attempts=%u errno=%d pcaperr=%s\n",
++                    failed_calls, retries, attempt + 1, saved_errno, PCAP.geterr(adapter->pcap));
++                fflush(stdout);
++                fflush(stderr);
++                exit(EXIT_FAILURE);
++            }
++            pixie_locked_add_u32(&adapter->pcap_send_retries, 1);
++            LOG(0, "scan_send: retry failed_calls=%u retries=%u attempt=%u errno=%d pcaperr=%s\n",
++                failed_calls, retries + 1, attempt + 1, saved_errno, PCAP.geterr(adapter->pcap));
++            pixie_usleep(1000U << attempt);
++        }
++#else
+         return PCAP.sendpacket(adapter->pcap, packet, length);
++#endif
++    }
+ 
+     return 0;
+ }
+@@ -430,6 +467,13 @@
+ 
+     if (adapter == NULL || adapter->pcap == NULL || adapter->ring)
+         return -1;
++#if defined(__linux__)
++    {
++        unsigned failed_calls = pixie_locked_add_u32(&adapter->pcap_send_failed_calls, 0);
++        unsigned retries = pixie_locked_add_u32(&adapter->pcap_send_retries, 0);
++        LOG(0, "scan_send: stats failed_calls=%u retries=%u phase=rx_shutdown\n", failed_calls, retries);
++    }
++#endif
+     if (PCAP.stats(adapter->pcap, &stats) != 0)
+         return -1;
+ 

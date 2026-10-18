@@ -4,7 +4,7 @@ set -eu
 version=1.3.2
 commit=06902c40d1494881c17b7968ef530e1d6bbd320c
 source_sha=00bb562686bc765b76b7c02d161d311ff60bc845fa0dfde0ad5b602b6ebcbf3d
-patch_sha=cec73f9531390ec3e8804f6add30d31e3456ee719b566c78011a500a29df27d2
+patch_sha=120d4317aeb3f8f2605443764dc077fac52d4009b82ac89212be5c1404968e17
 source_epoch=1612084410
 source_name=masscan-$commit.tar.gz
 source_url=https://github.com/robertdavidgraham/masscan/archive/$commit.tar.gz
@@ -85,6 +85,7 @@ make -C "$source_dir" -j"$build_jobs" CC=gcc GITVER=$version-scan-platform
 "$source_dir/bin/masscan" --version | grep -F "Masscan version $version"
 strings "$source_dir/bin/masscan" | grep -F 'scan_capture: received='
 strings "$source_dir/bin/masscan" | grep -F 'setnonblock:'
+strings "$source_dir/bin/masscan" | grep -F 'scan_send: fatal'
 
 install -m 0755 "$source_dir/bin/masscan" "$output_dir/masscan"
 (
