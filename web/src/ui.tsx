@@ -54,6 +54,7 @@ export function clearLoadCache() {
 }
 
 const PageActiveContext = createContext(true)
+export function usePageActive() { return useContext(PageActiveContext) }
 export function PageActivity({ active, children }: { active: boolean; children: ReactNode }) {
   return <PageActiveContext.Provider value={active}>{children}</PageActiveContext.Provider>
 }

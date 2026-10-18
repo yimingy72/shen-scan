@@ -12,11 +12,12 @@ import (
 )
 
 type fullHTTPPayload struct {
-	RulesRef  string                     `json:"rules_ref"`
-	Bundle    string                     `json:"fingerprint_bundle"`
-	Profile   string                     `json:"web_execution_profile"`
-	Endpoints []taskEndpoint             `json:"endpoints"`
-	Progress  *webevidence.EntryProgress `json:"http_progress,omitempty"`
+	WebScanOptions *webevidence.WebScanOptions `json:"web_scan_options,omitempty"`
+	RulesRef       string                      `json:"rules_ref"`
+	Bundle         string                      `json:"fingerprint_bundle"`
+	Profile        string                      `json:"web_execution_profile"`
+	Endpoints      []taskEndpoint              `json:"endpoints"`
+	Progress       *webevidence.EntryProgress  `json:"http_progress,omitempty"`
 }
 
 func initializeHTTPProgress(ctx context.Context, tx pgx.Tx, taskID string, payload []byte) ([]byte, error) {
@@ -54,7 +55,12 @@ func initializeHTTPProgress(ctx context.Context, tx pgx.Tx, taskID string, paylo
 				return nil, errors.New("assigned full HTTP package has no frozen manifest hash")
 			}
 		}
-		progress = webevidence.EntryProgress{EntryURL: entry.String(), RulesRef: p.RulesRef, SelectionProfileHash: webevidence.SHA256([]byte(webevidence.FullProfile + "|" + fb.SelectionProfile + "|" + fb.EngineRevision)), ManifestHash: manifestHash, Deadline: started.Add(20 * time.Minute), MaxRequests: 16384, MaxSegments: 32}
+		selection := webevidence.FullProfile + "|" + fb.SelectionProfile + "|" + fb.EngineRevision
+		if p.WebScanOptions != nil {
+			options, _ := json.Marshal(p.WebScanOptions)
+			selection += "|" + string(options)
+		}
+		progress = webevidence.EntryProgress{EntryURL: entry.String(), RulesRef: p.RulesRef, SelectionProfileHash: webevidence.SHA256([]byte(selection)), ManifestHash: manifestHash, Deadline: started.Add(20 * time.Minute), MaxRequests: 16384, MaxSegments: 32}
 	}
 	// Reserve the whole next segment before handing its lease to a Worker. A
 	// stopped or lost attempt never refunds unknown request consumption.
@@ -210,7 +216,7 @@ func validateFullHTTPEvidence(endpoint taskEndpoint, item *Observation) error {
 
 func fullHTTPRunLive(ctx context.Context, tx pgx.Tx, runID string, payload []byte) bool {
 	var p fullHTTPPayload
-	if json.Unmarshal(payload, &p) != nil || p.Profile != webevidence.FullProfile {
+	if json.Unmarshal(payload, &p) != nil || p.Profile != webevidence.FullProfile && !browserTaskPayload(payload) {
 		return true
 	}
 	var live bool
@@ -270,6 +276,9 @@ func validateFullHTTPIdentity(item Observation, taskID string, attempt int, payl
 	var assignment fullHTTPPayload
 	if json.Unmarshal(payload, &assignment) != nil || assignment.Profile != webevidence.FullProfile || assignment.Progress == nil {
 		return errors.New("full HTTP identity missing assigned progress")
+	}
+	if assignment.WebScanOptions != nil && (item.WebScanOptions == nil || *item.WebScanOptions != *assignment.WebScanOptions) {
+		return errors.New("HTTP result changed frozen scan options")
 	}
 	var identity struct {
 		Probe       *webevidence.ProbeResult `json:"probe"`

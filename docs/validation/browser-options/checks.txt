@@ -1,0 +1,134 @@
+## options-pg-check.log
+=== RUN   TestScreenshotPNGBypassesGzip
+--- PASS: TestScreenshotPNGBypassesGzip (0.00s)
+=== RUN   TestPostgresWebScanOptionsDefaultsAndScreenshotIsolation
+=== RUN   TestPostgresWebScanOptionsDefaultsAndScreenshotIsolation/screenshot-only
+    web_scan_options_test.go:277: PASS screenshot-only: independent stages, >64KiB PNG, authenticated original/240px thumbnail, options capability fence, parent/lease fence, no JSON binary, cascade cleanup
+=== RUN   TestPostgresWebScanOptionsDefaultsAndScreenshotIsolation/js-partial-image-complete
+    web_scan_options_test.go:277: PASS js-partial-image-complete: independent stages, >64KiB PNG, authenticated original/240px thumbnail, options capability fence, parent/lease fence, no JSON binary, cascade cleanup
+=== RUN   TestPostgresWebScanOptionsDefaultsAndScreenshotIsolation/js-complete-invalid-image
+    web_scan_options_test.go:277: PASS js-complete-invalid-image: independent stages, >64KiB PNG, authenticated original/240px thumbnail, options capability fence, parent/lease fence, no JSON binary, cascade cleanup
+=== RUN   TestPostgresWebScanOptionsDefaultsAndScreenshotIsolation/js-complete-partial-image
+    web_scan_options_test.go:277: PASS js-complete-partial-image: independent stages, >64KiB PNG, authenticated original/240px thumbnail, options capability fence, parent/lease fence, no JSON binary, cascade cleanup
+--- PASS: TestPostgresWebScanOptionsDefaultsAndScreenshotIsolation (2.01s)
+    --- PASS: TestPostgresWebScanOptionsDefaultsAndScreenshotIsolation/screenshot-only (0.58s)
+    --- PASS: TestPostgresWebScanOptionsDefaultsAndScreenshotIsolation/js-partial-image-complete (0.49s)
+    --- PASS: TestPostgresWebScanOptionsDefaultsAndScreenshotIsolation/js-complete-invalid-image (0.46s)
+    --- PASS: TestPostgresWebScanOptionsDefaultsAndScreenshotIsolation/js-complete-partial-image (0.48s)
+PASS
+ok  	scanplatform/internal/control	2.488s
+
+
+## browser-claim-fix-check.log
+=== RUN   TestPostgresBrowserPhaseMergeBudgetAndFence
+=== RUN   TestPostgresBrowserPhaseMergeBudgetAndFence/complete
+    web_browser_test.go:259: PASS browser claim reference/inline and replay retained; no rule persistence; parent visible before browser; independent claim; cumulative budget; stale, paused, expired and changed-parent fences; merged positive preservation; one endpoint; effective final coverage
+=== RUN   TestPostgresBrowserPhaseMergeBudgetAndFence/browser-unavailable
+    web_browser_test.go:259: PASS browser claim reference/inline and replay retained; no rule persistence; parent visible before browser; independent claim; cumulative budget; stale, paused, expired and changed-parent fences; merged positive preservation; one endpoint; effective final coverage
+=== RUN   TestPostgresBrowserPhaseMergeBudgetAndFence/base-error-preserved
+    web_browser_test.go:259: PASS browser claim reference/inline and replay retained; no rule persistence; parent visible before browser; independent claim; cumulative budget; stale, paused, expired and changed-parent fences; merged positive preservation; one endpoint; effective final coverage
+--- PASS: TestPostgresBrowserPhaseMergeBudgetAndFence (2.14s)
+    --- PASS: TestPostgresBrowserPhaseMergeBudgetAndFence/complete (0.75s)
+    --- PASS: TestPostgresBrowserPhaseMergeBudgetAndFence/browser-unavailable (0.74s)
+    --- PASS: TestPostgresBrowserPhaseMergeBudgetAndFence/base-error-preserved (0.65s)
+PASS
+ok  	scanplatform/internal/control	2.704s
+
+
+## installer-check.log
+Chrome 156.0.9000.1-1 already satisfies minimum 155.0.8059.84-1; skip browser download/install.
+Browser installed: Chrome 156.0.9000.1-1, nonroot UID 999, isolated network ready.
+{"isolation":"uid-firewall-v1","uid":999,"verified":true,"cdp_port":19222}
+PASS: newer installed version skips Chrome apt/download
+Chrome 156.0.9000.1-1 already satisfies minimum 155.0.8059.84-1; skip browser download/install.
+Browser installed: Chrome 156.0.9000.1-1, nonroot UID 999, isolated network ready.
+{"isolation":"uid-firewall-v1","uid":999,"verified":true,"cdp_port":19222}
+PASS: warm key reused, service restarted, upgrade removes stale/duplicate firewall rules
+Browser installed: Chrome 155.0.8059.84-1, nonroot UID 999, isolated network ready.
+{"isolation":"uid-firewall-v1","uid":999,"verified":true,"cdp_port":19222}
+PASS: older browser upgrades from official candidate and restores signed-by
+Browser installed: Chrome 155.0.8059.84-1, nonroot UID 999, isolated network ready.
+{"isolation":"uid-firewall-v1","uid":999,"verified":true,"cdp_port":19222}
+PASS: absent browser installs and validates version
+Browser unavailable: installation failed at browser-package; ordinary scanning remains available.
+PASS: too-old official candidate fails closed
+Browser unavailable: installation failed at browser-package; ordinary scanning remains available.
+PASS: apt failure cannot advertise browser readiness
+Browser unavailable: installation failed at browser-package; ordinary scanning remains available.
+PASS: third-party-only candidate is rejected
+Official Google signing-key fingerprint verification failed.
+Browser unavailable: installation failed at official-signing-key; ordinary scanning remains available.
+PASS: valid unrelated public key fails active Google fingerprint pin
+Browser installed: Chrome 155.0.8059.84-1, nonroot UID 999, isolated network ready.
+{"isolation":"uid-firewall-v1","uid":999,"verified":true,"cdp_port":19222}
+Chrome 155.0.8059.84-1 already satisfies minimum 155.0.8059.84-1; skip browser download/install.
+Browser unavailable: installation failed at isolation-service; ordinary scanning remains available.
+PASS: isolation service failure prevents browser readiness
+Chrome 155.0.8059.84-1 already satisfies minimum 155.0.8059.84-1; skip browser download/install.
+Browser installed: Chrome 155.0.8059.84-1, nonroot UID 999, isolated network ready.
+{"isolation":"uid-firewall-v1","uid":999,"verified":true,"cdp_port":19222}
+PASS: runtime wrapper rejects a later manual downgrade
+Web helpers ready: /fixture/release/.agent.kZ8hXn
+914b2313abb1d3c1eca90a50d5b8857d31e6dd039e2612b7661a0a59d1500507  /fixture/release/scan-agent-linux-amd64.tar.gz
+Release files: /fixture/release
+PASS: actual release script packages only 5 small browser files; no browser archive or work/; source tar is explicit Masscan license fixture
+browser package files: ./browser/README.md, ./browser/chrome.sh, ./browser/install.sh, ./browser/network.sh, ./browser/runtime.json
+Installer fixture checks complete. Browser/apt/systemd are simulated; real GPG/version comparison/firewall behavior verified in disposable container.
+
+
+## screenshot-runtime-evidence/screenshot-runtime-final-check.log
+=== RUN   TestBrowserExecutionPlanCache
+--- PASS: TestBrowserExecutionPlanCache (0.00s)
+=== RUN   TestBrowserScreenshotModes
+=== RUN   TestBrowserScreenshotModes/both-disabled
+=== RUN   TestBrowserScreenshotModes/screenshot-only
+    browser_screenshot_test.go:229: mode=screenshot-only elapsed=674.369026ms HTTP=5 permits=5 JS=disabled screenshot=complete PNG=17409 dimensions=1280x720
+=== RUN   TestBrowserScreenshotModes/js-dom-only
+=== RUN   TestBrowserScreenshotModes/both-enabled
+    browser_screenshot_test.go:229: mode=both-enabled elapsed=677.297967ms HTTP=5 permits=5 JS=complete screenshot=complete PNG=17409 dimensions=1280x720
+=== RUN   TestBrowserScreenshotModes/png-byte-limit-keeps-js
+    browser_screenshot_test.go:229: mode=png-byte-limit-keeps-js elapsed=914.306511ms HTTP=1 permits=1 JS=complete screenshot=partial PNG=0 dimensions=0x0
+=== RUN   TestBrowserScreenshotModes/tall-page-first-screen
+    browser_screenshot_test.go:229: mode=tall-page-first-screen elapsed=281.778998ms HTTP=1 permits=1 JS=disabled screenshot=complete PNG=6809 dimensions=1280x720
+=== RUN   TestBrowserScreenshotModes/bad-js-library-still-screenshot
+    browser_screenshot_test.go:229: mode=bad-js-library-still-screenshot elapsed=337.327757ms HTTP=5 permits=5 JS=failed screenshot=complete PNG=17409 dimensions=1280x720
+--- PASS: TestBrowserScreenshotModes (4.55s)
+    --- PASS: TestBrowserScreenshotModes/both-disabled (0.00s)
+    --- PASS: TestBrowserScreenshotModes/screenshot-only (0.68s)
+    --- PASS: TestBrowserScreenshotModes/js-dom-only (0.62s)
+    --- PASS: TestBrowserScreenshotModes/both-enabled (0.69s)
+    --- PASS: TestBrowserScreenshotModes/png-byte-limit-keeps-js (0.91s)
+    --- PASS: TestBrowserScreenshotModes/tall-page-first-screen (0.28s)
+    --- PASS: TestBrowserScreenshotModes/bad-js-library-still-screenshot (0.35s)
+=== RUN   TestFullPassiveDisabledCollectsInfo
+--- PASS: TestFullPassiveDisabledCollectsInfo (0.07s)
+PASS
+
+
+## favicon-evidence/favicon-check.log
+=== RUN   TestBrowserScreenshotOtherFavicon
+    browser_favicon_test.go:97: custom no-extension favicon: resource types=map[Document:1 Other:1] HTTP=2 permits=2 icons=1 screenshot=complete partial=false
+--- PASS: TestBrowserScreenshotOtherFavicon (1.52s)
+PASS
+
+
+## end-to-end
+Isolated Agent and fixture started; limits 2 CPU / 2 GiB / 1h.
+Running js-dom fcd94e10-9aa0-4aa4-913b-dc7391f2d68c
+{"case": "js-dom", "run_id": "fcd94e10-9aa0-4aa4-913b-dc7391f2d68c", "status": "partial", "wall_seconds": 6.535, "task_done": 2, "technologies": ["React", "SHEN DOM fixture", "SHEN runtime fixture", "jQuery"], "screenshot": null, "browser": {"state": "partial", "js_dom": {"error": "some selected rules or page resources were incomplete", "state": "partial", "stop_reason": "browser-network-partial"}, "profile": "wapp-browser-v1", "requests": 2, "stop_reason": "browser-network-partial"}, "tasks": [{"type": "http", "phase": "browser", "state": "completed", "elapsed_s": 1.674182}, {"type": "http", "phase": null, "state": "completed", "elapsed_s": 2.991645}]}
+Running screenshot 4f3976e0-9e0d-4d0d-94e2-e5a80180433a
+{"case": "screenshot", "run_id": "4f3976e0-9e0d-4d0d-94e2-e5a80180433a", "status": "completed", "wall_seconds": 6.449, "task_done": 2, "technologies": [], "screenshot": {"id": "369d9325-0aee-4f2e-beb6-dc139964d2b1", "bytes": 49223, "state": "complete", "width": 1280, "height": 720, "sha256": "bfd79f9a560622a9d08b6a366b5b7afeb539fcf04ba1abb97e6e7e29ee39b617"}, "browser": null, "tasks": [{"type": "http", "phase": null, "state": "completed", "elapsed_s": 2.175728}, {"type": "http", "phase": "browser", "state": "completed", "elapsed_s": 1.146304}]}
+Running combined 95b5eb42-b978-4bb5-bfcb-cb273673bc71
+{"case": "combined", "run_id": "95b5eb42-b978-4bb5-bfcb-cb273673bc71", "status": "partial", "wall_seconds": 10.497, "task_done": 2, "technologies": ["MySQL", "PHP", "WordPress", "microsoft-windows远程连接", "windows", "React", "SHEN DOM fixture", "SHEN runtime fixture", "jQuery"], "screenshot": {"id": "5a9d8413-662b-423b-831f-7d8eeb70b956", "bytes": 49678, "state": "complete", "width": 1280, "height": 720, "sha256": "4b86705a7d352e35a0b322bd71abce6d50825a4dca3b74a4426663eb99c8c63a"}, "browser": {"state": "partial", "js_dom": {"error": "some selected rules or page resources were incomplete", "state": "partial", "stop_reason": "browser-rules-partial"}, "profile": "wapp-browser-v1", "requests": 4, "stop_reason": "browser-rules-partial"}, "tasks": [{"type": "http", "phase": null, "state": "completed", "elapsed_s": 5.639003}, {"type": "http", "phase": "browser", "state": "completed", "elapsed_s": 1.929503}]}
+PASS six independent option combinations and authenticated screenshots.
+
+
+## drain-favicon-final-check.log
+=== RUN   TestBrowserScreenshotOtherFavicon
+    browser_favicon_test.go:115: custom no-extension favicon with400ms admission delay: resource types=map[Document:1 Other:1] HTTP=2 permits=2 icons=1 screenshot=complete partial=false
+--- PASS: TestBrowserScreenshotOtherFavicon (1.89s)
+PASS
+
+
+## cdp-after.log
+State Recv-Q Send-Q Local Address:Port Peer Address:PortProcess

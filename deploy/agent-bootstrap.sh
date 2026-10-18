@@ -20,6 +20,9 @@ test -x "$source_dir/cloud-fixture.sh"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
 apt-get install -y --no-install-recommends masscan nmap iproute2 python3 ca-certificates
+if ! "$source_dir/browser/install.sh" "$source_dir/browser"; then
+  printf '%s\n' 'Browser setup unavailable; Agent and ordinary scanning will continue. See /var/lib/shen-browser-install-status.json.' >&2
+fi
 install -m 0755 "$source_dir/masscan" /usr/local/bin/masscan.next
 mv -f /usr/local/bin/masscan.next /usr/local/bin/masscan
 install -m 0755 "$source_dir/nuclei" /usr/local/bin/nuclei.next
@@ -109,12 +112,14 @@ cat > /etc/systemd/system/scan-agent.service <<'UNIT'
 [Unit]
 Description=Scan Platform Worker Agent
 After=network-online.target scan-fixture.service
-Wants=network-online.target
+Wants=network-online.target shen-browser-network.service
+After=shen-browser-network.service
 
 [Service]
 Type=simple
 EnvironmentFile=/opt/scan-agent/agent.env
 EnvironmentFile=-/opt/scan-agent/fixture.env
+Environment=WEB_BROWSER_EXECUTABLE=/usr/local/libexec/shen-browser-chrome
 ExecStart=/opt/scan-agent/scan-agent
 KillMode=control-group
 TimeoutStopSec=5
@@ -126,5 +131,6 @@ WantedBy=multi-user.target
 UNIT
 
 systemctl daemon-reload
-systemctl enable --now scan-agent.service
+systemctl enable scan-agent.service
+systemctl restart scan-agent.service
 

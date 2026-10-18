@@ -32,6 +32,7 @@ const (
 var titlePattern = regexp.MustCompile(`(?is)<title[^>]*>(.*?)</title>`)
 
 type httpPayload struct {
+	webevidence.BrowserAssignment
 	WebExecutionProfile     string                     `json:"web_execution_profile,omitempty"`
 	HTTPProgress            *webevidence.EntryProgress `json:"http_progress,omitempty"`
 	WebEnrichmentProfile    string                     `json:"web_enrichment_profile,omitempty"`
@@ -49,6 +50,9 @@ type targetSlots struct {
 }
 
 func (a *Agent) runHTTP(ctx context.Context, task Task, emit func(Observation) error) error {
+	if browserTask(task.Payload) {
+		return a.runBrowserTask(ctx, task, emit)
+	}
 	ctx = a.withHTTPBudget(ctx, task)
 	var payload httpPayload
 	if err := json.Unmarshal(task.Payload, &payload); err != nil {

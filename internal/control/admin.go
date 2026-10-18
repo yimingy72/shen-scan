@@ -38,11 +38,12 @@ func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) createRun(w http.ResponseWriter, r *http.Request) {
 	var request struct {
-		Name       string   `json:"name"`
-		Targets    []string `json:"targets"`
-		Modes      []string `json:"modes"`
-		POCEnabled bool     `json:"poc_enabled"`
-		POCRuleIDs []string `json:"poc_rule_ids"`
+		WebScanOptions *webevidence.WebScanOptions `json:"web_scan_options"`
+		Name           string                      `json:"name"`
+		Targets        []string                    `json:"targets"`
+		Modes          []string                    `json:"modes"`
+		POCEnabled     bool                        `json:"poc_enabled"`
+		POCRuleIDs     []string                    `json:"poc_rule_ids"`
 	}
 	if err := decodeJSON(w, r, &request); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
@@ -111,6 +112,16 @@ func (s *Server) createRun(w http.ResponseWriter, r *http.Request) {
 		snapshot.FingerprintBundleSchema = fingerprintbundle.Schema
 	}
 	snapshot.WebExecutionProfile = webevidence.FullProfile
+	snapshot.WebBrowserProfile = webevidence.BrowserProfile
+	snapshot.WebScanOptions = request.WebScanOptions
+	if snapshot.WebScanOptions == nil {
+		options := webevidence.DefaultWebScanOptions()
+		snapshot.WebScanOptions = &options
+	}
+	if err = freezeBrowserMetadata(&snapshot); err != nil {
+		writeError(w, 500, "freeze browser fingerprint metadata failed")
+		return
+	}
 	snapshot.WebProfile = webevidence.Profile
 	snapshot.WebEnrichmentProfile = webevidence.EnrichmentProfile
 	snapshotJSON, _ := json.Marshal(snapshot)
@@ -138,6 +149,8 @@ func (s *Server) createRun(w http.ResponseWriter, r *http.Request) {
 				profile["fingerprint_bundle_schema"] = snapshot.FingerprintBundleSchema
 				profile["web_enrichment_profile"] = snapshot.WebEnrichmentProfile
 				profile["web_execution_profile"] = snapshot.WebExecutionProfile
+				profile["web_browser_profile"] = snapshot.WebBrowserProfile
+				profile["web_scan_options"] = snapshot.WebScanOptions
 				profile["execution_timeout_seconds"] = 1260
 				profile["max_requests"] = 16384
 			}
@@ -411,13 +424,13 @@ func runSelect(targets, runs string) string {
 	return `SELECT r.id,r.name,` + targets + `,r.modes,r.status,r.created_at,r.updated_at,
 	 COALESCE(ts.task_total,0),COALESCE(ts.task_done,0),COALESCE(ts.task_failed,0),COALESCE(ac.asset_count,0),r.error,
 	 COALESCE(tgs.target_count,0),COALESCE(rs.open_port_count,0),COALESCE(rs.http_count,0),COALESCE(tgs.target_done,0),jsonb_array_length(r.targets),
-	 r.poc_enabled,COALESCE(pc.finding_count,0),COALESCE(pc.verification_finding_count,0),COALESCE(pc.check_match_count,0),COALESCE(pc.discovery_match_count,0),COALESCE(pc.checked_count,0)
+	 r.poc_enabled,COALESCE(pc.finding_count,0),COALESCE(pc.verification_finding_count,0),COALESCE(pc.check_match_count,0),COALESCE(pc.discovery_match_count,0),COALESCE(pc.checked_count,0),r.rules_snapshot->'web_scan_options'
 	 FROM ` + runs + ` r
 	 LEFT JOIN LATERAL (SELECT count(*) task_total,count(*) FILTER(WHERE state='completed') task_done,
 	  count(*) FILTER(WHERE state='failed') task_failed FROM tasks WHERE run_id=r.id) ts ON true
 	 LEFT JOIN LATERAL (SELECT count(*) target_count,count(*) FILTER(WHERE finished) target_done FROM (
 	  SELECT bool_and(t.state='completed') finished FROM tasks t JOIN task_targets tt ON tt.task_id=t.id WHERE t.run_id=r.id GROUP BY tt.target_key) target_states) tgs ON true
-	 LEFT JOIN LATERAL (SELECT count(*) asset_count FROM assets a JOIN tasks t ON t.id=a.task_id WHERE a.run_id=r.id AND ((a.attempt_no=COALESCE(t.accepted_attempt_no,t.attempt_no) AND t.state='completed') OR EXISTS(SELECT 1 FROM port_positive_receipts p WHERE p.observation_id=a.id) OR EXISTS(SELECT 1 FROM poc_template_receipts p WHERE p.observation_id=a.id))) ac ON true
+	 LEFT JOIN LATERAL (SELECT count(*) asset_count FROM assets a JOIN tasks t ON t.id=a.task_id WHERE a.run_id=r.id AND ((a.attempt_no=COALESCE(t.accepted_attempt_no,t.attempt_no) AND t.state='completed') OR EXISTS(SELECT 1 FROM port_positive_receipts p WHERE p.observation_id=a.id) OR EXISTS(SELECT 1 FROM poc_template_receipts p WHERE p.observation_id=a.id)) AND NOT EXISTS(SELECT 1 FROM tasks b JOIN assets ba ON ba.task_id=b.id AND ba.attempt_no=b.accepted_attempt_no WHERE b.state='completed' AND b.payload->>'phase'='browser' AND b.payload->'browser_parent'->>'observation_id'=a.id AND b.payload->>'source_task_id'=t.id AND (b.payload->>'source_attempt_no')::int=t.accepted_attempt_no AND b.payload->>'source_completion_id'=t.completion_id)) ac ON true
 	 LEFT JOIN LATERAL (SELECT count(*) FILTER(WHERE a.observation->>'finding_status'='matched') finding_count,
 	  count(*) FILTER(WHERE a.observation->>'finding_status'='matched' AND COALESCE(NULLIF(a.observation->>'purpose',''),'discovery')='verification') verification_finding_count,
 	  count(*) FILTER(WHERE a.observation->>'finding_status'='matched' AND COALESCE(NULLIF(a.observation->>'purpose',''),'discovery')='check') check_match_count,
@@ -437,11 +450,18 @@ type rowScanner interface{ Scan(...any) error }
 
 func scanRun(row rowScanner) (Run, error) {
 	var run Run
-	var targets []byte
+	var targets, scanOptions []byte
 	err := row.Scan(&run.ID, &run.Name, &targets, &run.Modes, &run.Status, &run.CreatedAt, &run.UpdatedAt,
 		&run.TaskTotal, &run.TaskDone, &run.TaskFailed, &run.AssetCount, &run.Error, &run.TargetCount, &run.OpenPortCount, &run.HTTPCount, &run.TargetDone, &run.InputCount,
-		&run.POCEnabled, &run.FindingCount, &run.VerificationFindingCount, &run.CheckMatchCount, &run.DiscoveryMatchCount, &run.POCCheckedCount)
+		&run.POCEnabled, &run.FindingCount, &run.VerificationFindingCount, &run.CheckMatchCount, &run.DiscoveryMatchCount, &run.POCCheckedCount, &scanOptions)
 	if err == nil {
+		if len(scanOptions) > 0 && string(scanOptions) != "null" {
+			var options webevidence.WebScanOptions
+			if err = json.Unmarshal(scanOptions, &options); err != nil {
+				return run, err
+			}
+			run.WebScanOptions = &options
+		}
 		err = json.Unmarshal(targets, &run.Targets)
 		run.CreatedAt = run.CreatedAt.UTC()
 		run.UpdatedAt = run.UpdatedAt.UTC()
@@ -565,7 +585,7 @@ func (s *Server) listAssets(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	runID, query := r.URL.Query().Get("run_id"), strings.TrimSpace(r.URL.Query().Get("q"))
-	where := ` WHERE (EXISTS(SELECT 1 FROM tasks t WHERE t.id=assets.task_id AND t.state='completed' AND COALESCE(t.accepted_attempt_no,t.attempt_no)=assets.attempt_no) OR EXISTS(SELECT 1 FROM port_positive_receipts p WHERE p.observation_id=assets.id) OR EXISTS(SELECT 1 FROM poc_template_receipts p WHERE p.observation_id=assets.id)) AND ($1='' OR run_id=$1) AND ($2='' OR observation::text ILIKE '%' || $2 || '%')`
+	where := ` WHERE (EXISTS(SELECT 1 FROM tasks t WHERE t.id=assets.task_id AND t.state='completed' AND COALESCE(t.accepted_attempt_no,t.attempt_no)=assets.attempt_no) OR EXISTS(SELECT 1 FROM port_positive_receipts p WHERE p.observation_id=assets.id) OR EXISTS(SELECT 1 FROM poc_template_receipts p WHERE p.observation_id=assets.id)) AND NOT EXISTS(SELECT 1 FROM tasks b JOIN assets ba ON ba.task_id=b.id AND ba.attempt_no=b.accepted_attempt_no JOIN tasks bp ON bp.id=assets.task_id WHERE b.state='completed' AND b.payload->>'phase'='browser' AND b.payload->'browser_parent'->>'observation_id'=assets.id AND b.payload->>'source_task_id'=bp.id AND (b.payload->>'source_attempt_no')::int=bp.accepted_attempt_no AND b.payload->>'source_completion_id'=bp.completion_id) AND ($1='' OR run_id=$1) AND ($2='' OR observation::text ILIKE '%' || $2 || '%')`
 	var total int64
 	if err := s.db.QueryRow(r.Context(), `SELECT count(*) FROM assets`+where, runID, query).Scan(&total); err != nil {
 		writeError(w, http.StatusInternalServerError, "load assets failed")

@@ -60,6 +60,9 @@ WEB_HELPERS_OUTPUT_DIR="$staging_dir" TARGET_OS=linux TARGET_ARCH="$target_arch"
 mkdir -p "$release_dir/tools"
 cp "$staging_dir/fingerprint-worker" "$release_dir/tools/fingerprint-worker"
 cp deploy/agent-bootstrap.sh deploy/cloud-fixture.sh "$staging_dir/"
+mkdir -p "$staging_dir/browser"
+cp deploy/browser/runtime.json deploy/browser/install.sh deploy/browser/network.sh deploy/browser/chrome.sh deploy/browser/README.md "$staging_dir/browser/"
+chmod 0755 "$staging_dir/browser/"*.sh
 cp "$masscan_binary" "$staging_dir/masscan"
 cp "$nuclei_binary" "$staging_dir/nuclei"
 cp "$httpx_binary" "$staging_dir/httpx"
@@ -93,6 +96,12 @@ cp "$masscan_source" deploy/masscan/LICENSE.masscan deploy/masscan/SOURCE.md "$s
 cp "$masscan_binary.sha256" "$masscan_source.sha256" "$staging_dir/licenses/"
 tar -xOf "$masscan_source" masscan-source-1.3.2-scan-platform/AGPL-3.0.txt > "$staging_dir/licenses/AGPL-3.0.txt"
 chmod 0755 "$staging_dir/"*.sh "$staging_dir/scan-agent" "$staging_dir/masscan" "$staging_dir/nuclei" "$staging_dir/httpx" "$staging_dir/web-probe-worker" "$staging_dir/fingerprint-worker"
+# Explicit staging allowlist: do not create a project-root source archive here.
+# Private work/ and downloaded browser packages must never enter the release.
+if find "$staging_dir" -type f \( -name '*.deb' -o -name '*.rpm' -o -name '*.dmg' \) | grep -q . || [ -e "$staging_dir/work" ]; then
+  printf '%s\n' 'Release staging contains a forbidden package archive or private work directory.' >&2
+  exit 1
+fi
 COPYFILE_DISABLE=1 tar -czf "$release_dir/scan-agent-linux-$target_arch.tar.gz.next" -C "$staging_dir" .
 mv "$release_dir/scan-agent-linux-$target_arch.tar.gz.next" "$release_dir/scan-agent-linux-$target_arch.tar.gz"
 shasum -a 256 "$release_dir/scan-agent-linux-$target_arch.tar.gz"

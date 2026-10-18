@@ -294,16 +294,17 @@ func runWebHelper(ctx context.Context, binary string, input []byte) ([]byte, err
 }
 
 type webProbeProcess struct {
-	resources  *resourceSampler
-	slot       chan struct{}
-	cmd        *exec.Cmd
-	stdin      io.WriteCloser
-	scanner    *bufio.Scanner
-	stderr     *stderrTail
-	done       chan error
-	enrichment string
-	binary     string
-	dir        string
+	resources      *resourceSampler
+	slot           chan struct{}
+	cmd            *exec.Cmd
+	stdin          io.WriteCloser
+	scanner        *bufio.Scanner
+	stderr         *stderrTail
+	done           chan error
+	enrichment     string
+	optionsProfile string
+	binary         string
+	dir            string
 }
 
 func (p *webProbeProcess) run(ctx context.Context, binary string, request webevidence.ProbeRequest) ([]byte, error) {
@@ -323,6 +324,10 @@ func (p *webProbeProcess) run(ctx context.Context, binary string, request webevi
 		if err := p.start(binary); err != nil {
 			return nil, err
 		}
+	}
+	if request.WebScanOptions != nil && p.optionsProfile != webevidence.WebScanOptionsProfile {
+		p.stop()
+		return nil, fmt.Errorf("web helper cannot honor independent scan options")
 	}
 	if request.EnrichmentProfile != "" && p.enrichment != webevidence.EnrichmentProfile {
 		p.stop()
@@ -386,14 +391,16 @@ func (p *webProbeProcess) start(binary string) (err error) {
 	err = capability.Run()
 	capCancel()
 	var contract struct {
-		Enrichment string `json:"enrichment_profile"`
-		Admission  string `json:"request_admission"`
-		Stream     string `json:"stream_protocol"`
+		Enrichment     string `json:"enrichment_profile"`
+		OptionsProfile string `json:"web_scan_options_profile"`
+		Admission      string `json:"request_admission"`
+		Stream         string `json:"stream_protocol"`
 	}
 	if err != nil || advertised.overflow || json.Unmarshal(advertised.Bytes(), &contract) != nil || contract.Admission != "loopback-v2" || contract.Stream != "jsonl-item-v1" {
 		return fmt.Errorf("web helper lacks request admission/item isolation capability")
 	}
 	p.enrichment = contract.Enrichment
+	p.optionsProfile = contract.OptionsProfile
 	dir, err := os.MkdirTemp("", "shen-web-")
 	if err != nil {
 		return err
@@ -467,17 +474,19 @@ func (b *cappedWebBuffer) Write(p []byte) (int, error) {
 var sharedFingerprints = fingerprintProcess{slot: make(chan struct{}, 1)}
 
 type fingerprintProcess struct {
-	resources *resourceSampler
-	slot      chan struct{}
-	cmd       *exec.Cmd
-	stdin     io.WriteCloser
-	scanner   *bufio.Scanner
-	stderr    *stderrTail
-	done      chan error
-	binary    string
-	bundle    string
-	schema    string
-	cache     fingerprintBundleCache
+	resources      *resourceSampler
+	slot           chan struct{}
+	cmd            *exec.Cmd
+	stdin          io.WriteCloser
+	scanner        *bufio.Scanner
+	stderr         *stderrTail
+	done           chan error
+	binary         string
+	bundle         string
+	schema         string
+	cache          fingerprintBundleCache
+	optionsProfile string
+	optionsBinary  string
 }
 
 func (p *fingerprintProcess) match(ctx context.Context, input webevidence.MatchRequest) (webevidence.MatchResult, error) {
@@ -507,6 +516,26 @@ func (p *fingerprintProcess) matchBundle(ctx context.Context, input webevidence.
 	}
 	if p.cmd != nil && (p.binary != binary || p.bundle != expected || p.schema != schema) {
 		p.stop()
+		p.optionsProfile = ""
+	}
+	if input.WebScanOptions != nil && (p.optionsProfile != webevidence.WebScanOptionsProfile || p.optionsBinary != binary) {
+		capCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+		command := exec.CommandContext(capCtx, binary, "--capabilities")
+		command.Env = []string{"NO_COLOR=1"}
+		setProcessGroup(command)
+		var buf cappedWebBuffer
+		command.Stdout = &buf
+		command.Stderr = &stderrTail{limit: 4096}
+		err := command.Run()
+		cancel()
+		var cap struct {
+			OptionsProfile string `json:"web_scan_options_profile"`
+		}
+		if err != nil || buf.overflow || json.Unmarshal(buf.Bytes(), &cap) != nil || cap.OptionsProfile != webevidence.WebScanOptionsProfile {
+			return webevidence.MatchResult{}, fmt.Errorf("fingerprint helper cannot honor independent scan options")
+		}
+		p.optionsProfile = cap.OptionsProfile
+		p.optionsBinary = binary
 	}
 	if p.cmd == nil {
 		var args []string

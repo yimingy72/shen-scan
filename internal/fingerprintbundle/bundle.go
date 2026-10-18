@@ -84,19 +84,20 @@ type Package struct {
 	Validation       map[string]Stats `json:"validation"`
 }
 type Capabilities struct {
-	ExecutionProfile string           `json:"execution_profile,omitempty"`
-	ActiveHTTP       bool             `json:"active_http"`
-	HTTPEngines      []string         `json:"http_engines,omitempty"`
-	Schema           string           `json:"schema"`
-	EngineRevision   string           `json:"engine_revision"`
-	SelectionProfile string           `json:"selection_profile"`
-	EmbeddedBundle   string           `json:"embedded_bundle"`
-	Bundle           string           `json:"bundle,omitempty"`
-	Validation       map[string]Stats `json:"validation,omitempty"`
+	WebScanOptionsProfile string           `json:"web_scan_options_profile,omitempty"`
+	ExecutionProfile      string           `json:"execution_profile,omitempty"`
+	ActiveHTTP            bool             `json:"active_http"`
+	HTTPEngines           []string         `json:"http_engines,omitempty"`
+	Schema                string           `json:"schema"`
+	EngineRevision        string           `json:"engine_revision"`
+	SelectionProfile      string           `json:"selection_profile"`
+	EmbeddedBundle        string           `json:"embedded_bundle"`
+	Bundle                string           `json:"bundle,omitempty"`
+	Validation            map[string]Stats `json:"validation,omitempty"`
 }
 
 func CurrentCapabilities() Capabilities {
-	return Capabilities{ExecutionProfile: "web-full-v2", ActiveHTTP: true, HTTPEngines: []string{"fingers", "fingerprinthub", "ehole", "goby", "favicon"}, Schema: Schema, EngineRevision: EngineRevision, SelectionProfile: SelectionProfile, EmbeddedBundle: EmbeddedBundle}
+	return Capabilities{WebScanOptionsProfile: "independent-web-options-v1", ExecutionProfile: "web-full-v2", ActiveHTTP: true, HTTPEngines: []string{"fingers", "fingerprinthub", "ehole", "goby", "favicon"}, Schema: Schema, EngineRevision: EngineRevision, SelectionProfile: SelectionProfile, EmbeddedBundle: EmbeddedBundle}
 }
 func Digest(data []byte) string { v := sha256.Sum256(data); return hex.EncodeToString(v[:]) }
 

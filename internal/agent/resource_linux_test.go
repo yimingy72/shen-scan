@@ -65,3 +65,25 @@ func TestLinuxLiveToolRSSAndZeroMemoryAdmission(t *testing.T) {
 		t.Fatal("unknown memory emitted stale/zero sample")
 	}
 }
+
+func TestLinuxBrowserTreeRSSIncludesChildren(t *testing.T) {
+	cmd := exec.Command("sh", "-c", "sleep 30 & wait")
+	setProcessGroup(cmd)
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { killProcessGroup(cmd.Process); _ = cmd.Wait() }()
+	deadline := time.Now().Add(time.Second)
+	for {
+		single := readToolProcess(cmd.Process.Pid)
+		tree := readBrowserProcessTree(cmd.Process.Pid)
+		if tree.rssKnown && single.rssKnown && tree.rssMiB > single.rssMiB && tree.cpuKnown {
+			t.Logf("PASS browser tree RSS %.3f MiB > helper RSS %.3f MiB; tree CPU sampled", tree.rssMiB, single.rssMiB)
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("browser child resources missing: helper=%+v tree=%+v", single, tree)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}

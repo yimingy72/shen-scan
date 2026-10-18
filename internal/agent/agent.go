@@ -19,6 +19,7 @@ import (
 
 	"golang.org/x/sync/semaphore"
 	"golang.org/x/sync/singleflight"
+	"scanplatform/internal/webevidence"
 )
 
 const (
@@ -38,6 +39,7 @@ type queuedObservation struct {
 }
 
 type activeTask struct {
+	browser         bool
 	connectionSlots int
 	webHelper       bool
 	typeName        string
@@ -71,36 +73,40 @@ type Config struct {
 }
 
 type Agent struct {
-	cfg                 Config
-	client              *Client
-	policy              targetPolicy
-	log                 *slog.Logger
-	portExecutor        string
-	endpointSlots       chan struct{}
-	httpxSlots          chan struct{}
-	webProbes           chan *webProbeProcess
-	fingerprints        fingerprintProcess
-	httpTargetMu        sync.Mutex
-	httpTargetSlots     map[string]*targetSlots
-	resources           *resourceSampler
-	ruleSets            *ruleSetCache
-	ruleSetFlights      singleflight.Group
-	workerID            string
-	heartbeatEvery      time.Duration
-	draining            atomic.Bool
-	uploadQueuedBytes   atomic.Int64
-	portStartReserved   atomic.Bool
-	mu                  sync.Mutex
-	active              map[string]activeTask
-	lastTaskType        string
-	preferServiceUntil  time.Time
-	taskFinished        chan struct{}
-	terminationAt       *time.Time
-	nucleiOriginalOnce  sync.Once
-	nucleiOriginalOK    bool
-	nucleiEngineVersion string
-	nucleiBatchOK       bool
-	wg                  sync.WaitGroup
+	cfg                   Config
+	client                *Client
+	policy                targetPolicy
+	log                   *slog.Logger
+	portExecutor          string
+	endpointSlots         chan struct{}
+	httpxSlots            chan struct{}
+	browser               browserProcess
+	browserCapabilityOnce sync.Once
+	browserCapabilityMu   sync.Mutex
+	browserCapability     webevidence.BrowserCapability
+	webProbes             chan *webProbeProcess
+	fingerprints          fingerprintProcess
+	httpTargetMu          sync.Mutex
+	httpTargetSlots       map[string]*targetSlots
+	resources             *resourceSampler
+	ruleSets              *ruleSetCache
+	ruleSetFlights        singleflight.Group
+	workerID              string
+	heartbeatEvery        time.Duration
+	draining              atomic.Bool
+	uploadQueuedBytes     atomic.Int64
+	portStartReserved     atomic.Bool
+	mu                    sync.Mutex
+	active                map[string]activeTask
+	lastTaskType          string
+	preferServiceUntil    time.Time
+	taskFinished          chan struct{}
+	terminationAt         *time.Time
+	nucleiOriginalOnce    sync.Once
+	nucleiOriginalOK      bool
+	nucleiEngineVersion   string
+	nucleiBatchOK         bool
+	wg                    sync.WaitGroup
 }
 
 func New(cfg Config) (*Agent, error) {
@@ -203,6 +209,7 @@ func (a *Agent) Run(ctx context.Context) error {
 			a.cancelAll(context.Cause(ctx))
 			a.wg.Wait()
 			a.stopWebProbes()
+			a.browser.stop()
 			a.fingerprints.stop()
 			if errors.Is(ctx.Err(), context.Canceled) && context.Cause(ctx) == context.Canceled {
 				return nil
@@ -255,8 +262,10 @@ func (a *Agent) register(ctx context.Context) (RegisterResponse, error) {
 		spec = make(map[string]any)
 	}
 	spec["capabilities"] = a.capabilities()
+	availability := a.browserAvailability()
+	spec["browser_ready"], spec["browser_version"], spec["browser_unavailable_reason"] = availability.Ready, availability.Version, availability.UnavailableReason
 	spec["port_cost_profile"] = a.portCostProfile()
-	spec["stage_capacity"] = map[string]int{"port": 1, "service": 1, "http": a.cfg.HTTPXMaxProcesses, "poc": 1}
+	spec["stage_capacity"] = map[string]int{"port": 1, "service": 1, "http": a.cfg.HTTPXMaxProcesses, "browser": 1, "poc": 1}
 	specJSON, _ := json.Marshal(spec)
 	req := RegisterRequest{InstanceID: a.cfg.InstanceID, Hostname: a.cfg.Hostname, AgentVersion: a.cfg.AgentVersion, SessionID: a.cfg.SessionID, AZ: a.cfg.AZ, Spec: specJSON}
 	for {
@@ -303,6 +312,16 @@ func (a *Agent) claim(ctx context.Context, types []string) (*Task, error) {
 }
 
 func (a *Agent) claimAvailable(ctx context.Context) (*Task, error) {
+	if a.canAdmitBrowser() {
+		id, err := RandomID()
+		if err != nil {
+			return nil, err
+		}
+		task, err := a.client.claimPhase(ctx, a.workerID, a.cfg.SessionID, id, []string{"http"}, a.supportsNucleiOriginal(), "browser")
+		if err != nil || task != nil {
+			return task, err
+		}
+	}
 	for _, types := range a.claimOptions() {
 		task, err := a.claim(ctx, types)
 		if err != nil || task != nil {
@@ -398,6 +417,9 @@ func (a *Agent) activeTypeCounts() (ports, fingerprints int) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	for _, task := range a.active {
+		if task.browser {
+			continue
+		}
 		if task.typeName == "port" {
 			ports++
 		} else {
@@ -414,7 +436,8 @@ func (a *Agent) startTask(parent context.Context, task Task) {
 	}
 	ctx, cancel := context.WithCancelCause(parent)
 	slots, helper := 0, false
-	if task.Type == "http" {
+	isBrowser := browserTask(task.Payload)
+	if task.Type == "http" && !isBrowser {
 		slots, helper = a.httpReservation(task.Payload)
 	}
 	a.mu.Lock()
@@ -423,7 +446,7 @@ func (a *Agent) startTask(parent context.Context, task Task) {
 		cancel(fmt.Errorf("duplicate task claim"))
 		return
 	}
-	a.active[task.ID] = activeTask{typeName: task.Type, cancel: cancel, connectionSlots: slots, webHelper: helper}
+	a.active[task.ID] = activeTask{typeName: task.Type, cancel: cancel, connectionSlots: slots, webHelper: helper, browser: isBrowser}
 	a.lastTaskType = task.Type
 	a.mu.Unlock()
 	a.wg.Add(1)
@@ -746,6 +769,11 @@ func (a *Agent) heartbeatLoop(ctx context.Context, stop context.CancelFunc) {
 func (a *Agent) sendHeartbeat(ctx context.Context, stop context.CancelFunc) {
 	status, current, termination := a.snapshot()
 	metrics := a.resources.metrics()
+	availability := a.browserAvailability()
+	metrics["browser_ready"] = 0
+	if availability.Ready {
+		metrics["browser_ready"] = 1
+	}
 	metrics["active_tasks"] = a.activeCount()
 	metrics["connection_slots_used"] = a.estimatedConnections()
 	metrics["connection_slots_limit"] = a.cfg.EndpointConcurrency
@@ -758,7 +786,7 @@ func (a *Agent) sendHeartbeat(ctx context.Context, stop context.CancelFunc) {
 	defer cancel()
 	out, err := a.client.Heartbeat(hbCtx, HeartbeatRequest{
 		WorkerID: a.workerID, SessionID: a.cfg.SessionID, CurrentTaskID: current, Status: status,
-		TerminationAt: termination, Metrics: metrics,
+		TerminationAt: termination, Metrics: metrics, BrowserStatus: &availability,
 	})
 	if err != nil {
 		if ctx.Err() == nil {
@@ -924,7 +952,7 @@ func (a *Agent) activeStageCount(stage string) int {
 	defer a.mu.Unlock()
 	count := 0
 	for _, task := range a.active {
-		if task.typeName == stage {
+		if task.typeName == stage && !task.browser {
 			count++
 		}
 	}
@@ -951,7 +979,7 @@ func (a *Agent) capabilities() map[string]bool {
 	return map[string]bool{
 		"tcp_port_ranges": true, "nmap_service": nmapErr == nil,
 		"masscan":      a.portExecutor == "masscan" && masscanErr == nil,
-		"connect_test": a.portExecutor == "connect", "execution_stop_ack": true,
+		"connect_test": a.portExecutor == "connect", "execution_stop_ack": true, "wapp_browser_phase": true,
 	}
 }
 

@@ -179,9 +179,14 @@ func TestHeartbeatServiceHintAndNilClaimFallsBackToPort(t *testing.T) {
 		}
 		var in struct {
 			Types    []string `json:"types"`
+			Phase    string   `json:"http_phase"`
 			Reserved bool     `json:"port_start_reserved"`
 		}
 		json.NewDecoder(r.Body).Decode(&in)
+		if in.Phase == "browser" {
+			fmt.Fprint(w, `{"task":null}`)
+			return
+		}
 		types = append(types, in.Types)
 		if len(types) == 1 {
 			fmt.Fprint(w, `{"task":null}`)

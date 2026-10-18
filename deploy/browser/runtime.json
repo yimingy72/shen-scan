@@ -1,0 +1,11 @@
+{
+  "package": "google-chrome-stable",
+  "minimum_version": "155.0.8059.84-1",
+  "version_policy": "minimum-no-downgrade",
+  "architecture": "amd64",
+  "repository": "https://dl.google.com/linux/chrome/deb/",
+  "suite": "stable",
+  "component": "main",
+  "signing_key_url": "https://dl.google.com/linux/linux_signing_key.pub",
+  "signing_key_fingerprint": "EB4C1BFD4F042F6DDDCCEC917721F63BD38B4796"
+}

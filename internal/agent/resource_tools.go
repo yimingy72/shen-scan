@@ -1,6 +1,9 @@
 package agent
 
-import "sync"
+import (
+	"sync"
+	"time"
+)
 
 type toolKind uint8
 
@@ -11,20 +14,25 @@ const (
 	toolWebProbe
 	toolFingerprint
 	toolNuclei
+	toolBrowser
 	toolKindCount
 )
 
-var toolMetricNames = [toolKindCount]string{"masscan", "nmap", "httpx", "web_probe", "fingerprint", "nuclei"}
+var toolMetricNames = [toolKindCount]string{"masscan", "nmap", "httpx", "web_probe", "fingerprint", "nuclei", "browser"}
 
 type toolProcessSample struct {
 	alive, identityKnown, rssKnown bool
 	identity                       uint64
 	rssMiB                         float64
+	cpuTicks                       uint64
+	cpuKnown                       bool
 }
 type trackedToolProcess struct {
 	kind          toolKind
 	identity      uint64
 	identityKnown bool
+	lastCPUTicks  uint64
+	lastCPUTime   time.Time
 }
 type toolTracker struct {
 	mu                     sync.Mutex
@@ -72,13 +80,26 @@ func (t *toolTracker) metrics() map[string]any {
 	var counts [toolKindCount]int
 	var rss [toolKindCount]float64
 	var unknown [toolKindCount]bool
+	browserCPU, browserCPUKnown := 0.0, false
 	for pid, record := range t.processes {
 		sample := t.readProcess(pid)
+		if record.kind == toolBrowser && t.read == nil {
+			sample = readBrowserProcessTree(pid)
+		}
 		if !sample.alive || record.identityKnown && sample.identityKnown && sample.identity != record.identity {
 			delete(t.processes, pid)
 			continue
 		}
 		counts[record.kind]++
+		if record.kind == toolBrowser && sample.cpuKnown {
+			now := time.Now()
+			if !record.lastCPUTime.IsZero() && sample.cpuTicks >= record.lastCPUTicks && now.After(record.lastCPUTime) {
+				// Linux /proc exports process CPU in USER_HZ (100 ticks/second).
+				browserCPU = 100 * float64(sample.cpuTicks-record.lastCPUTicks) / 100 / now.Sub(record.lastCPUTime).Seconds()
+				browserCPUKnown = true
+			}
+			record.lastCPUTicks, record.lastCPUTime = sample.cpuTicks, now
+		}
 		if record.identityKnown && sample.identityKnown && sample.rssKnown {
 			rss[record.kind] += sample.rssMiB
 		} else {
@@ -86,6 +107,9 @@ func (t *toolTracker) metrics() map[string]any {
 		}
 	}
 	result := make(map[string]any, 17)
+	if browserCPUKnown {
+		result["browser_cpu_percent"] = browserCPU
+	}
 	totalCount, totalRSS := 0, 0.0
 	complete := toolRSSSupported
 	for kind, name := range toolMetricNames {

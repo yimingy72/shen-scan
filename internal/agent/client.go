@@ -88,6 +88,10 @@ func (c *Client) Heartbeat(ctx context.Context, in HeartbeatRequest) (HeartbeatR
 }
 
 func (c *Client) Claim(ctx context.Context, workerID, sessionID, requestID string, types []string, supportsNucleiOriginal bool, portStartReserved ...bool) (*Task, error) {
+	return c.claimPhase(ctx, workerID, sessionID, requestID, types, supportsNucleiOriginal, "", portStartReserved...)
+}
+
+func (c *Client) claimPhase(ctx context.Context, workerID, sessionID, requestID string, types []string, supportsNucleiOriginal bool, phase string, portStartReserved ...bool) (*Task, error) {
 	var out struct {
 		Task *Task `json:"task"`
 	}
@@ -117,10 +121,12 @@ func (c *Client) Claim(ctx context.Context, workerID, sessionID, requestID strin
 		"supports_nuclei_http_batch":    len(portStartReserved) > 1 && portStartReserved[1],
 		"supports_confirmed_stop":       true,
 		"supports_http_request_budget":  true,
+		"supports_web_scan_options":     true,
 		"service_profile":               c.serviceProfile,
 		"supports_port_ranges":          true, "port_start_reserved": reserved,
 		"web_execution_profile": c.webExecutionProfile,
-		"web_evidence_profile":  c.webEvidenceProfile, "fingerprint_bundle": c.fingerprintBundle,
+		"http_phase":            phase, "web_browser_profile": "wapp-browser-v1",
+		"web_evidence_profile": c.webEvidenceProfile, "fingerprint_bundle": c.fingerprintBundle,
 		"fingerprint_bundle_schema": c.fingerprintBundleSchema,
 	}
 	if c.webEnrichmentProfile != "" {

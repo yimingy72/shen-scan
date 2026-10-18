@@ -1,0 +1,185 @@
+[
+  {
+    "case": "collection",
+    "run_id": "ecc5c18d-7ddc-464b-b05f-0533cd0eddcd",
+    "status": "completed",
+    "wall_seconds": 8.608,
+    "task_done": 1,
+    "technologies": [],
+    "screenshot": null,
+    "browser": null,
+    "tasks": [
+      {
+        "type": "http",
+        "phase": null,
+        "state": "completed",
+        "elapsed_s": 1.770076
+      }
+    ]
+  },
+  {
+    "case": "passive",
+    "run_id": "ffab07a5-6f01-44bd-95f4-80575190cea1",
+    "status": "completed",
+    "wall_seconds": 6.483,
+    "task_done": 1,
+    "technologies": [
+      "MySQL",
+      "PHP",
+      "WordPress",
+      "microsoft-windows远程连接",
+      "windows"
+    ],
+    "screenshot": null,
+    "browser": null,
+    "tasks": [
+      {
+        "type": "http",
+        "phase": null,
+        "state": "completed",
+        "elapsed_s": 5.239951
+      }
+    ]
+  },
+  {
+    "case": "active",
+    "run_id": "1d59f568-0071-41f4-a7c6-484ef3eff97f",
+    "status": "completed",
+    "wall_seconds": 20.682,
+    "task_done": 1,
+    "technologies": [
+      "wordpress"
+    ],
+    "screenshot": null,
+    "browser": null,
+    "tasks": [
+      {
+        "type": "http",
+        "phase": null,
+        "state": "completed",
+        "elapsed_s": 17.56547
+      }
+    ]
+  },
+  {
+    "case": "js-dom",
+    "run_id": "fcd94e10-9aa0-4aa4-913b-dc7391f2d68c",
+    "status": "partial",
+    "wall_seconds": 6.535,
+    "task_done": 2,
+    "technologies": [
+      "React",
+      "SHEN DOM fixture",
+      "SHEN runtime fixture",
+      "jQuery"
+    ],
+    "screenshot": null,
+    "browser": {
+      "state": "partial",
+      "js_dom": {
+        "error": "some selected rules or page resources were incomplete",
+        "state": "partial",
+        "stop_reason": "browser-network-partial"
+      },
+      "profile": "wapp-browser-v1",
+      "requests": 2,
+      "stop_reason": "browser-network-partial"
+    },
+    "tasks": [
+      {
+        "type": "http",
+        "phase": "browser",
+        "state": "completed",
+        "elapsed_s": 1.674182
+      },
+      {
+        "type": "http",
+        "phase": null,
+        "state": "completed",
+        "elapsed_s": 2.991645
+      }
+    ]
+  },
+  {
+    "case": "screenshot",
+    "run_id": "4f3976e0-9e0d-4d0d-94e2-e5a80180433a",
+    "status": "completed",
+    "wall_seconds": 6.449,
+    "task_done": 2,
+    "technologies": [],
+    "screenshot": {
+      "id": "369d9325-0aee-4f2e-beb6-dc139964d2b1",
+      "bytes": 49223,
+      "state": "complete",
+      "width": 1280,
+      "height": 720,
+      "sha256": "bfd79f9a560622a9d08b6a366b5b7afeb539fcf04ba1abb97e6e7e29ee39b617"
+    },
+    "browser": null,
+    "tasks": [
+      {
+        "type": "http",
+        "phase": null,
+        "state": "completed",
+        "elapsed_s": 2.175728
+      },
+      {
+        "type": "http",
+        "phase": "browser",
+        "state": "completed",
+        "elapsed_s": 1.146304
+      }
+    ]
+  },
+  {
+    "case": "combined",
+    "run_id": "95b5eb42-b978-4bb5-bfcb-cb273673bc71",
+    "status": "partial",
+    "wall_seconds": 10.497,
+    "task_done": 2,
+    "technologies": [
+      "MySQL",
+      "PHP",
+      "WordPress",
+      "microsoft-windows远程连接",
+      "windows",
+      "React",
+      "SHEN DOM fixture",
+      "SHEN runtime fixture",
+      "jQuery"
+    ],
+    "screenshot": {
+      "id": "5a9d8413-662b-423b-831f-7d8eeb70b956",
+      "bytes": 49678,
+      "state": "complete",
+      "width": 1280,
+      "height": 720,
+      "sha256": "4b86705a7d352e35a0b322bd71abce6d50825a4dca3b74a4426663eb99c8c63a"
+    },
+    "browser": {
+      "state": "partial",
+      "js_dom": {
+        "error": "some selected rules or page resources were incomplete",
+        "state": "partial",
+        "stop_reason": "browser-rules-partial"
+      },
+      "profile": "wapp-browser-v1",
+      "requests": 4,
+      "stop_reason": "browser-rules-partial"
+    },
+    "tasks": [
+      {
+        "type": "http",
+        "phase": null,
+        "state": "completed",
+        "elapsed_s": 5.639003
+      },
+      {
+        "type": "http",
+        "phase": "browser",
+        "state": "completed",
+        "elapsed_s": 1.929503
+      }
+    ]
+  }
+]

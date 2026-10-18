@@ -179,10 +179,10 @@ func main() {
 			} else {
 				if legacyEmbedded && input.Active != nil {
 					result.Error = "legacy embedded profile does not support active execution"
-				} else {
+				} else if input.WebScanOptions == nil || input.WebScanOptions.Passive {
 					result.Matches, err = matchEvidence(engine, input, rootOnly || legacyEmbedded, rootOnly)
 				}
-				if err == nil && result.Error == "" && input.Active != nil {
+				if err == nil && result.Error == "" && input.Active != nil && (input.WebScanOptions == nil || input.WebScanOptions.Active) {
 					var activeMatches []webevidence.Match
 					activeMatches, result.Active, err = executeActive(engine, input)
 					result.Matches = append(result.Matches, activeMatches...)
@@ -210,6 +210,9 @@ func matchSnapshot(engine *fingers.Engine, input webevidence.MatchRequest, rootO
 	return matchEvidence(engine, input, rootOnly, rootOnly)
 }
 func matchEvidence(engine *fingers.Engine, input webevidence.MatchRequest, legacy, rootOnly bool) ([]webevidence.Match, error) {
+	if input.WebScanOptions != nil && !input.WebScanOptions.Passive {
+		return nil, nil
+	}
 	if input.Response.BodyStorage == "hash_only" || (input.Response.BodySHA256 != "" && input.Response.BodySHA256 != webevidence.SHA256(input.Response.Body)) {
 		return nil, fmt.Errorf("full matching evidence is unavailable")
 	}

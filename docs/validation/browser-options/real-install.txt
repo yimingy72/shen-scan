@@ -1,0 +1,2 @@
+Chrome 155.0.8059.84-1 already satisfies minimum 155.0.8059.84-1; skip browser download/install.
+Browser installed: Chrome 155.0.8059.84-1, nonroot UID 997, isolated network ready.

@@ -14,3 +14,5 @@ func (s *resourceSampler) metrics() map[string]any { return s.tools.metrics() }
 
 // Counts follow direct child Start/Wait lifetimes. No unavailable RSS is invented.
 func readToolProcess(int) toolProcessSample { return toolProcessSample{alive: true} }
+
+func readBrowserProcessTree(pid int) toolProcessSample { return readToolProcess(pid) }

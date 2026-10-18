@@ -7,9 +7,9 @@ P0 packages two Go subprocesses separately from the Agent so scanner SDK depende
 (cd cmd/fingerprint-worker && go build -o ../../bin/fingerprint-worker .)
 ```
 
-`deploy/build-release.sh` cross-compiles both for Linux amd64. The bootstrap installs the helpers and the distribution's complete Nmap package/data. For prebuilt Worker images, install these at image-build time and retain the version/data records. Nmap is not bundled by copying a lone executable; see [Nmap adapter](nmap/README.md).
+`deploy/build-release.sh` cross-compiles both for Linux amd64. The bootstrap installs the helpers and the distribution's complete Nmap package/data. Optional Chrome is installed separately from Google's signed apt source by the [browser installer](browser/README.md); the release contains no browser package, and browser setup failure does not prevent ordinary scanning. For prebuilt Worker images, install these at image-build time and retain the version/data records. Nmap is not bundled by copying a lone executable; see [Nmap adapter](nmap/README.md).
 
-- `web-probe-worker`: full profile 使用 httpx v1.12.0 完整官方 Runner（New/RunEnumeration/Close）和 WappalyzerGo v0.2.96。窄范围源码适配在 `third_party/httpx/SHEN_PATCHES.md`，加入官方传输包装、父 context、固定连接 IP 与 favicon 身份透传。默认不启用浏览器、unsafe、ZTLS 或 HTTP2 探针；Wapp JS/DOM 证据缺口独立记录。
+- `web-probe-worker`: full profile 使用 httpx v1.12.0 完整官方 Runner（New/RunEnumeration/Close）和 WappalyzerGo v0.2.96。窄范围源码适配在 `third_party/httpx/SHEN_PATCHES.md`，加入官方传输包装、父 context、固定连接 IP 与 favicon 身份透传。普通采集默认不启用浏览器、unsafe、ZTLS 或 HTTP2 探针。任务可单独选择 JS/DOM 与截图，由系统 Chrome 子任务采集；截图复用 httpx SDK 原生截图实现，未选择与不完整执行分别记录。
 - `fingerprint-worker`: fingers commit `e870395e8984`，新构建不带 `passive_only`。完整 HTTP 资源覆盖 Fingers/FPHub/EHole/Goby/favicon；主动执行原 finger/template，不改写为平台 native 规则。旧 v1 外部包与 `--legacy-embedded` 保持旧被动范围。来源数据更新采用实际编译检查，失败保留旧包。
 - `internal/webevidence` defines bounded JSONL/envelope identities. Large responses are capped during reads/decoding; missing and partial evidence remain explicit. The Agent terminates subprocess groups on cancellation.
 

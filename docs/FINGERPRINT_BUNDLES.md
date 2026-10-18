@@ -16,15 +16,15 @@
 
 ## 执行语义
 
-- httpx 使用官方完整 Runner 做采集；WappalyzerGo 对响应进行匹配。浏览器 JS/DOM 条件不在当前采集范围，存在这类条件时记录能力缺口；不能把全量同步解释为全量执行支持。
-- fingers 保留原生被动和主动 matcher。未知页面同样进入主动发现，已知产品只提高优先级。
+- httpx 使用官方完整 Runner 做采集；WappalyzerGo 对响应进行匹配。JS/DOM 可在任务中单独开启，由系统 Chrome 提供运行时证据；未选择或无法求值的条件分别记录，不能把全量同步解释为全量执行支持。
+- fingers 保留原生被动和主动 matcher，两者可独立选择。开启主动后，未知页面同样进入主动发现，已知产品只提高优先级。
 - title 使用真实标题；favicon 与页面头/正文分别取证，保留组合条件，同 hash 的多个产品均参与匹配。
 - 安全 GET/HEAD 缓存键包含方法、完整 URL/query、连接 IP、Host、SNI、headers 和入口身份。有 body/Cookie/Auth、状态链或 Set-Cookie/private/no-store 响应不共享缓存。
 - Goby 已证明的 `rdp` 单词内部子串误报保留为候选，需独立证据才进入产品 PoC 路由。
 - 以完整 finger/template 作为完成单元，绑定原始路径/pointer、ID、内容摘要和冻结 manifest。中断的状态链有界重跑，已接受进度不因换 attempt 丢失。
 - 每段最多 1,024 个请求许可、约 45 秒主动执行；入口总上限 16,384、绝对 20 分钟、最多 32 段。失联未知消耗不退还，达到限制明确 partial，不冒充完整未命中。
 
-当前公开 HTTP 资源需要页面、headers、TLS 和关联 icon，不含依赖 JS/DOM 执行的 matcher。后续源若新增不支持语义，实际编译/能力检查必须拒绝不完整更新。
+当前 fingers 合集的 HTTP 资源需要页面、headers、TLS 和关联 icon，不含依赖 JS/DOM 执行的 matcher；Wapp 的浏览器条件由独立可选通道处理。后续源若新增不支持语义，实际编译/能力检查必须拒绝不完整更新。
 
 ## 发布与兼容
 

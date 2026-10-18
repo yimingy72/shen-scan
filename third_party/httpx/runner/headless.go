@@ -227,10 +227,23 @@ func (b *Browser) setupPageAndNavigate(url string, timeout time.Duration, header
 
 // takeScreenshotAndGetBody performs the screenshot actions
 func (b *Browser) takeScreenshotAndGetBody(page *rod.Page, idle time.Duration, fullPage bool) ([]byte, string, error) {
+	return ScreenshotWithBodyFromPage(page, idle, fullPage, nil)
+}
+
+// ScreenshotWithBodyFromPage uses the same capture implementation as the
+// screenshot runner on an already navigated page. The caller owns browser,
+// context, network policy and timeout. beforeCapture optionally enforces caller
+// limits after the native load/idle wait, immediately before capture.
+func ScreenshotWithBodyFromPage(page *rod.Page, idle time.Duration, fullPage bool, beforeCapture func() error) ([]byte, string, error) {
 	if err := page.WaitLoad(); err != nil {
 		return nil, "", err
 	}
 	_ = page.WaitIdle(idle)
+	if beforeCapture != nil {
+		if err := beforeCapture(); err != nil {
+			return nil, "", err
+		}
+	}
 
 	screenshot, err := page.Screenshot(fullPage, &proto.PageCaptureScreenshot{})
 	if err != nil {

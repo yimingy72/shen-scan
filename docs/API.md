@@ -18,6 +18,7 @@ API 前缀为 `/api`，请求及响应使用 JSON。除健康检查外，管理�
 | `GET /api/runs/{id}/ports?target=...` | 单目标开放端口和关联 HTTP |
 | `GET /api/runs/{id}/http?status=responded` | HTTP 端点；支持 `responded` / `no_response` / `all` |
 | `GET /api/observations/{id}` | 完整已存储的观测与报文 |
+| `GET /api/observations/{id}/screenshot` | 鉴权 PNG 首屏图；`thumbnail=true` 返回缩略图 |
 | `GET /api/runs/{id}/findings` | PoC 结果；`status=matched/not_matched/error/all`、`purpose=discovery/verification/check`、`severity`、`q`、分页 |
 | `GET /api/library` | 可执行规则列表；`kind=http/port/poc`、`purpose=discovery/verification/check`、`q`、`enabled`、`engine`、`source_id`、分页 |
 | `GET /api/library/{id}` | 完整规则定义 |
@@ -60,6 +61,8 @@ API 前缀为 `/api`，请求及响应使用 JSON。除健康检查外，管理�
 }
 ```
 
+创建 HTTP 任务可传 `web_scan_options:{"passive":true,"active":true,"js_dom":false,"screenshot":false}`。省略该对象采用上述默认；显式全 false 表示仅采集。四项互不依赖，截图不要求开启 JS/DOM 指纹。策略冻结在任务中，Run 与 HTTP 结果均返回选择范围；历史快照保留原执行。列表的 `screenshot` 只含状态、尺寸、摘要和标识，不含图像字节；详情和图像地址都按接受的执行凭证鉴权。见 [HTTP 浏览器能力](HTTP_BROWSER.md)。
+
 列表使用 `limit`、`offset` 分页。完整端口覆盖按被接受的完成版本计算。P1新增独立的阳性端口凭证及Nuclei逐模板凭证：在有效执行中确认收到的这些证据可跨attempt保留；它们不替代完整端口区间覆盖。目标结果增加 `port_coverage`，端口列表增加 `port_observation_id/positive_port_receipt_id`，端口观测详情的 `positive_port_receipt` 包含来源task、attempt、batch和完整摘要。`task_total` 是内部执行批次数，派生任务后会增加；目标完成进度使用 `target_done / target_count`。
 
 ## Worker 维护
@@ -73,6 +76,8 @@ API 前缀为 `/api`，请求及响应使用 JSON。除健康检查外，管理�
 首次引入执行配额版本前，须在旧控制面以认领锁阻止新认领，等待所有 leased 任务自然完成，停止旧控制面后再次确认 leased 为0，再启动新控制面迁移。迁移不会为旧活跃任务伪造配额或停止证明。target_quotas保留独立的任务和实例/会话身份，删除run/task不会级联删除未知停止额度；仍需对应instance/session的真实停止证据释放。
 
 ## Agent 协议
+
+独立 HTTP 选项使用 `supports_web_scan_options:true` 能力门槛；辅助工具需声明 `independent-web-options-v1`。浏览器子任务为 `type=http, phase=browser`，必须携带固定父观察记录、接受 attempt 和完成凭证，JS/DOM 与截图状态分别返回。Worker `spec` 增加 `browser_ready/browser_version/browser_unavailable_reason`，数值 metrics 增加 `browser_ready/browser_processes/browser_rss_mib/browser_cpu_percent`。浏览器 RSS 包括子进程，可能重复统计共享页。
 
 Agent 以引导令牌调用 `POST /api/workers/register`，获得独立会话令牌。随后通过 heartbeat、claim、renew、batches、complete、release 接口工作。
 

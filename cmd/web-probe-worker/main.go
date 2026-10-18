@@ -30,8 +30,15 @@ import (
 )
 
 func main() {
+	if len(os.Args) == 2 && os.Args[1] == "--browser-worker" {
+		if err := serveBrowser(os.Stdin, os.Stdout); err != nil {
+			fatal(err)
+		}
+		return
+	}
+
 	if len(os.Args) == 2 && os.Args[1] == "--capabilities" {
-		json.NewEncoder(os.Stdout).Encode(map[string]string{"protocol": webevidence.Protocol, "profile": webevidence.Profile, "engine": "httpx-sdk-v1.12.0/bounded-transport+wappalyzergo-v0.2.96", "request_admission": "loopback-v2", "stream_protocol": "jsonl-item-v1", "enrichment_profile": webevidence.EnrichmentProfile, "full_profile": webevidence.FullProfile, "full_engine": fullEngine, "full_capabilities": "runner,title,headers,tls,redirects,hashes,wappalyzer,favicon", "full_capability_gaps": "wappalyzer-browser-js-dom (when selected CFF requires it)"})
+		json.NewEncoder(os.Stdout).Encode(webProbeCapabilities(context.Background()))
 		return
 	}
 	if err := serve(os.Stdin, os.Stdout); err != nil {
@@ -505,7 +512,7 @@ func localHTTPPermit(ctx context.Context, input webevidence.ProbeRequest, target
 		return time.Time{}, errors.New("invalid local admission endpoint")
 	}
 	body := map[string]any{"id": input.ID, "url": target.String(), "wait": wait}
-	if (input.EnrichmentProfile == webevidence.EnrichmentProfile || input.ExecutionProfile == webevidence.FullProfile || input.Profile == webevidence.FullProfile || input.EnrichmentProfile == webevidence.FullProfile) && len(requestSeq) > 0 {
+	if (input.EnrichmentProfile == webevidence.EnrichmentProfile || input.ExecutionProfile == webevidence.FullProfile || input.Profile == webevidence.FullProfile || input.EnrichmentProfile == webevidence.FullProfile || input.Profile == webevidence.BrowserProfile) && len(requestSeq) > 0 {
 		body["request_seq"] = requestSeq[0]
 	}
 	payload, _ := json.Marshal(body)

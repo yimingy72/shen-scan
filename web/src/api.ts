@@ -1,4 +1,7 @@
+export type WebScanOptions = { passive: boolean; active: boolean; js_dom: boolean; screenshot: boolean }
+
 export interface Run {
+  web_scan_options?: WebScanOptions
   id: string
   name: string
   targets: string[]
@@ -36,7 +39,11 @@ export interface Verification {
   source_pin: { source_id: string; repository: string; revision: string; path: string; sha256: string }
 }
 
+export type WebStage = { state: string; error?: string; stop_reason?: string }
 export interface Asset {
+  web_scan_options?: WebScanOptions
+  screenshot?: WebStage & { id?: string; url?: string; width?: number; height?: number; sha256?: string; bytes?: number }
+  browser?: { profile: string; state: string; stop_reason?: string; requests?: number; js_dom?: WebStage; screenshot?: WebStage }
   positive_port_receipt?: { id: string; source_task_id: string; source_attempt_no: number; batch_seq: number; batch_sha256: string; accepted_at: string; coverage_independent: boolean }
   purpose?: string
   verification?: Verification
@@ -87,7 +94,7 @@ export interface Worker {
   last_heartbeat: string
   current_task_id?: string
   az?: string
-  spec?: Record<string, string | number | null>
+  spec?: Record<string, string | number | boolean | null>
   metrics?: Record<string, number>
   active_tasks?: { id: string; type: string; target: string; targets?: string[]; run_id: string; run_name: string }[]
 }
@@ -145,9 +152,9 @@ export class ApiClient {
     private readonly token: string,
   ) {}
 
-  async blob(path: string): Promise<Blob> {
+  async blob(path: string, signal?: AbortSignal): Promise<Blob> {
     const response = await fetch(`${this.base}${path}`, {
-      signal: AbortSignal.timeout(120000),
+      signal: signal ?? AbortSignal.timeout(120000),
       headers: { Authorization: `Bearer ${this.token}` },
     })
     if (!response.ok) {

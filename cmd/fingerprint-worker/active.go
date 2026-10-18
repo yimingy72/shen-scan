@@ -49,6 +49,11 @@ func activeUnits(engine *fingers.Engine) []activeUnit {
 func executeActive(engine *fingers.Engine, input webevidence.MatchRequest) ([]webevidence.Match, *webevidence.ActiveResult, error) {
 	a := input.Active
 	out := &webevidence.ActiveResult{}
+	if input.WebScanOptions != nil && !input.WebScanOptions.Active {
+		out.Complete = true
+		out.StopReason = "active-disabled"
+		return nil, out, nil
+	}
 	if a == nil {
 		return nil, out, nil
 	}

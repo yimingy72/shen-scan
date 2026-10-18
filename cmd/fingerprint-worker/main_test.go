@@ -39,3 +39,20 @@ func TestPassiveMatcherEvidenceAndPartialGuard(t *testing.T) {
 		t.Fatal("invalid bundle digest")
 	}
 }
+
+func TestExplicitScanOptionsSkipUnselectedMatchers(t *testing.T) {
+	for _, active := range []bool{false, true} {
+		input := webevidence.MatchRequest{WebScanOptions: &webevidence.WebScanOptions{Active: active}, Response: webevidence.Response{BodyStorage: "hash_only"}}
+		// A nil engine and deliberately unusable passive evidence prove the guard
+		// returns before invoking any SDK passive matcher, including active-only.
+		matches, err := matchEvidence(nil, input, false, false)
+		if err != nil || len(matches) != 0 {
+			t.Fatal("disabled passive matcher executed")
+		}
+	}
+	input := webevidence.MatchRequest{WebScanOptions: &webevidence.WebScanOptions{}, Active: &webevidence.ActiveRequest{AdmissionURL: "must-not-call"}}
+	matches, state, err := executeActive(nil, input)
+	if err != nil || len(matches) != 0 || state == nil || state.Requests != 0 || state.StopReason != "active-disabled" {
+		t.Fatal("disabled active matcher executed")
+	}
+}

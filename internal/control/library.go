@@ -17,6 +17,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"scanplatform/internal/rulelib"
 	"scanplatform/internal/rulesource"
+	"scanplatform/internal/webevidence"
 )
 
 const (
@@ -79,17 +80,21 @@ type ruleExportPackage struct {
 }
 
 type ruleSnapshot struct {
-	WebExecutionProfile     string         `json:"web_execution_profile,omitempty"`
-	FingerprintBundleSchema string         `json:"fingerprint_bundle_schema,omitempty"`
-	ServiceProfile          string         `json:"service_profile,omitempty"`
-	FingerprintBundle       string         `json:"fingerprint_bundle,omitempty"`
-	WebProfile              string         `json:"web_profile,omitempty"`
-	WebEnrichmentProfile    string         `json:"web_enrichment_profile,omitempty"`
-	HTTP                    []rulelib.Rule `json:"http"`
-	Port                    []rulelib.Rule `json:"port"`
-	POC                     []rulelib.Rule `json:"poc"`
-	POCPolicy               string         `json:"poc_policy,omitempty"`
-	ExplicitPOCRuleIDs      []string       `json:"explicit_poc_rule_ids,omitempty"`
+	WebScanOptions          *webevidence.WebScanOptions `json:"web_scan_options,omitempty"`
+	BrowserCFFSHA256        string                      `json:"browser_cff_sha256,omitempty"`
+	BrowserRulesRequired    *bool                       `json:"browser_rules_required,omitempty"`
+	WebBrowserProfile       string                      `json:"web_browser_profile,omitempty"`
+	WebExecutionProfile     string                      `json:"web_execution_profile,omitempty"`
+	FingerprintBundleSchema string                      `json:"fingerprint_bundle_schema,omitempty"`
+	ServiceProfile          string                      `json:"service_profile,omitempty"`
+	FingerprintBundle       string                      `json:"fingerprint_bundle,omitempty"`
+	WebProfile              string                      `json:"web_profile,omitempty"`
+	WebEnrichmentProfile    string                      `json:"web_enrichment_profile,omitempty"`
+	HTTP                    []rulelib.Rule              `json:"http"`
+	Port                    []rulelib.Rule              `json:"port"`
+	POC                     []rulelib.Rule              `json:"poc"`
+	POCPolicy               string                      `json:"poc_policy,omitempty"`
+	ExplicitPOCRuleIDs      []string                    `json:"explicit_poc_rule_ids,omitempty"`
 }
 
 type executionRule struct {

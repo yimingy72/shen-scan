@@ -67,7 +67,11 @@ func backfillTargetKeys(ctx context.Context, db *pgxpool.Pool) error {
 
 const currentResults = `WITH rt AS (SELECT t.id,t.type,t.state,t.attempt_no,t.updated_at,t.error,t.coverage,tt.target_key FROM tasks t JOIN task_targets tt ON tt.task_id=t.id WHERE t.run_id=$1),
  ob AS (SELECT a.id,a.task_id,a.observed_at,a.observation,a.target_key,t.payload task_payload FROM assets a JOIN tasks t
- ON t.id=a.task_id WHERE a.run_id=$1 AND ((COALESCE(t.accepted_attempt_no,t.attempt_no)=a.attempt_no AND t.state='completed') OR EXISTS(SELECT 1 FROM port_positive_receipts p WHERE p.observation_id=a.id) OR EXISTS(SELECT 1 FROM poc_template_receipts p WHERE p.observation_id=a.id)))`
+ ON t.id=a.task_id WHERE a.run_id=$1 AND ((COALESCE(t.accepted_attempt_no,t.attempt_no)=a.attempt_no AND t.state='completed') OR EXISTS(SELECT 1 FROM port_positive_receipts p WHERE p.observation_id=a.id) OR EXISTS(SELECT 1 FROM poc_template_receipts p WHERE p.observation_id=a.id))
+ AND (COALESCE(t.payload->>'phase','')<>'browser' OR EXISTS(SELECT 1 FROM tasks bp JOIN assets pa ON pa.task_id=bp.id AND pa.id=t.payload->'browser_parent'->>'observation_id' WHERE bp.id=t.payload->>'source_task_id' AND bp.state='completed' AND bp.accepted_attempt_no=(t.payload->>'source_attempt_no')::int AND bp.completion_id=t.payload->>'source_completion_id'))
+ AND NOT EXISTS(SELECT 1 FROM tasks b JOIN assets ba ON ba.task_id=b.id AND ba.attempt_no=b.accepted_attempt_no
+ WHERE b.run_id=t.run_id AND b.state='completed' AND b.payload->>'phase'='browser' AND b.payload->'browser_parent'->>'observation_id'=a.id
+ AND b.payload->>'source_task_id'=t.id AND (b.payload->>'source_attempt_no')::int=t.accepted_attempt_no AND b.payload->>'source_completion_id'=t.completion_id))`
 
 const targetResults = currentResults + `,
  ts AS (SELECT target_key AS target,count(*) task_total,count(*) FILTER(WHERE state='completed') task_done,
@@ -204,12 +208,12 @@ func (s *Server) listHTTPResults(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	const httpQuery = currentResults + `, latest AS(SELECT DISTINCT ON(target_key,COALESCE(observation->>'url',observation->>'target')) * FROM ob WHERE observation->>'kind'='http' AND ($2='' OR target_key=$2)
- ORDER BY target_key,COALESCE(observation->>'url',observation->>'target'),(COALESCE((observation->>'status_code')::int,0)>0) DESC,observed_at DESC,id DESC), filtered AS(SELECT * FROM latest WHERE ($3='' OR (observation-'request_raw'-'response_raw'-'body_excerpt'-'headers')::text ILIKE '%'||$3||'%' OR target_key ILIKE '%'||$3||'%') AND ($4='' OR $4='all' OR ($4='responded' AND COALESCE((observation->>'status_code')::int,0)>0) OR ($4='no_response' AND COALESCE((observation->>'status_code')::int,0)=0)))`
+ ORDER BY target_key,COALESCE(observation->>'url',observation->>'target'),(COALESCE((observation->>'status_code')::int,0)>0) DESC,observed_at DESC,id DESC), filtered AS(SELECT * FROM latest WHERE ($3='' OR (observation-'request_raw'-'response_raw'-'body_excerpt'-'headers'-'evidence'-'http_progress')::text ILIKE '%'||$3||'%' OR target_key ILIKE '%'||$3||'%') AND ($4='' OR $4='all' OR ($4='responded' AND COALESCE((observation->>'status_code')::int,0)>0) OR ($4='no_response' AND COALESCE((observation->>'status_code')::int,0)=0)))`
 	args := []any{r.PathValue("id"), r.URL.Query().Get("target"), strings.TrimSpace(r.URL.Query().Get("q")), r.URL.Query().Get("status"), limit, offset}
 	var total int64
 	var items json.RawMessage
 	err = s.db.QueryRow(r.Context(), httpQuery+`, page AS (SELECT * FROM filtered ORDER BY target_key,observation->>'url' LIMIT $5 OFFSET $6)
- SELECT count(*),COALESCE((SELECT jsonb_agg((observation-'request_raw'-'response_raw'-'body_excerpt'-'headers') || jsonb_build_object('id',id,'source_target',target_key,'observed_at',observed_at) ORDER BY target_key,observation->>'url') FROM page),'[]'::jsonb) FROM filtered`, args...).Scan(&total, &items)
+ SELECT count(*),COALESCE((SELECT jsonb_agg((observation-'request_raw'-'response_raw'-'body_excerpt'-'headers'-'evidence'-'http_progress') || jsonb_build_object('id',id,'source_target',target_key,'observed_at',observed_at) ORDER BY target_key,observation->>'url') FROM page),'[]'::jsonb) FROM filtered`, args...).Scan(&total, &items)
 	if err != nil {
 		writeError(w, 500, "读取 HTTP 结果失败")
 		return

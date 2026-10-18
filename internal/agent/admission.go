@@ -59,6 +59,10 @@ func (a *Agent) connectionEstimate() (used, nextHTTP int) {
 	defer a.mu.Unlock()
 	helperSlots := 0
 	for _, task := range a.active {
+		if task.browser {
+			used += 2
+			continue
+		}
 		switch task.typeName {
 		case "service", "poc":
 			used += 4

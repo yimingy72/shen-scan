@@ -20,6 +20,7 @@ import (
 	"github.com/klauspost/compress/zstd"
 	"github.com/projectdiscovery/fastdialer/fastdialer"
 	"github.com/projectdiscovery/httpx/runner"
+	wapp "github.com/projectdiscovery/wappalyzergo"
 	"scanplatform/internal/httpadmission"
 	"scanplatform/internal/webevidence"
 )
@@ -27,7 +28,8 @@ import (
 const fullEngine = "httpx-runner-v1.12.0/wappalyzergo-v0.2.96"
 
 func probeFull(ctx context.Context, input webevidence.ProbeRequest) (webevidence.ProbeResult, error) {
-	result := webevidence.ProbeResult{ID: input.ID, Protocol: webevidence.Protocol, Profile: webevidence.FullProfile, ExecutionProfile: webevidence.FullProfile, Identity: input.Identity, EnrichmentProfile: input.EnrichmentProfile, InputURL: input.URL, Engine: fullEngine, CFFSHA256: webevidence.SHA256(input.CFF)}
+	passive := input.WebScanOptions == nil || input.WebScanOptions.Passive
+	result := webevidence.ProbeResult{WebScanOptions: input.WebScanOptions, ID: input.ID, Protocol: webevidence.Protocol, Profile: webevidence.FullProfile, ExecutionProfile: webevidence.FullProfile, Identity: input.Identity, EnrichmentProfile: input.EnrichmentProfile, InputURL: input.URL, Engine: fullEngine, CFFSHA256: webevidence.SHA256(input.CFF)}
 	target, err := url.Parse(input.URL)
 	if err != nil || target.Hostname() == "" || target.User != nil || target.Fragment != "" || (target.Scheme != "http" && target.Scheme != "https") || net.ParseIP(input.ConnectIP) == nil {
 		return result, errors.New("invalid fixed HTTP target")
@@ -38,17 +40,20 @@ func probeFull(ctx context.Context, input webevidence.ProbeRequest) (webevidence
 	if input.MaxRequests < 0 {
 		return result, errors.New("negative request budget")
 	}
-	if len(input.CFF) == 0 || len(input.CFF) > 32<<20 || (input.CFFSHA256 != "" && input.CFFSHA256 != result.CFFSHA256) {
-		return result, errors.New("invalid full Wappalyzer snapshot")
-	}
-	matcher, err := cachedMatcher(input.CFF, result.CFFSHA256)
-	if err != nil {
-		return result, err
-	}
-	for _, fingerprint := range matcher.GetFingerprints().Apps {
-		if len(fingerprint.JS) > 0 || len(fingerprint.Dom) > 0 {
-			result.CapabilityGaps = []string{"wappalyzer-browser-js-dom"}
-			break
+	var matcher *wapp.Wappalyze
+	if passive {
+		if len(input.CFF) == 0 || len(input.CFF) > 32<<20 || (input.CFFSHA256 != "" && input.CFFSHA256 != result.CFFSHA256) {
+			return result, errors.New("invalid full Wappalyzer snapshot")
+		}
+		matcher, err = cachedMatcher(input.CFF, result.CFFSHA256)
+		if err != nil {
+			return result, err
+		}
+		for _, fingerprint := range matcher.GetFingerprints().Apps {
+			if (input.WebScanOptions == nil || input.WebScanOptions.JSDOM) && (len(fingerprint.JS) > 0 || len(fingerprint.Dom) > 0) {
+				result.CapabilityGaps = []string{"wappalyzer-browser-js-dom"}
+				break
+			}
 		}
 	}
 	timeout := time.Duration(input.TimeoutMillis) * time.Millisecond
@@ -84,8 +89,8 @@ func probeFull(ctx context.Context, input webevidence.ProbeRequest) (webevidence
 		InputTargetHost: []string{input.URL}, Threads: 1, Timeout: 90, Retries: 1, Delay: -1,
 		NoFallbackScheme: !input.AlternateScheme, DisableStdin: true, DisableStdout: true,
 		Silent: true, NoColor: true, HostMaxErrors: -1, OutputCDN: "false",
-		ExtractTitle: true, TechDetect: true, Wappalyzer: matcher, Favicon: true,
-		TLSGrab: true, FollowHostRedirects: true, MaxRedirects: 10, ChainInStdout: true, CPEDetect: true, WordPress: true,
+		ExtractTitle: true, TechDetect: passive, Wappalyzer: matcher, Favicon: true,
+		TLSGrab: true, FollowHostRedirects: true, MaxRedirects: 10, ChainInStdout: true, CPEDetect: passive, WordPress: passive,
 		StatusCode: true, ContentLength: true, OutputServerHeader: true,
 		OutputContentType: true, OutputResponseTime: true, OutputIP: true,
 		OutputLinesCount: true, OutputWordsCount: true, Hashes: "md5,mmh3,sha256,simhash",
@@ -106,6 +111,12 @@ func probeFull(ctx context.Context, input webevidence.ProbeRequest) (webevidence
 		return result, errors.New("httpx runner completed without OnResult")
 	}
 	result.Title = native.Title
+	if !passive {
+		native.Technologies = nil
+		native.TechnologyDetails = nil
+		native.CPE = nil
+		native.WordPress = nil
+	}
 	result.Technologies = append([]string(nil), native.Technologies...)
 	sort.Strings(result.Technologies)
 	// Copy the native json:"-" bytes before any SDK JSON serialization.

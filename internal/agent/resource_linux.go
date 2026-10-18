@@ -139,10 +139,60 @@ func parseToolProcessStat(contents string, pageSize int) toolProcessSample {
 		return toolProcessSample{alive: true}
 	}
 	sample := toolProcessSample{alive: true, identityKnown: true, identity: start}
+	user, ue := strconv.ParseUint(fields[11], 10, 64)
+	system, se := strconv.ParseUint(fields[12], 10, 64)
+	if ue == nil && se == nil {
+		sample.cpuTicks = user + system
+		sample.cpuKnown = true
+	}
 	pages, err := strconv.ParseUint(fields[21], 10, 64)
 	if err == nil && pageSize > 0 {
 		sample.rssKnown = true
 		sample.rssMiB = float64(pages) * float64(pageSize) / (1024 * 1024)
 	}
 	return sample
+}
+
+// Include Chromium and renderer descendants, not just the small Go helper.
+func readBrowserProcessTree(pid int) toolProcessSample {
+	root := readToolProcess(pid)
+	if !root.alive {
+		return root
+	}
+	pending := []int{pid}
+	seen := map[int]bool{pid: true}
+	for len(pending) > 0 {
+		current := pending[len(pending)-1]
+		pending = pending[:len(pending)-1]
+		raw, err := os.ReadFile(fmt.Sprintf("/proc/%d/task/%d/children", current, current))
+		if err != nil {
+			if !os.IsNotExist(err) {
+				root.rssKnown = false
+				root.cpuKnown = false
+			}
+			continue
+		}
+		for _, field := range strings.Fields(string(raw)) {
+			child, err := strconv.Atoi(field)
+			if err != nil || seen[child] {
+				continue
+			}
+			if len(seen) >= 4096 {
+				root.rssKnown = false
+				root.cpuKnown = false
+				return root
+			}
+			seen[child] = true
+			sample := readToolProcess(child)
+			if !sample.alive {
+				continue
+			}
+			root.rssKnown = root.rssKnown && sample.rssKnown
+			root.cpuKnown = root.cpuKnown && sample.cpuKnown
+			root.rssMiB += sample.rssMiB
+			root.cpuTicks += sample.cpuTicks
+			pending = append(pending, child)
+		}
+	}
+	return root
 }

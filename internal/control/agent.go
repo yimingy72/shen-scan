@@ -19,6 +19,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"scanplatform/internal/rulelib"
+	"scanplatform/internal/webevidence"
 )
 
 const (
@@ -75,12 +76,13 @@ func (s *Server) registerWorker(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) heartbeat(w http.ResponseWriter, r *http.Request) {
 	var request struct {
-		WorkerID      string          `json:"worker_id"`
-		SessionID     string          `json:"session_id"`
-		CurrentTaskID string          `json:"current_task_id"`
-		Status        string          `json:"status"`
-		TerminationAt *time.Time      `json:"termination_at"`
-		Metrics       json.RawMessage `json:"metrics"`
+		BrowserStatus *webevidence.BrowserCapability `json:"browser_status,omitempty"`
+		WorkerID      string                         `json:"worker_id"`
+		SessionID     string                         `json:"session_id"`
+		CurrentTaskID string                         `json:"current_task_id"`
+		Status        string                         `json:"status"`
+		TerminationAt *time.Time                     `json:"termination_at"`
+		Metrics       json.RawMessage                `json:"metrics"`
 	}
 	if err := decodeJSON(w, r, &request); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
@@ -100,6 +102,14 @@ func (s *Server) heartbeat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	metricsJSON, _ := json.Marshal(metrics)
+	var browserStatusJSON []byte
+	if request.BrowserStatus != nil {
+		if len(request.BrowserStatus.Version) > 128 || len(request.BrowserStatus.UnavailableReason) > 512 {
+			writeError(w, 400, "browser status exceeds bounds")
+			return
+		}
+		browserStatusJSON, _ = json.Marshal(request.BrowserStatus)
+	}
 	pool, err := s.loadPool(r.Context())
 	if err != nil {
 		writeError(w, http.StatusServiceUnavailable, "database unavailable")
@@ -156,8 +166,8 @@ func (s *Server) heartbeat(w http.ResponseWriter, r *http.Request) {
 			stopTaskIDs = append(stopTaskIDs, request.CurrentTaskID)
 		}
 	}
-	result, err := s.db.Exec(r.Context(), `UPDATE workers SET status=$1,last_heartbeat=now(),current_task_id=NULLIF($2,''),metrics=$5
-		WHERE id=$3 AND session_id=$4`, status, request.CurrentTaskID, request.WorkerID, request.SessionID, metricsJSON)
+	result, err := s.db.Exec(r.Context(), `UPDATE workers SET status=$1,last_heartbeat=now(),current_task_id=NULLIF($2,''),metrics=$5,spec=CASE WHEN $6::jsonb IS NULL THEN spec ELSE spec||$6::jsonb END
+		WHERE id=$3 AND session_id=$4`, status, request.CurrentTaskID, request.WorkerID, request.SessionID, metricsJSON, browserStatusJSON)
 	if err != nil || result.RowsAffected() != 1 {
 		writeError(w, http.StatusInternalServerError, "record heartbeat failed")
 		return
@@ -208,6 +218,7 @@ var workerMetricLimits = map[string]float64{
 	"connection_slots_limit": 1_000_000,
 	"upload_queued_bytes":    1_000_000_000,
 	"admission_paused":       1,
+	"browser_ready":          1, "browser_processes": 1000, "browser_rss_mib": 1_000_000_000, "browser_cpu_percent": 1_000_000,
 }
 
 func validateWorkerMetrics(raw json.RawMessage) (map[string]float64, error) {
@@ -254,6 +265,9 @@ func (s *Server) claimTask(w http.ResponseWriter, r *http.Request) {
 		PortStartReserved          bool     `json:"port_start_reserved"`
 		ServiceProfile             string   `json:"service_profile"`
 		WebExecutionProfile        string   `json:"web_execution_profile"`
+		HTTPPhase                  string   `json:"http_phase"`
+		WebBrowserProfile          string   `json:"web_browser_profile"`
+		SupportsWebScanOptions     bool     `json:"supports_web_scan_options"`
 		WebEvidenceProfile         string   `json:"web_evidence_profile"`
 		WebEnrichmentProfile       string   `json:"web_enrichment_profile"`
 		FingerprintBundleSchema    string   `json:"fingerprint_bundle_schema"`
@@ -269,6 +283,14 @@ func (s *Server) claimTask(w http.ResponseWriter, r *http.Request) {
 	}
 	if request.RequestID == "" || len(request.RequestID) > 200 {
 		writeError(w, http.StatusBadRequest, "request_id is required and must not exceed 200 characters")
+		return
+	}
+	if request.HTTPPhase != "" && request.HTTPPhase != "browser" {
+		writeError(w, 400, "unsupported HTTP phase")
+		return
+	}
+	if request.HTTPPhase == "browser" && request.WebBrowserProfile != webevidence.BrowserProfile {
+		writeError(w, 400, "browser protocol is required")
 		return
 	}
 	types, err := normalizeTaskTypes(request.Types)
@@ -392,11 +414,11 @@ func (s *Server) claimTask(w http.ResponseWriter, r *http.Request) {
 			}
 			if !expired {
 				var incompatible bool
-				checkErr := tx.QueryRow(r.Context(), `SELECT type='http' AND (
+				checkErr := tx.QueryRow(r.Context(), `SELECT type='http' AND (COALESCE(payload->>'phase','')<>$7 OR ($7='browser' AND $8<>'wapp-browser-v1') OR ((payload ? 'web_scan_options') AND NOT $9) OR
                     (COALESCE(payload->>'web_profile','')<>'' AND
                     (payload->>'web_profile'<>$2 OR CASE WHEN COALESCE(payload->>'fingerprint_bundle_schema','')='' THEN NOT (payload->>'fingerprint_bundle'=$3 OR payload->>'fingerprint_bundle'='b5946286a877ff75a1c7b9914e9c3e4b0aba4e15287ee1cf594eef6db8e18538' AND $3='6f267d12bdb5e7f6fc64db8b44c71cdae78b70175dd93a346a9d05405867e84e') ELSE NOT (payload->>'fingerprint_bundle_schema'=$4 OR payload->>'fingerprint_bundle_schema'='shen-fingerprint-bundle-v1' AND $4='shen-fingerprint-bundle-v2') OR $4='' END)) OR
                     (COALESCE(payload->>'web_enrichment_profile','')<>'' AND payload->>'web_enrichment_profile'<>$5) OR (COALESCE(payload->>'web_execution_profile','')<>'' AND payload->>'web_execution_profile'<>$6))
-                    FROM tasks WHERE id=$1`, *previousTaskID, request.WebEvidenceProfile, request.FingerprintBundle, request.FingerprintBundleSchema, request.WebEnrichmentProfile, request.WebExecutionProfile).Scan(&incompatible)
+                    FROM tasks WHERE id=$1`, *previousTaskID, request.WebEvidenceProfile, request.FingerprintBundle, request.FingerprintBundleSchema, request.WebEnrichmentProfile, request.WebExecutionProfile, request.HTTPPhase, request.WebBrowserProfile, request.SupportsWebScanOptions).Scan(&incompatible)
 				if checkErr != nil {
 					writeError(w, 500, "load claim compatibility failed")
 					return
@@ -471,7 +493,10 @@ func (s *Server) claimTask(w http.ResponseWriter, r *http.Request) {
             AND NOT EXISTS(SELECT 1 FROM port_start_tickets p WHERE p.root_task_id=t.id AND p.task_id IS NULL AND p.expires_at>now())
             AND NOT EXISTS(SELECT 1 FROM target_quotas q WHERE q.task_id=t.id AND q.attempt_no=t.attempt_no AND q.state IN('active','suspect','revoking'))
 			AND (t.type<>'service' OR COALESCE(t.payload->>'service_profile','')='' OR t.payload->>'service_profile'=$9)
-            AND (t.type<>'http' OR NOT r.requires_httpx_cff OR $4)
+            AND (t.type<>'http' OR COALESCE(t.payload->>'phase','')=$14)
+ AND (NOT (t.payload ? 'web_scan_options') OR $16)
+ AND (t.type<>'http' OR COALESCE(t.payload->>'phase','')<>'browser' OR ($15='wapp-browser-v1' AND NOT EXISTS(SELECT 1 FROM tasks b WHERE b.worker_id=$2 AND b.session_id=$3 AND b.payload->>'phase'='browser' AND b.state='leased' AND b.lease_until>now())))
+ AND (t.type<>'http' OR NOT r.requires_httpx_cff OR $4)
             AND (t.type<>'http' OR COALESCE(t.payload->>'web_profile','')='' OR (t.payload->>'web_profile'=$7 AND CASE WHEN COALESCE(t.payload->>'fingerprint_bundle_schema','')='' THEN (t.payload->>'fingerprint_bundle'=$8 OR t.payload->>'fingerprint_bundle'='b5946286a877ff75a1c7b9914e9c3e4b0aba4e15287ee1cf594eef6db8e18538' AND $8='6f267d12bdb5e7f6fc64db8b44c71cdae78b70175dd93a346a9d05405867e84e') ELSE $10<>'' AND (t.payload->>'fingerprint_bundle_schema'=$10 OR t.payload->>'fingerprint_bundle_schema'='shen-fingerprint-bundle-v1' AND $10='shen-fingerprint-bundle-v2') END))
             AND (t.type<>'http' OR COALESCE(t.payload->>'web_enrichment_profile','')='' OR t.payload->>'web_enrichment_profile'=$12)
  AND (t.type<>'http' OR COALESCE(t.payload->>'web_execution_profile','')='' OR t.payload->>'web_execution_profile'=$13)
@@ -483,11 +508,12 @@ func (s *Server) claimTask(w http.ResponseWriter, r *http.Request) {
 			OR (t.type<>'port' AND NOT EXISTS (SELECT 1 FROM tasks active_target
 				WHERE active_target.worker_id=$2 AND active_target.session_id=$3
 				AND active_target.type IN ('service','http','poc') AND active_target.target_key=t.target_key
+ AND COALESCE(active_target.payload->>'phase','')=COALESCE(t.payload->>'phase','')
                 AND (t.type<>'http' OR active_target.type<>'http' OR
                     ((active_target.payload->'endpoints'->0) - 'work_key') = ((t.payload->'endpoints'->0) - 'work_key'))
 				AND active_target.state='leased' AND active_target.lease_until > now()))))
 		ORDER BY r.last_claim_at,r.created_at,r.id FOR UPDATE OF r SKIP LOCKED LIMIT 1`,
-			types, request.WorkerID, request.SessionID, httpxCapable, originalNucleiCapable, request.SupportsPortRanges, request.WebEvidenceProfile, request.FingerprintBundle, request.ServiceProfile, request.FingerprintBundleSchema, request.SupportsNucleiHTTPBatch, request.WebEnrichmentProfile, request.WebExecutionProfile).Scan(&runID, &lastTargetKey, &requiresHTTPXCFF)
+			types, request.WorkerID, request.SessionID, httpxCapable, originalNucleiCapable, request.SupportsPortRanges, request.WebEvidenceProfile, request.FingerprintBundle, request.ServiceProfile, request.FingerprintBundleSchema, request.SupportsNucleiHTTPBatch, request.WebEnrichmentProfile, request.WebExecutionProfile, request.HTTPPhase, request.WebBrowserProfile, request.SupportsWebScanOptions).Scan(&runID, &lastTargetKey, &requiresHTTPXCFF)
 	}
 	if errors.Is(err, pgx.ErrNoRows) {
 		if err := tx.Commit(r.Context()); err != nil {
@@ -518,7 +544,10 @@ func (s *Server) claimTask(w http.ResponseWriter, r *http.Request) {
             AND NOT EXISTS(SELECT 1 FROM port_start_tickets p WHERE p.root_task_id=t.id AND p.task_id IS NULL AND p.expires_at>now())
             AND NOT EXISTS(SELECT 1 FROM target_quotas q WHERE q.task_id=t.id AND q.attempt_no=t.attempt_no AND q.state IN('active','suspect','revoking'))
 			AND (t.type<>'service' OR COALESCE(t.payload->>'service_profile','')='' OR t.payload->>'service_profile'=$14)
-            AND (t.type<>'http' OR NOT $8 OR $9)
+            AND (t.type<>'http' OR COALESCE(t.payload->>'phase','')=$19)
+ AND (NOT (t.payload ? 'web_scan_options') OR $21)
+ AND (t.type<>'http' OR COALESCE(t.payload->>'phase','')<>'browser' OR ($20='wapp-browser-v1' AND NOT EXISTS(SELECT 1 FROM tasks b WHERE b.worker_id=$3 AND b.session_id=$4 AND b.payload->>'phase'='browser' AND b.state='leased' AND b.lease_until>now())))
+ AND (t.type<>'http' OR NOT $8 OR $9)
             AND (t.type<>'http' OR COALESCE(t.payload->>'web_profile','')='' OR (t.payload->>'web_profile'=$12 AND CASE WHEN COALESCE(t.payload->>'fingerprint_bundle_schema','')='' THEN (t.payload->>'fingerprint_bundle'=$13 OR t.payload->>'fingerprint_bundle'='b5946286a877ff75a1c7b9914e9c3e4b0aba4e15287ee1cf594eef6db8e18538' AND $13='6f267d12bdb5e7f6fc64db8b44c71cdae78b70175dd93a346a9d05405867e84e') ELSE $15<>'' AND (t.payload->>'fingerprint_bundle_schema'=$15 OR t.payload->>'fingerprint_bundle_schema'='shen-fingerprint-bundle-v1' AND $15='shen-fingerprint-bundle-v2') END))
             AND (t.type<>'http' OR COALESCE(t.payload->>'web_enrichment_profile','')='' OR t.payload->>'web_enrichment_profile'=$17)
  AND (t.type<>'http' OR COALESCE(t.payload->>'web_execution_profile','')='' OR t.payload->>'web_execution_profile'=$18)
@@ -530,12 +559,13 @@ func (s *Server) claimTask(w http.ResponseWriter, r *http.Request) {
 			OR (t.type<>'port' AND NOT EXISTS (SELECT 1 FROM tasks active_target
 				WHERE active_target.worker_id=$3 AND active_target.session_id=$4
 				AND active_target.type IN ('service','http','poc') AND active_target.target_key=t.target_key
+ AND COALESCE(active_target.payload->>'phase','')=COALESCE(t.payload->>'phase','')
                 AND (t.type<>'http' OR active_target.type<>'http' OR
                     ((active_target.payload->'endpoints'->0) - 'work_key') = ((t.payload->'endpoints'->0) - 'work_key'))
 				AND active_target.state='leased' AND active_target.lease_until > now())))
 			ORDER BY (t.worker_id=$3 AND t.session_id=$4 AND t.reserved_until>now()) DESC NULLS LAST,t.target_key,t.created_at,t.id FOR UPDATE OF t SKIP LOCKED LIMIT 1`,
 			runID, types, request.WorkerID, request.SessionID, candidate.retry, candidate.afterCursor, lastTargetKey,
-			requiresHTTPXCFF, httpxCapable, originalNucleiCapable, request.SupportsPortRanges, request.WebEvidenceProfile, request.FingerprintBundle, request.ServiceProfile, request.FingerprintBundleSchema, request.SupportsNucleiHTTPBatch, request.WebEnrichmentProfile, request.WebExecutionProfile).Scan(
+			requiresHTTPXCFF, httpxCapable, originalNucleiCapable, request.SupportsPortRanges, request.WebEvidenceProfile, request.FingerprintBundle, request.ServiceProfile, request.FingerprintBundleSchema, request.SupportsNucleiHTTPBatch, request.WebEnrichmentProfile, request.WebExecutionProfile, request.HTTPPhase, request.WebBrowserProfile, request.SupportsWebScanOptions).Scan(
 			&taskID, &runID, &typeName, &payload, &targetKey)
 		if !errors.Is(err, pgx.ErrNoRows) {
 			break
@@ -594,6 +624,9 @@ func (s *Server) claimTask(w http.ResponseWriter, r *http.Request) {
 	}
 	if err == nil && typeName == "http" {
 		payload, err = initializeHTTPProgress(r.Context(), tx, taskID, payload)
+		if err == nil {
+			payload, err = initializeBrowserAssignment(r.Context(), tx, taskID, payload)
+		}
 	}
 	if err == nil && typeName == "poc" {
 		payload, err = remainingPOCRules(r.Context(), tx, taskID, payload)
@@ -919,6 +952,16 @@ func (s *Server) submitBatch(w http.ResponseWriter, r *http.Request) {
 	seenPOCRules := map[string]bool{}
 	for index := range request.Items {
 		item := &request.Items[index]
+		if browserTaskPayload(payload) {
+			if len(request.Items) != 1 || request.BatchSeq != 0 {
+				writeError(w, 422, "browser requires one endpoint outcome")
+				return
+			}
+			if err := mergeBrowserObservation(r.Context(), tx, r.PathValue("id"), request.AttemptNo, payload, item); err != nil {
+				writeError(w, 422, err.Error())
+				return
+			}
+		}
 		if typeName == "poc" {
 			if seenPOCRules[item.RuleID] {
 				writeError(w, 422, "duplicate PoC template outcome in one batch")
@@ -943,7 +986,7 @@ func (s *Server) submitBatch(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		if typeName == "http" {
-			if err := validateFullHTTPIdentity(*item, r.PathValue("id"), request.AttemptNo, payload); err != nil {
+			if err := validateFullHTTPIdentity(*item, r.PathValue("id"), request.AttemptNo, payload); err != nil && !browserTaskPayload(payload) {
 				writeError(w, 422, err.Error())
 				return
 			}
@@ -959,6 +1002,14 @@ func (s *Server) submitBatch(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		assetRows[index] = []any{newID(), runID, r.PathValue("id"), request.AttemptNo, request.BatchSeq, index, targetKey, stored, original}
+	}
+	if browserTaskPayload(payload) {
+		sanitized, _ := json.Marshal(request.Items)
+		batchIndex, _, err = observationStorageJSON(sanitized)
+		if err != nil {
+			writeError(w, 422, "invalid browser index")
+			return
+		}
 	}
 	_, err = tx.Exec(r.Context(), `INSERT INTO task_batches(task_id,attempt_no,batch_seq,content_hash,items) VALUES ($1,$2,$3,$4,$5)`,
 		r.PathValue("id"), request.AttemptNo, request.BatchSeq, hash[:], batchIndex)
@@ -1096,13 +1147,25 @@ func (s *Server) completeTask(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	completionID := newID()
+	if typeName == "http" && !browserTaskPayload(payload) {
+		if err := deriveBrowserTasks(r.Context(), tx, r.PathValue("id"), runID, request.AttemptNo, completionID, payload); err != nil {
+			writeError(w, 422, err.Error())
+			return
+		}
+	}
+	if browserTaskPayload(payload) {
+		if err := validateBrowserParent(r.Context(), tx, payload); err != nil {
+			writeError(w, 409, err.Error())
+			return
+		}
+	}
 	if typeName == "http" {
 		if err := derivePOCTasks(r.Context(), tx, r.PathValue("id"), runID, request.AttemptNo, typeName, sourceTarget, payload); err != nil {
 			writeError(w, http.StatusUnprocessableEntity, err.Error())
 			return
 		}
 	}
-	completionID := newID()
 	_, err = tx.Exec(r.Context(), `UPDATE tasks SET state='completed',last_batch_seq=$1,lease_until=NULL,rate_until=NULL,
 		completed_at=now(),updated_at=now(),accepted_attempt_no=attempt_no,completion_id=$3,outcome=$4,coverage=$5 WHERE id=$2`, request.LastBatchSeq, r.PathValue("id"), completionID, outcome, coverage)
 	if err == nil {
@@ -1629,8 +1692,9 @@ func insertDerivedTask(ctx context.Context, tx pgx.Tx, runID, parentID, typeName
 		}
 	}
 	if typeName == "http" {
-		var bundle, webProfile, bundleSchema, enrichmentProfile, executionProfile string
-		if err := tx.QueryRow(ctx, `SELECT COALESCE(rules_snapshot->>'fingerprint_bundle',''),COALESCE(rules_snapshot->>'web_profile',''),COALESCE(rules_snapshot->>'fingerprint_bundle_schema',''),COALESCE(rules_snapshot->>'web_enrichment_profile',''),COALESCE(rules_snapshot->>'web_execution_profile','') FROM runs WHERE id=$1`, runID).Scan(&bundle, &webProfile, &bundleSchema, &enrichmentProfile, &executionProfile); err != nil {
+		var bundle, webProfile, bundleSchema, enrichmentProfile, executionProfile, browserProfile string
+		var scanOptions []byte
+		if err := tx.QueryRow(ctx, `SELECT COALESCE(rules_snapshot->>'fingerprint_bundle',''),COALESCE(rules_snapshot->>'web_profile',''),COALESCE(rules_snapshot->>'fingerprint_bundle_schema',''),COALESCE(rules_snapshot->>'web_enrichment_profile',''),COALESCE(rules_snapshot->>'web_execution_profile',''),COALESCE(rules_snapshot->>'web_browser_profile',''),rules_snapshot->'web_scan_options' FROM runs WHERE id=$1`, runID).Scan(&bundle, &webProfile, &bundleSchema, &enrichmentProfile, &executionProfile, &browserProfile, &scanOptions); err != nil {
 			return err
 		}
 		if bundle != "" {
@@ -1647,6 +1711,10 @@ func insertDerivedTask(ctx context.Context, tx pgx.Tx, runID, parentID, typeName
 		profile["max_requests"] = 8
 		if executionProfile != "" {
 			profile["web_execution_profile"] = executionProfile
+			profile["web_browser_profile"] = browserProfile
+			if len(scanOptions) > 0 && string(scanOptions) != "null" {
+				profile["web_scan_options"] = json.RawMessage(scanOptions)
+			}
 			profile["execution_timeout_seconds"] = 1260
 			profile["max_requests"] = 16384
 		}
@@ -1740,7 +1808,7 @@ func finalizeRun(ctx context.Context, tx pgx.Tx, runID string) error {
 		return nil
 	}
 	var failed, completed, incomplete int
-	if err := tx.QueryRow(ctx, `SELECT count(*) FILTER (WHERE state='failed'),count(*) FILTER (WHERE state='completed'),count(*) FILTER(WHERE state='completed' AND coverage='partial') FROM tasks WHERE run_id=$1`, runID).Scan(&failed, &completed, &incomplete); err != nil {
+	if err := tx.QueryRow(ctx, `SELECT count(*) FILTER (WHERE state='failed'),count(*) FILTER (WHERE state='completed'),count(*) FILTER(WHERE state='completed' AND coverage='partial') FROM tasks t WHERE run_id=$1 AND NOT EXISTS(SELECT 1 FROM tasks b WHERE b.run_id=t.run_id AND b.state='completed' AND b.payload->>'phase'='browser' AND b.payload->>'source_task_id'=t.id AND (b.payload->>'source_attempt_no')::int=t.accepted_attempt_no AND b.payload->>'source_completion_id'=t.completion_id)`, runID).Scan(&failed, &completed, &incomplete); err != nil {
 		return err
 	}
 	status := "completed"

@@ -1,10 +1,12 @@
 package control
 
 import (
+	"bytes"
 	"compress/gzip"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -45,6 +47,24 @@ func TestAcceptsGzipQuality(t *testing.T) {
 	for header, wanted := range tests {
 		if got := acceptsGzip(header); got != wanted {
 			t.Errorf("acceptsGzip(%q)=%t, want %t", header, got, wanted)
+		}
+	}
+}
+
+func TestScreenshotPNGBypassesGzip(t *testing.T) {
+	data := []byte("\x89PNG\r\n\x1a\nfixture")
+	h := gzipJSON(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "image/png")
+		w.Header().Set("Content-Length", strconv.Itoa(len(data)))
+		_, _ = w.Write(data)
+	}))
+	for _, suffix := range []string{"", "?thumbnail=true"} {
+		r := httptest.NewRequest("GET", "/api/observations/fixture/screenshot"+suffix, nil)
+		r.Header.Set("Accept-Encoding", "gzip")
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, r)
+		if w.Header().Get("Content-Encoding") != "" || !bytes.Equal(w.Body.Bytes(), data) || w.Header().Get("Content-Length") != strconv.Itoa(len(data)) {
+			t.Fatal("binary PNG was altered by gzip middleware")
 		}
 	}
 }

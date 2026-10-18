@@ -63,7 +63,7 @@ func New(ctx context.Context, databaseURL, adminToken, joinToken string) (*Serve
 		db.Close()
 		return nil, fmt.Errorf("ping database: %w", err)
 	}
-	if _, err = db.Exec(ctx, schema+httpBudgetSchema+servicePressureSchema); err != nil {
+	if _, err = db.Exec(ctx, schema+httpBudgetSchema+servicePressureSchema+webScreenshotSchema); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("migrate database: %w", err)
 	}
@@ -133,6 +133,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/runs/{id}/cancel", s.admin(s.cancelRun))
 	mux.HandleFunc("POST /api/runs/{id}/pause", s.admin(s.pauseRun))
 	mux.HandleFunc("POST /api/runs/{id}/resume", s.admin(s.resumeRun))
+	mux.HandleFunc("GET /api/observations/{id}/screenshot", s.admin(s.getObservationScreenshot))
 	mux.HandleFunc("GET /api/assets", s.admin(s.listAssets))
 	mux.HandleFunc("GET /api/runs/{id}/results", s.admin(s.listTargetResults))
 	mux.HandleFunc("GET /api/runs/{id}/ports", s.admin(s.listPortResults))
@@ -186,6 +187,9 @@ func gzipJSON(next http.Handler) http.Handler {
 }
 
 func binaryResponsePath(value string) bool {
+	if strings.HasPrefix(value, "/api/observations/") && strings.HasSuffix(value, "/screenshot") {
+		return true
+	}
 	return (strings.HasPrefix(value, "/api/library/sources/") &&
 		(strings.HasSuffix(value, "/files/raw") || strings.HasSuffix(value, "/export")))
 }

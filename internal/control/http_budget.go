@@ -272,6 +272,11 @@ func (s *Server) admitHTTP(ctx context.Context, taskID string, req httpPermitReq
 	if json.Unmarshal(taskPayload, &full) != nil {
 		return out, 503, errors.New("invalid HTTP payload")
 	}
+	var browser webevidence.BrowserAssignment
+	_ = json.Unmarshal(taskPayload, &browser)
+	if browser.Phase == "browser" && (browser.BrowserRequestsUsed >= 32 || browser.BrowserDeadline.IsZero() || !browser.BrowserDeadline.After(out.ServerTime)) {
+		return out, 409, errors.New("browser cumulative budget or deadline exhausted")
+	}
 	if full.Profile == webevidence.FullProfile {
 		if full.Progress != nil && req.Segment > full.Progress.ReservedSegment {
 			reserveHTTPFullSegment(full.Progress, req.Segment)
@@ -311,6 +316,12 @@ func (s *Server) admitHTTP(ctx context.Context, taskID string, req httpPermitReq
 		full.Progress.Segment = max(full.Progress.Segment, req.Segment)
 		progress, _ := json.Marshal(full.Progress)
 		if _, err = tx.Exec(ctx, `UPDATE tasks SET payload=jsonb_set(payload,'{http_progress}',$2::jsonb) WHERE id=$1`, taskID, progress); err != nil {
+			return out, 503, err
+		}
+	}
+	if browser.Phase == "browser" {
+		browser.BrowserRequestsUsed++
+		if _, err = tx.Exec(ctx, `UPDATE tasks SET payload=jsonb_set(payload,'{browser_requests_used}',to_jsonb($2::int)) WHERE id=$1`, taskID, browser.BrowserRequestsUsed); err != nil {
 			return out, 503, err
 		}
 	}
