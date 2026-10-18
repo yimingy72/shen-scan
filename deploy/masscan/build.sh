@@ -4,7 +4,7 @@ set -eu
 version=1.3.2
 commit=06902c40d1494881c17b7968ef530e1d6bbd320c
 source_sha=00bb562686bc765b76b7c02d161d311ff60bc845fa0dfde0ad5b602b6ebcbf3d
-patch_sha=37bfdc339eebed179d86334170e86343a7829945abfff6636366a029b8bd1ede
+patch_sha=cec73f9531390ec3e8804f6add30d31e3456ee719b566c78011a500a29df27d2
 source_epoch=1612084410
 source_name=masscan-$commit.tar.gz
 source_url=https://github.com/robertdavidgraham/masscan/archive/$commit.tar.gz

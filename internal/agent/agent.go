@@ -254,6 +254,7 @@ func (a *Agent) register(ctx context.Context) (RegisterResponse, error) {
 		spec = make(map[string]any)
 	}
 	spec["capabilities"] = a.capabilities()
+	spec["port_cost_profile"] = a.portCostProfile()
 	spec["stage_capacity"] = map[string]int{"port": 1, "service": 1, "http": a.cfg.HTTPXMaxProcesses, "poc": 1}
 	specJSON, _ := json.Marshal(spec)
 	req := RegisterRequest{InstanceID: a.cfg.InstanceID, Hostname: a.cfg.Hostname, AgentVersion: a.cfg.AgentVersion, SessionID: a.cfg.SessionID, AZ: a.cfg.AZ, Spec: specJSON}

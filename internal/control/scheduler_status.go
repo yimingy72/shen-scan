@@ -15,7 +15,7 @@ func (s *Server) schedulerStatus(w http.ResponseWriter, r *http.Request) {
 	}
 	defer tx.Rollback(r.Context())
 	_, maximum := portScanSettings()
-	port, err := loadAdaptiveBatch(r.Context(), tx, "port", maximum, 90)
+	port, err := loadAdaptiveBatch(r.Context(), tx, "port", maximum, portBatchTargetSeconds)
 	if err != nil {
 		writeError(w, 503, "load port batch model failed")
 		return

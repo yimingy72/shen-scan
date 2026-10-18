@@ -2,10 +2,12 @@ package control
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -13,10 +15,110 @@ import (
 
 // BatchTuning describes only future work. Existing task scopes and receipts are immutable.
 type BatchTuning struct {
-	Size           int     `json:"size"`
-	Samples        int     `json:"samples"`
-	SecondsPerItem float64 `json:"seconds_per_item,omitempty"`
-	Reason         string  `json:"reason"`
+	Size                   int     `json:"size"`
+	Samples                int     `json:"samples"`
+	SecondsPerItem         float64 `json:"seconds_per_item,omitempty"`
+	VariableSecondsPerItem float64 `json:"variable_seconds_per_item,omitempty"`
+	Reason                 string  `json:"reason"`
+	FixedSeconds           float64 `json:"fixed_seconds,omitempty"`
+	TargetSeconds          float64 `json:"target_seconds,omitempty"`
+	HealthySamples         int     `json:"healthy_samples,omitempty"`
+	CostProfile            string  `json:"cost_profile,omitempty"`
+}
+
+const (
+	portBatchWaitSeconds   = 15
+	portBatchTargetSeconds = 135
+	portBatchHardSeconds   = 180
+)
+
+// Port batches pay one known receive tail per process, not once per IP.
+// Smooth measured variable cost, then choose integer work directly: smoothing
+// and flooring a batch size otherwise keeps a recovered 3.999... at three.
+func tunePortBatch(samples []batchCostSample, maximum int) BatchTuning {
+	t := BatchTuning{Size: max(1, maximum), Reason: "cold", FixedSeconds: portBatchWaitSeconds, TargetSeconds: portBatchTargetSeconds}
+	degraded := false
+	for _, sample := range samples {
+		if sample.items < 1 || !finitePositive(sample.seconds) {
+			continue
+		}
+		cost := (sample.seconds - portBatchWaitSeconds) / float64(sample.items)
+		if !sample.unhealthy && !finitePositive(cost) {
+			continue
+		}
+		t.Samples++
+		if !sample.unhealthy {
+			if t.HealthySamples == 0 {
+				t.SecondsPerItem = sample.seconds / float64(sample.items)
+				t.VariableSecondsPerItem = cost
+			} else {
+				t.SecondsPerItem = .75*t.SecondsPerItem + .25*sample.seconds/float64(sample.items)
+				t.VariableSecondsPerItem = .75*t.VariableSecondsPerItem + .25*cost
+			}
+			t.HealthySamples++
+		}
+		// Errors tighten even when a short failed execution cannot supply a cost.
+		// A single clearly unsafe sample must not wait for confidence to accrue.
+		unsafe := sample.seconds >= portBatchTargetSeconds || finitePositive(cost) && portBatchWaitSeconds+float64(t.Size)*cost > portBatchHardSeconds
+		if sample.unhealthy || unsafe {
+			degraded = true
+			if sample.unhealthy {
+				t.Size = max(1, min(t.Size/2, sample.items/2))
+			} else {
+				t.Size = max(1, t.Size-1)
+				for t.Size > 1 && portBatchWaitSeconds+float64(t.Size)*cost > portBatchTargetSeconds {
+					t.Size--
+				}
+			}
+			continue
+		}
+		if t.HealthySamples < 3 {
+			continue
+		}
+		candidate := max(1, maximum)
+		for candidate > 1 && portBatchWaitSeconds+float64(candidate)*t.VariableSecondsPerItem > portBatchTargetSeconds {
+			candidate--
+		}
+		if candidate < t.Size {
+			t.Size = candidate
+		} else if !degraded {
+			t.Size = min(candidate, t.Size+1)
+		}
+	}
+	if t.Samples > 0 {
+		t.Reason = "observed"
+	}
+	if degraded {
+		t.Reason = "degraded"
+	}
+	return t
+}
+
+func validPortCostProfile(profile string) bool {
+	digest, ok := strings.CutPrefix(profile, "masscan-sha256:")
+	if !ok || len(digest) != 64 {
+		return false
+	}
+	_, err := hex.DecodeString(digest)
+	return err == nil
+}
+
+// This is the currently usable pool's common identity, never a lookup of a
+// historical task's worker spec (which may have changed after re-registration).
+func currentPortCostProfile(ctx context.Context, tx pgx.Tx) (string, error) {
+	var count int
+	var smallest, largest string
+	err := tx.QueryRow(ctx, `SELECT count(*),COALESCE(min(COALESCE(spec->>'port_cost_profile','')),''),COALESCE(max(COALESCE(spec->>'port_cost_profile','')),'')
+ FROM workers w WHERE status IN('ready','running') AND NOT maintenance AND last_heartbeat>now()-interval '45 seconds'
+ AND COALESCE(spec->'capabilities'->>'masscan','')<>'false'
+ AND NOT EXISTS(SELECT 1 FROM target_quotas q WHERE q.worker_id=w.id AND q.state IN('suspect','revoking'))`).Scan(&count, &smallest, &largest)
+	if err != nil {
+		return "", err
+	}
+	if count == 0 || smallest != largest || !validPortCostProfile(smallest) {
+		return "", nil
+	}
+	return smallest, nil
 }
 
 type batchCostSample struct {
@@ -79,19 +181,35 @@ func loadAdaptiveBatch(ctx context.Context, tx pgx.Tx, stage string, maximum int
  AND COALESCE(completed_at,updated_at)>now()-interval '24 hours'
  AND (state IN('completed','failed') OR (state='queued' AND error<>''))`
 	var profile string
+	var costProfile string
+	args := []any{stage}
 	switch stage {
 	case "port":
+		var err error
+		costProfile, err = currentPortCostProfile(ctx, tx)
+		if err != nil {
+			return BatchTuning{}, err
+		}
+		if costProfile == "" {
+			t := tunePortBatch(nil, maximum)
+			t.Reason = "cold_profile_missing_or_mixed"
+			return t, nil
+		}
 		rate, _ := portScanSettings()
 		profile = fmt.Sprint(min(rate, portTargetQuota()))
-		query += ` AND payload->>'ports'='1-65535' AND payload->>'rate_pps'=$2 AND payload->>'wait_seconds'='15'`
+		query += ` AND payload->>'ports'='1-65535' AND payload->>'rate_pps'=$2 AND payload->>'wait_seconds'='15' AND payload->>'port_cost_profile'=$3`
 	case "service":
 		profile = "nmap-light-v1"
 		query += ` AND payload->>'service_profile'=$2`
 	default:
 		return BatchTuning{}, fmt.Errorf("unsupported adaptive stage %q", stage)
 	}
+	args = append(args, profile)
+	if stage == "port" {
+		args = append(args, costProfile)
+	}
 	query += ` ORDER BY COALESCE(completed_at,updated_at) DESC,id DESC LIMIT 32`
-	rows, err := tx.Query(ctx, query, stage, profile)
+	rows, err := tx.Query(ctx, query, args...)
 	if err != nil {
 		return BatchTuning{}, err
 	}
@@ -123,6 +241,11 @@ func loadAdaptiveBatch(ctx context.Context, tx pgx.Tx, stage string, maximum int
 	for i, j := 0, len(samples)-1; i < j; i, j = i+1, j-1 {
 		samples[i], samples[j] = samples[j], samples[i]
 	}
+	if stage == "port" {
+		t := tunePortBatch(samples, maximum)
+		t.CostProfile = costProfile
+		return t, nil
+	}
 	return tuneBatch(samples, maximum, target), nil
 }
 
@@ -133,7 +256,7 @@ func (s *Server) adaptivePortSeeds(ctx context.Context, seeds []taskSeed, width 
 		return nil, err
 	}
 	defer tx.Rollback(ctx)
-	tuning, err := loadAdaptiveBatch(ctx, tx, "port", maximum, 90)
+	tuning, err := loadAdaptiveBatch(ctx, tx, "port", maximum, portBatchTargetSeconds)
 	if err != nil {
 		return nil, err
 	}

@@ -317,9 +317,10 @@ func (s *Server) claimTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var workerStatus string
+	var workerPortCostProfile string
 	var maintenance bool
-	if err = tx.QueryRow(r.Context(), `SELECT status,maintenance FROM workers WHERE id=$1 AND session_id=$2`,
-		request.WorkerID, request.SessionID).Scan(&workerStatus, &maintenance); err != nil {
+	if err = tx.QueryRow(r.Context(), `SELECT status,maintenance,COALESCE(spec->>'port_cost_profile','') FROM workers WHERE id=$1 AND session_id=$2`,
+		request.WorkerID, request.SessionID).Scan(&workerStatus, &maintenance, &workerPortCostProfile); err != nil {
 		writeError(w, http.StatusUnauthorized, "worker session is invalid")
 		return
 	}
@@ -574,9 +575,13 @@ func (s *Server) claimTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var attempt int
+	if !validPortCostProfile(workerPortCostProfile) {
+		workerPortCostProfile = ""
+	}
 	err = tx.QueryRow(r.Context(), `UPDATE tasks SET state='leased' ,attempt_no=attempt_no+1,worker_id=$1,session_id=$2,
-		lease_until=$3,rate_until=$4,last_batch_seq=-1,first_started_at=COALESCE(first_started_at,now()),reserved_until=NULL,updated_at=now() WHERE id=$5 RETURNING attempt_no`,
-		request.WorkerID, request.SessionID, leaseUntil, rateUntil, taskID).Scan(&attempt)
+		payload=CASE WHEN type='port' AND attempt_no=0 THEN jsonb_set(payload,'{port_cost_profile}',to_jsonb($6::text)) ELSE payload END,
+		lease_until=$3,rate_until=$4,last_batch_seq=-1,first_started_at=COALESCE(first_started_at,now()),reserved_until=NULL,updated_at=now() WHERE id=$5 RETURNING attempt_no,payload`,
+		request.WorkerID, request.SessionID, leaseUntil, rateUntil, taskID, workerPortCostProfile).Scan(&attempt, &payload)
 	if err == nil {
 		_, err = tx.Exec(r.Context(), `UPDATE runs SET status='running',last_claim_at=now(),
 			last_claim_target_key=$2,updated_at=CASE WHEN status='pending' THEN now() ELSE updated_at END WHERE id=$1`, runID, targetKey)

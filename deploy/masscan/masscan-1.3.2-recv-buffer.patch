@@ -182,3 +182,17 @@ diff --git a/src/stub-pcap.h b/src/stub-pcap.h
 +    PCAP_STATS              stats;
 +    PCAP_SETNONBLOCK        setnonblock;
 +    PCAP_GET_SELECTABLE_FD  get_selectable_fd;
+
+diff --git a/src/main.c b/src/main.c
+--- a/src/main.c
++++ b/src/main.c
+@@ -1054,7 +1054,8 @@
+              * Send RST so other side isn't left hanging (only doing this in
+              * complete stateless mode where we aren't tracking banners)
+              */
+-            if (tcpcon == NULL && !masscan->is_noreset)
++            if (tcpcon == NULL && !masscan->is_noreset
++                && status == PortStatus_Open)
+                 tcp_send_RST(
+                     &parms->tmplset->pkts[Proto_TCP],
+                     parms->stack,

@@ -11,7 +11,7 @@ type Scheduling = {
   service_pressure?: ServicePressure
 }
 const names: Record<string, string> = { port: '端口扫描', service: '端口指纹', http: 'HTTP 指纹', poc: 'PoC 检查' }
-const reasons: Record<string, string> = { cold: '等待样本', observed: '按实测调优', degraded: '收紧批次' }
+const reasons: Record<string, string> = { cold: '等待样本', cold_profile_missing_or_mixed: '使用默认批次', observed: '按实测调优', degraded: '收紧批次' }
 const wait = (seconds: number) => seconds < 60 ? `${Math.ceil(seconds)} 秒` : `${Math.floor(seconds / 60)} 分 ${Math.ceil(seconds % 60)} 秒`
 
 export function SchedulerPanel({ api }: { api: ApiClient }) {

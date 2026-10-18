@@ -80,6 +80,8 @@ P2心跳响应增加`prefer_service`及`preference_ttl_seconds`（默认20秒）
 
 Worker数值metrics增加`tools_processes`、`tools_rss_mib`、`peak_tools_rss_mib`，以及`masscan/nmap/httpx/web_probe/fingerprint/nuclei`各自的`*_processes`和`*_rss_mib`；还包括`connection_slots_used/connection_slots_limit`、`upload_queued_bytes`、`admission_paused`（0/1）。RSS仅统计直接受控进程，未知或不支持的指标缺省。详见[P2执行资源](P2_EXECUTION.md)。
 
+Agent注册的`spec.port_cost_profile`报告实际Masscan可执行文件SHA-256（`masscan-sha256:<64位hex>`）。控制面在端口首attempt认领时冻结同名payload字段；它仅用于成本统计，不是claim能力门槛，重放和重试不重写。调度状态的`port_batch`增加`fixed_seconds:15`、`target_seconds:135`、`healthy_samples`、`variable_seconds_per_item`和`cost_profile`；原`seconds_per_item`仍表示观测总秒数/IP。可用节点身份混合或缺失时，`reason`为`cold_profile_missing_or_mixed`，使用原安全批次。详见[批次成本](P1_SCHEDULING.md)。
+
 新版 Agent 在 claim 中必须声明 `supports_confirmed_stop:true`，表示执行器及其子进程退出后才发送 `release.stopped:true`。缺少该字段或为false的旧 Agent不能取得任何新执行或启动额度，认领返回200和 `{"task":null,"blocked_reason":"agent_upgrade_required"}`，仍可心跳和重放有效历史认领。新 Agent另提交 `use_rule_sets:true`。HTTP / service 任务返回 `rules_ref`，Agent 使用 Worker bearer token 调用 `GET /api/tasks/{id}/rules?worker_id=...&session_id=...&attempt_no=N` 下载冻结规则；控制面校验当前 lease、worker、session 和 attempt。
 
 支持完整 Wapp 的 Agent 还提交 `supports_httpx_cff:true`。含 HTTPx 指纹的新 run 标记 `requires_httpx_cff`；未同时声明 rules_ref 和 HTTPx capability 的旧 Agent 不能领取该 run 的 HTTP task；已声明停止确认能力时，其他任务类型继续按各自能力过滤。这样不会把 `httpx-cff` 规则交给不认识该 engine 的旧节点。

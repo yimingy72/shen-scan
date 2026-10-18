@@ -10,6 +10,8 @@ import (
 )
 
 const earlyPortSchema = `
+CREATE INDEX IF NOT EXISTS tasks_adaptive_port_cost_profile_idx ON tasks((payload->>'port_cost_profile'),(payload->>'rate_pps'),(COALESCE(completed_at,updated_at)) DESC,id DESC)
+ WHERE type='port' AND attempt_no=1 AND payload->>'ports'='1-65535';
 CREATE INDEX IF NOT EXISTS tasks_adaptive_port_batch_idx ON tasks((payload->>'rate_pps'),(COALESCE(completed_at,updated_at)) DESC,id DESC)
  WHERE type='port' AND attempt_no=1 AND payload->>'ports'='1-65535';
 CREATE INDEX IF NOT EXISTS tasks_adaptive_service_batch_idx ON tasks((payload->>'service_profile'),(COALESCE(completed_at,updated_at)) DESC,id DESC)
