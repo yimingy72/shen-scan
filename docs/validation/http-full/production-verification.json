@@ -1,0 +1,74 @@
+{
+  "at_utc": "2026-10-18T07:20:47.041236+00:00",
+  "source_commit": "d896d754f71bcf9999381c799638f5ddaa1eb202",
+  "agent_version": "bundle-ff382edecc06",
+  "health_ok": true,
+  "hashes_match": true,
+  "fingers_http_records": 19909,
+  "http_total": 27555,
+  "native_http": 0,
+  "port_rules": 22,
+  "poc_rules": 907,
+  "pool_enabled": false,
+  "desired_workers": 10,
+  "online_workers": 0,
+  "leased_tasks": 0,
+  "pending_user_run_unchanged": true,
+  "bundle": "04cf719d67b3e6e77fe93f1ac58e1a0efbe83258c03ad78d2ae85cad472639e9",
+  "validation": {
+    "aliases": {
+      "total": 39,
+      "loaded": 39,
+      "excluded_active": 0,
+      "excluded_unsupported": 0,
+      "compile_failed": 0,
+      "reasons": {},
+      "rejections": []
+    },
+    "ehole": {
+      "total": 958,
+      "loaded": 958,
+      "excluded_active": 0,
+      "excluded_unsupported": 0,
+      "compile_failed": 0,
+      "reasons": {},
+      "rejections": []
+    },
+    "fingerprinthub": {
+      "total": 3139,
+      "loaded": 3139,
+      "excluded_active": 0,
+      "excluded_unsupported": 0,
+      "compile_failed": 0,
+      "reasons": {},
+      "rejections": []
+    },
+    "fingers": {
+      "total": 8727,
+      "loaded": 8727,
+      "excluded_active": 0,
+      "excluded_unsupported": 0,
+      "compile_failed": 0,
+      "reasons": {},
+      "rejections": []
+    },
+    "goby": {
+      "total": 7085,
+      "loaded": 7085,
+      "excluded_active": 0,
+      "excluded_unsupported": 0,
+      "compile_failed": 0,
+      "reasons": {},
+      "rejections": []
+    }
+  },
+  "remote": {
+    "service": "active",
+    "server_sha256": "0476322ed5a3e730e32932a46584159049dc753435572a5868ad19a3dbbd14ae",
+    "package_sha256": "ff382edecc06acdd231dbcb759d30e630aeb830996c33ea004ab631d4bbb7da7",
+    "masscan_source_sha256": "88fd72494c8b98488b9984e902bf26758de413e4e2f75c7e85a6bd19193d1c73",
+    "leased": 0,
+    "online": 0,
+    "web_index_sha256": "c6d51aa54fca2ee6e1f694af6308e6665fc36c08c9275f99b086707473ffa64a"
+  }
+}

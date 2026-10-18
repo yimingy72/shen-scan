@@ -48,3 +48,13 @@ favicon 规则保持原始条件与来源：
 本轮退役精确 157 条平台内置 native HTTP 规则，线上删除前后端口规则 22、PoC 907 未变，历史任务快照保留。fingers 合集以包管理，页面不将其原文改写为 native；普通 Wapp/自定义规则保留原有编辑、启停、删除功能。
 
 实际网络失败、预算耗尽、读体截断和证据不足仍可导致 partial。浏览器 JS/DOM、全库准确率及公网容量未在此轮完成验证。生产发布与 GitHub 提交信息另附发布记录。
+
+## 生产发布
+
+已部署源码 `d896d754f71bcf9999381c799638f5ddaa1eb202`，Agent 发布包 `bundle-ff382edecc06`。Control 二进制、Agent 包、Web 首页和 Masscan 源码归档校验值均符合发布清单。
+
+线上统一 HTTP 目录 27,555 条，其中 fingers 19,909；平台内置 native HTTP 为 0。端口规则 22、PoC 907 保持不变。Worker 池仍关闭、目标数量 10、在线节点 0、租约 0；原待执行任务整条记录核对未变。后续创建 Worker 使用新包，本次没有虚称升级不存在的在线节点。
+
+Linux 发布包在控制服务器的 **127.0.0.1 自建临时目标** 上运行：采集 0.48 秒，完整 fingers 包执行 8.07 秒，43 个主动请求、3,188 单元完成、0 剩余、0 错误。未创建云 Worker；不据此推导公网吞吐。
+
+[发布清单](validation/http-full/release.json)、[线上核验](validation/http-full/production-verification.json)、[健康检查完整 HTTP](validation/http-full/production-health.http.json)、[Linux 完整请求包](validation/http-full/linux-complete-http.tar.gz)。上方截图来自明确标注的本地完整平台验证。

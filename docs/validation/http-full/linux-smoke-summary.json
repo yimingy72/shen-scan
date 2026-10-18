@@ -1,0 +1,46 @@
+{
+  "local_only": true,
+  "target_url": "http://fixture-http-full.test:45625/",
+  "bundle_sha256": "04cf719d67b3e6e77fe93f1ac58e1a0efbe83258c03ad78d2ae85cad472639e9",
+  "schema": "shen-fingerprint-bundle-v2",
+  "selection_profile": "full-http-v1",
+  "source_counts": {
+    "aliases": 39,
+    "ehole": 958,
+    "fingerprinthub": 3139,
+    "fingers": 8727,
+    "goby": 7085
+  },
+  "wappalyzer_technologies": 7607,
+  "identity": {
+    "task_id": "local-chain-task",
+    "attempt_no": 1,
+    "entry_id": "local-chain-entry",
+    "segment": 1,
+    "entry_url": "http://fixture-http-full.test:45625/",
+    "rules_ref": "04cf719d67b3e6e77fe93f1ac58e1a0efbe83258c03ad78d2ae85cad472639e9",
+    "selection_profile_hash": "ca1f28a66f74d351e389a6fd0fea2fded37583aa8bb5efced5c8321e9328db74",
+    "manifest_hash": "04cf719d67b3e6e77fe93f1ac58e1a0efbe83258c03ad78d2ae85cad472639e9"
+  },
+  "prepare_seconds": 1.7912915269844234,
+  "probe_seconds": 0.48221445601666346,
+  "probe_requests": 2,
+  "probe_technologies": [],
+  "probe_capability_gaps": [
+    "wappalyzer-browser-js-dom"
+  ],
+  "match_seconds_including_worker_start_and_full_bundle_validation": 8.068311140988953,
+  "active_requests": 43,
+  "completed_units": 3188,
+  "remaining_units": 0,
+  "statuses": {
+    "not_matched": 3188
+  },
+  "cache_only_units": 3154,
+  "complete": true,
+  "partial_reason": "",
+  "errors": [],
+  "match_names": [],
+  "target_http_exchanges": 45,
+  "admission_http_exchanges": 45
+}

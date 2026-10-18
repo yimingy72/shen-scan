@@ -1,0 +1,26 @@
+{
+  "commit": "d896d754f71bcf9999381c799638f5ddaa1eb202",
+  "package": "scan-agent-linux-amd64-http-full-ff382edecc06.tar.gz",
+  "package_sha256": "ff382edecc06acdd231dbcb759d30e630aeb830996c33ea004ab631d4bbb7da7",
+  "version": "bundle-ff382edecc06",
+  "server_sha256": "0476322ed5a3e730e32932a46584159049dc753435572a5868ad19a3dbbd14ae",
+  "server_download": "scan-server-http-full-0476322ed5a3",
+  "checker_sha256": "44eecb76c23be0eb11498b383d862fb8109524c9f5148488c7859ea18ad5e44c",
+  "web_sha256": "d3e0d84fb7bcbeb55202603e389bbb2077481b478aafab35b02dc27545371247",
+  "ca_sha256": "66ca56b4066d979e6c07abe9251c1212868ff462a22040388c2189b1aa803f77",
+  "masscan_sha256": "2ee12f51003d127996b49c98771d118d713a9fc5d16ff623de864e1ac9bb0c3d",
+  "masscan_source_sha256": "88fd72494c8b98488b9984e902bf26758de413e4e2f75c7e85a6bd19193d1c73",
+  "component_sha256": {
+    "scan-agent": "9f8651ef213c1d9159614183455970aba5fdb9e55b06d2986d951771ca77fc11",
+    "web-probe-worker": "f445d7f6ef1023ae1d8fa5fcfaebe2686ad3dfd8ed697483d0373ae7c44849f2",
+    "fingerprint-worker": "44eecb76c23be0eb11498b383d862fb8109524c9f5148488c7859ea18ad5e44c",
+    "httpx": "6d78b83b4da452a7e0bd3613c4fae04cbf523209f083904b563f4d4406a680b0",
+    "nuclei": "c49588140f357cbdddd5436dec11201953a4c5390faeec90777f9ee2cfd70251",
+    "masscan": "2ee12f51003d127996b49c98771d118d713a9fc5d16ff623de864e1ac9bb0c3d",
+    "ca.crt": "66ca56b4066d979e6c07abe9251c1212868ff462a22040388c2189b1aa803f77"
+  },
+  "agent_go_build_commit": "d896d754f71bcf9999381c799638f5ddaa1eb202",
+  "server_source_commit": "d896d754f71bcf9999381c799638f5ddaa1eb202",
+  "web_helper_source_commit": "d896d754f71bcf9999381c799638f5ddaa1eb202",
+  "validation": "local full HTTP fixture; no cloud capacity assertion"
+}
