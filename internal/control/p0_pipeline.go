@@ -249,8 +249,25 @@ func (s *Server) reconcileExpiredWork(ctx context.Context) error {
 	return tx.Commit(ctx)
 }
 
+// Only new port payloads carry this statistical field. Legacy payloads retain
+// their exact original hash input; every other execution field remains in scope.
+func completionScopeHash(typeName string, payload []byte) [32]byte {
+	if typeName == "port" {
+		var fields map[string]json.RawMessage
+		if json.Unmarshal(payload, &fields) == nil {
+			if _, present := fields["port_cost_profile"]; present {
+				delete(fields, "port_cost_profile")
+				if scope, err := json.Marshal(fields); err == nil {
+					payload = scope
+				}
+			}
+		}
+	}
+	return sha256.Sum256(payload)
+}
+
 func sealCompletionEvidence(ctx context.Context, tx pgx.Tx, taskID, typeName string, attempt int, payload []byte) error {
-	scope := sha256.Sum256(payload)
+	scope := completionScopeHash(typeName, payload)
 	if _, err := tx.Exec(ctx, `UPDATE tasks SET completion_scope_sha256=$2,completion_manifest=(
       SELECT COALESCE(jsonb_agg(jsonb_build_object('batch_seq',batch_seq,'sha256',encode(content_hash,'hex')) ORDER BY batch_seq),'[]'::jsonb)
       FROM task_batches WHERE task_id=$1 AND attempt_no=$3) WHERE id=$1 AND accepted_attempt_no=$3`, taskID, hex.EncodeToString(scope[:]), attempt); err != nil {
