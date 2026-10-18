@@ -1,75 +1,110 @@
 # SHEN Scan
 
-基于 Go、PostgreSQL 和 React 的分布式扫描平台，支持使用阿里云抢占式实例作为 Worker。
+基于 **Go + PostgreSQL + React** 的分布式扫描平台，支持手动 Worker 和阿里云抢占式实例。
 
-在工作台设置 Worker 数量，导入 IP、CIDR、域名或 URL，选择扫描模式，即可查看每个任务下的开放端口、服务、HTTP 页面和 CMS / 框架指纹。
+设置 Worker 数量，导入 IP、CIDR、域名或 URL，创建扫描任务；按任务查看开放端口、服务指纹、HTTP 指纹、首页截图和 PoC 检查结果。
 
-> 当前为持续开发中的版本。TCP 全端口扫描、任务调度、结果回传、云节点管理和工作台已实现；大规模持续负载、真实公网丢包环境下的容量结论尚未建立。仅用于自有或明确授权的目标。
+- **TCP 全端口**：IPv4 TCP **1–65535**，包含 Nmap 服务识别。
+- **HTTP 能力独立选择**：被动指纹、主动指纹、JS/DOM、首页截图。
+- **成熟工具与规则**：Masscan、Nmap、httpx、WappalyzerGo、fingers、Nuclei。
+- **共享 Worker 池**：动态认领、资源准入、共享 HTTP 限速、抢占式回收处理。
+- **任务制结果**：目标 → 开放端口 / HTTP 端点 → 识别依据、截图和报文。
 
-![SHEN 工作台：按任务查看目标与开放端口](docs/images/workbench.png)
+当前为持续开发版本，仅用于自有或明确授权的目标。已验证的范围与容量见下方记录。
 
-*截图使用隔离环境中的合成数据，不代表真实软件安装或公网资产。*
+![按任务查看目标与开放端口](docs/images/workbench.png)
 
-> Nuclei全量原库用于查看和导出；执行库已支持 `http-basic-v1` 原始 YAML 子集。目录同步不会自动把全量模板加入执行库，原始规则需单独导入并显式绑定产品。既有部署保留907条执行PoC，新安装仅有43条内置PoC。
+<details>
+<summary>查看 HTTP 扫描选项与首页截图</summary>
 
-可独立选择被动、主动、JS/DOM 和首页截图；Chrome 由系统安装脚本管理，不随 Agent 发布包分发。详见 [HTTP 选项与截图](docs/HTTP_BROWSER.md) 和 [真实验证记录](docs/HTTP_BROWSER_VALIDATION.md)。
-
-HTTP 执行重构与验证见 [完整方案](docs/HTTP_FINGERPRINT_FULL_IMPLEMENTATION.md) 和 [本地验证记录](docs/HTTP_FULL_VALIDATION.md)。
-
-## 功能
-
-| 模块 | 当前能力 |
+| 独立选择扫描方式 | 点击缩略图查看首页 |
 |---|---|
-| 端口扫描 | IPv4 TCP **1–65535**，发现开放端口后继续执行服务指纹 |
-| HTTP 指纹 | 完整 httpx Runner 采集；被动、主动、Chrome JS/DOM 与首页截图独立可选；Wapp 与 fingers 原始规则 |
-| 规则数据 | 统一 HTTP 目录；Wapp 与 fingers 一键更新；原文/执行包导出及完整包导入；普通执行规则支持编辑、启停、导入 / 导出 / 删除 |
-| PoC / Nuclei | 任务显式开启；按指纹选择，区分命中 / 可证明未命中 / 证据不足 / 检测错误 |
-| 输入 | 手动输入或导入 TXT / CSV；支持 IPv4、CIDR、域名与 HTTP(S) URL |
-| 结果查看 | 按任务 → IP / 域名 → 开放端口 / HTTP 端点查看；提供搜索、筛选和分页 |
-| 报文证据 | 查看已采集的请求、响应、Banner 和异常；超过采集上限时标注截断 |
-| 任务控制 | 创建、暂停、恢复、取消，租约重派和执行版本隔离 |
-| Worker 池 | 用户指定目标数量；节点认领任务，平台维护容量、排空并释放节点 |
-| 阿里云接入 | 验证并加密保存账号凭据，一键准备专用 VPC / 交换机 / 安全组 |
-| 抢占式回收 | 监听 ECS 中断事件、实例 metadata 和租约状态，触发排空或重派 |
+| ![HTTP 扫描选项](docs/validation/browser-options/screenshots/create-options.png) | ![首页截图预览](docs/validation/browser-options/screenshots/preview.png) |
 
-### 两种扫描模式
+截图来自隔离环境和自建页面；页面中的软件标记用于验证识别，不代表真实安装了这些软件。
 
-- **端口扫描**：对输入 IP 扫描 TCP 全端口，并执行端口服务指纹；可同时勾选 HTTP 指纹。
-- **HTTP 指纹**：包含 CMS / 框架识别。仅选择此模式时，裸 IP / 域名探测 HTTP 和 HTTPS；完整 URL 保留指定端口和路径。
-- **域名仅进入 HTTP 流程**，不会把解析出的 IP 自动加入 TCP 全端口队列。输入域名时必须选择 HTTP 指纹。
+</details>
 
-**PoC / Nuclei 默认关闭**，创建任务时选择 HTTP 指纹后可勾选只读检查，并指定规则。它是 HTTP 流程的可选后续检查，按该端点已识别的产品指纹选择规则；未知产品不自动遍历 PoC 库，通用 discovery 规则需手动选中。`verification` 规则也必须命中产品绑定，不会因为手选绕过指纹。指纹库中启用规则不会自动对已有任务执行检查，任务创建时固定规则快照。详见 [指纹库与只读 PoC](docs/RULE_LIBRARY.md) 和 [只读漏洞验证](docs/READONLY_VERIFICATION.md)。
+## 扫描方式
 
-原始开放端口不会因为数量多而被截断。高开放率目标会限制下游指纹的派生量，并显示“指纹受限”；未识别不等于端口关闭。没有响应也不等于端口关闭。
+### 端口扫描
 
-## 架构
+对输入 IP 扫描 TCP **1–65535**，再对已发现的端口执行 Nmap 轻量服务识别。可同时开启 HTTP 指纹，继续探测 Web 服务。
+
+原始开放端口不会因数量多而截断。高开放率目标会限制下游指纹派生量，并显示“指纹受限”；未识别、无响应与端口关闭分别处理。
+
+### HTTP 指纹与截图
+
+包含网站基本信息、CMS、框架和中间件识别。四个选项互相独立：
+
+| 选项 | 默认 | 执行内容 |
+|---|---|---|
+| 被动指纹 | 开启 | WappalyzerGo 与 fingers 匹配已采集的响应头、HTML、图标等证据 |
+| 主动指纹 | 开启 | fingers 执行原始主动规则，请求相应路径并匹配；无需先被动命中 |
+| JS / DOM | 关闭 | 系统 Chrome 执行页面，采集 Wapp 的运行时 JS 属性和 DOM 条件 |
+| 首页截图 | 关闭 | 使用 httpx 原生截图实现保存首屏；列表显示缩略图，点击放大 |
+
+基础 **httpx Runner** 采集始终执行，四项均关闭时仅收集网站基本信息。被动匹配复用采集结果，基础采集本身仍包含网络请求。仅开启截图时浏览器会执行页面 JS 以完成渲染，但不会执行 JS/DOM 指纹匹配。
+
+JS/DOM 与截图同时开启时复用一次浏览器加载，各自记录完成或异常状态。每 Worker 最多一个浏览器执行槽，空闲 **60 秒**后释放 Chrome。首屏为 **1280×720 PNG**；图片有大小上限，资源加载受限时保留有效图片并标记不完整。图片单独存储、鉴权读取，列表按需加载缩略图。
+
+**Chrome 不包含在 Agent 发布包中。** 安装脚本配置 Google 官方签名软件源，检查版本；满足要求则跳过下载，缺少或过旧时再安装。浏览器安装失败会显示能力不可用，普通扫描仍可运行。
+
+详见 [HTTP 选项与截图](docs/HTTP_BROWSER.md)、[Chrome 安装说明](deploy/browser/README.md) 和 [验证记录](docs/HTTP_BROWSER_VALIDATION.md)。
+
+### 输入与 PoC
+
+- 支持手动输入、TXT / CSV 导入：IPv4、CIDR、域名和 HTTP(S) URL。
+- 域名仅进入 HTTP 流程，不自动把解析 IP 加入 TCP 全端口队列。
+- 仅选择 HTTP 模式时，裸 IP / 域名探测 HTTP 和 HTTPS；完整 URL 保留指定端口和路径。
+- **PoC 默认关闭，必须在任务中显式开启**，按已确认的产品指纹匹配规则；未知产品不自动遍历全库，候选指纹不触发产品 PoC。
+
+当前 Nuclei 执行器支持旧版兼容规则及 **`http-basic-v1` 原始 YAML 子集**：GET / HEAD、最多 3 个静态同源请求。DSL、extractor、动态变量、raw、payload、fuzz、race、flow、重定向及其他协议尚未支持。
+
+Nuclei 上游原库可全量同步、查看和导出，**不等于全部模板都能执行**。原始模板需按支持范围导入并绑定产品。规则库已有条目数量取决于安装、更新和导入历史，不作为新安装的固定数量。详见 [PoC 执行说明](docs/NUCLEI_MIGRATION_PLAN.md) 和 [规则管理](docs/RULE_LIBRARY.md)。
+
+## 执行架构
 
 ```mermaid
 flowchart LR
-    UI[React 工作台] --> API[Go 控制面]
-    API <--> PG[(PostgreSQL)]
-    API <--> Agent[Worker Agent]
-    Cloud[云节点管理] <--> PG
-    Cloud <--> ECS[阿里云 ECS]
-    ECS --> Agent
-    Agent --> Targets[授权扫描目标]
+    IP[IPv4 / CIDR：端口模式] --> M[Masscan 全端口发现]
+    M --> N[Nmap 服务识别]
+    N -->|Web 与未知候选| H[httpx 基础采集]
+    U[域名 / URL / HTTP 模式输入] --> H
+    H --> F[按选择执行 Wapp / fingers 被动与主动识别]
+    F --> R[HTTP 结果]
+    R -->|可选| B[系统 Chrome：JS/DOM 与截图]
+    B --> R2[补全入口结果]
+    R -->|任务开启且指纹匹配| P[PoC / Nuclei]
+    R2 -->|任务开启且指纹匹配| P
 ```
 
-- **控制面**提供 API 和前端静态文件，保存任务、租约、结果和云资源状态。
-- **PostgreSQL**是唯一权威存储；当前没有 Redis 或独立消息队列依赖。
-- **Agent**负责认领、执行、续约、批量回传和停止；管理员令牌、引导令牌、Worker 会话令牌各自独立。
-- **服务识别**由 Nmap 轻量探测已发现端口；HTTP/TLS-Web及未知候选单向进入Web确认，失败不派回Nmap。
-- **Web helper**通过官方 `httpx Runner` 采集页面、重定向、TLS、图标及元信息；固定 IP/Host/SNI，所有启用的网络路径共用请求许可。WappalyzerGo 对响应匹配，浏览器 JS/DOM 条件未执行时明确标记能力缺口。
-- **fingers HTTP 指纹**包含 Fingers 8,727、FingerprintHub 3,139、EHole 958、Goby 7,085 条原始记录和 39 条别名；当前固定资源零过滤。没有被动命中也执行主动发现，安全相同请求复用响应，整模板进度可恢复。详见 [完整 HTTP 执行方案](docs/HTTP_FINGERPRINT_FULL_IMPLEMENTATION.md) 与 [规则包](docs/FINGERPRINT_BUNDLES.md)。
-- **P1调度**加入跨Worker的HTTP请求许可、未来批次调优、基于实测成本的异构端口切片、阳性端口提前派生、Web进程复用及兼容Nuclei模板的小批次执行。完整TCP覆盖与已接收阳性证据独立计量；实现和限制见[P1扫描调度](docs/P1_SCHEDULING.md)。
-- **执行资源**按实际Web路径计算连接预算，统计各工具进程和RSS；服务积压时提示有空闲槽的Worker先领取下游任务。Worker详情可查看工具占用，见[P2执行资源与优先策略](docs/P2_EXECUTION.md)。
-- **Web 补采**：新任务支持最多 3 次同源跳转，按已识别产品最多补采 2 个固定路径；与首采、图标共享 8 次请求预算和 90 秒截止时间。规则、请求/响应及跳转链可在界面查看，见 [执行说明](docs/WEB_ENRICHMENT.md) 与 [本地验证](docs/WEB_ENRICHMENT_VALIDATION.md)。
-- **Nuclei**以受限独立进程运行。执行库同时支持旧版规范化规则和 `http-basic-v1` 原始 YAML 子集；原始模式保留注释、行尾和模板 ID 原文，只接受 GET / HEAD、最多 3 个静态同源请求，执行器会再次核对内容摘要与请求范围。官方全量 `nuclei-templates` 仍同步到独立“上游原库”供查看和导出，不会自动进入执行库。
-- **Masscan**以独立进程运行。仓库包含固定版本的接收修复补丁、构建脚本和许可证，发布包携带对应源码。
+| 组件 | 职责 |
+|---|---|
+| Go 控制面 | 任务分片、认领、租约、执行版本隔离、结果及云节点管理 |
+| PostgreSQL | 唯一权威存储，保存任务、结果、规则快照和截图；无需 Redis 或独立消息队列 |
+| Worker Agent | 与平台通信，本机资源准入，调度工具，续约、取消、回传和回收排空 |
+| Masscan / Nmap | 独立进程执行端口发现与服务识别；Nmap 只探测已发现端口 |
+| web-probe-worker | 调用完整 httpx Runner；Wapp 响应匹配，以及独立可选的浏览器采集 |
+| fingerprint-worker | 加载 fingers HTTP 规则包，执行原生被动、主动及 favicon 等 matcher |
+| 系统 Chrome | 专用非 root 用户运行，保留沙箱；截图复用 httpx SDK 捕获路径 |
+| Nuclei | 按已匹配产品运行支持的模板，单独限制并发和请求预算 |
+
+Agent 封装并调度工具。HTTP 采集、图标、主动规则、浏览器及支持的 PoC 请求共用许可和限速；规则和工具不能自行扩大固定连接 IP、Host、SNI 的范围。普通 HTTP 结果先显示，浏览器结果随后补全。
+
+## 指纹库与规则管理
+
+- HTTP 目录统一展示 **Wappalyzer、Fingers、FingerprintHub、EHole、Goby** 的来源、原文和执行方式，包含 favicon 等组合条件。
+- Wapp 与 fingers 支持一键更新。fingers 按完整执行包导入、导出和更新；普通 Wapp / 自定义规则支持编辑、启停、导入、导出及删除。
+- 端口指纹和 PoC 分开管理；Nuclei 上游原库与实际执行库分开显示。
+- 已退役平台内置的 **151 条普通 native HTTP 指纹及 6 条旧补采规则**，保留历史任务快照、自定义规则、端口规则和 PoC。
+- 新任务固定当次规则及选项；更新规则不会追改已有任务。未执行、不兼容、超时和未命中分别记录。
+
+规则数量、装载完整性与识别准确率是不同指标。上游无效条件可能使 JS/DOM 覆盖状态为 `partial`，已有指纹和有效截图仍保留。详见 [规则包](docs/FINGERPRINT_BUNDLES.md) 与 [HTTP 执行方案](docs/HTTP_FINGERPRINT_FULL_IMPLEMENTATION.md)。
 
 ## 快速启动控制面
 
-需要：控制面/Agent使用Go 1.25+，Web helper使用Go 1.26+（支持自动工具链）；Node.js 22.12+、npm、Docker Compose。实际端口扫描的 Worker 需要 **Linux amd64**、Masscan、Nmap及其数据文件、两个Web helper和原始套接字权限。
+需要 Go **1.26+**（覆盖控制面、Agent 和独立 helper 模块）、Node.js **22.12+**、npm、Docker Compose。控制面由一个 Go 进程和 PostgreSQL 组成，前端构建后由 Go 提供静态文件。
 
 ```sh
 git clone https://github.com/yimingy72/shen-scan.git
@@ -77,15 +112,10 @@ cd shen-scan
 cp .env.example .env
 ```
 
-编辑 `.env`，至少替换：
-
-- `POSTGRES_PASSWORD`，并同步修改 `DATABASE_URL` 中的密码；密码出现在 URL 中时需正确编码。
-- `SCAN_ADMIN_TOKEN`：工作台使用的管理员令牌。
-- `SCAN_JOIN_TOKEN`：Agent 注册引导令牌，使用另一个随机值。
-
-启动数据库和控制面：
+编辑 `.env`：设置 `POSTGRES_PASSWORD`，同步修改 `DATABASE_URL`，并将 `SCAN_ADMIN_TOKEN` 和 `SCAN_JOIN_TOKEN` 替换为两个不同的随机值。数据库密码用于 URL 时需正确编码。
 
 ```sh
+# Compose 只启动 PostgreSQL。
 docker compose --env-file .env -f deploy/compose.yaml up -d --wait
 npm ci --prefix web
 npm run build --prefix web
@@ -96,49 +126,54 @@ set +a
 go run ./cmd/server
 ```
 
-打开 **http://127.0.0.1:8080**，输入 `SCAN_ADMIN_TOKEN` 登录。健康检查地址为 `/api/health`。
+打开 **http://127.0.0.1:8080**，使用 `SCAN_ADMIN_TOKEN` 登录；健康接口为 `/api/health`。默认 `SCAN_CLOUD_PROVIDER=manual`，启动控制面不会申请云实例。没有在线 Worker 时，任务等待认领。
 
-默认 `SCAN_CLOUD_PROVIDER=manual`，这一步**不会创建云实例**。没有在线 Worker 时，任务会留在队列中。接下来可以接入手动 Worker，或配置阿里云节点池。
+前端开发可使用 `npm run dev --prefix web`，Vite 将 `/api` 代理到本地 `8080`。
 
-开发前端时可运行 `npm run dev --prefix web`；Vite 将 `/api` 代理到 `127.0.0.1:8080`。
+## 接入 Worker
 
-## 接入手动 Worker
+### 手动 Worker
 
-在 Linux amd64 Worker 上构建并安装随项目固定的扫描器，方法见 [Masscan 构建说明](deploy/masscan/README.md)。然后构建 Agent：
+实际扫描使用 **Linux amd64**。先按 [Masscan 构建说明](deploy/masscan/README.md) 构建固定扫描器，再安装工具和 Agent：
 
 ```sh
 go build -o bin/scan-agent ./cmd/agent
 sudo install -m 0755 bin/masscan/masscan /usr/local/bin/masscan
-# 使用 Nuclei 检查时安装固定引擎：
-deploy/nuclei/download.sh
-sudo install -m 0755 bin/nuclei/nuclei /usr/local/bin/nuclei
-# 使用完整 Wapp 被动指纹时安装固定 HTTPx：
-deploy/httpx/download.sh
-sudo install -m 0755 bin/httpx/httpx /usr/local/bin/httpx
-# P0 单向服务/Web流水线：
+sudo apt-get update
 sudo apt-get install -y nmap
+
+# 发布包保留 Nuclei 与 HTTPx CLI，HTTP 主路径使用下方 SDK helper。
+deploy/nuclei/download.sh
+deploy/httpx/download.sh
+sudo install -m 0755 bin/nuclei/nuclei /usr/local/bin/nuclei
+sudo install -m 0755 bin/httpx/httpx /usr/local/bin/httpx
+
 deploy/build-web-helpers.sh
 sudo install -m 0755 bin/web-helpers/web-probe-worker /usr/local/bin/web-probe-worker
 sudo install -m 0755 bin/web-helpers/fingerprint-worker /usr/local/bin/fingerprint-worker
+
+# 需要 JS/DOM 或截图时安装系统 Chrome 与隔离运行环境。
+sudo sh deploy/browser/install.sh deploy/browser
 ```
 
-为 Agent 设置以下环境变量，再以具备原始套接字权限的账号运行 `bin/scan-agent`：
+浏览器安装脚本支持 Ubuntu **22.04+** / Debian **12+** amd64、systemd；所需最低版本见 [runtime.json](deploy/browser/runtime.json)，满足要求的较新版本不会降级。
+
+将以下变量配置到 Worker 服务环境中：
 
 ```dotenv
 AGENT_CONTROL_URL=https://scan.example.com
 SCAN_JOIN_TOKEN=与控制面一致的引导令牌
 AGENT_INSTANCE_ID=manual-worker-01
 AGENT_METADATA_URL=off
-# 使用私有 CA 时填写公开 CA 文件路径：
 AGENT_CA_FILE=/path/to/public-ca.crt
 ```
 
-手动 Worker 使用稳定且唯一的 `AGENT_INSTANCE_ID`。在工作台的 Workers 页启动节点池后，Agent 才开始认领任务。普通部署禁止私网、回环等受保护目标；受控内网环境可显式配置 `SCAN_ALLOW_PRIVATE_TARGETS=true`，云 metadata 等目标仍会被拦截。
+`AGENT_INSTANCE_ID` 应稳定且唯一。端口扫描需要原始套接字权限；浏览器路径需要 root Agent/helper 通过专用 wrapper 启动非 root Chrome。以服务方式启动 Agent 后，在 Workers 页启动手动节点池即可认领任务。普通部署默认禁止私网和回环目标；受控内网验证可显式配置 `SCAN_ALLOW_PRIVATE_TARGETS=true`，云 metadata 等目标仍受保护。
 
-## 使用阿里云抢占式 Worker
+### 阿里云抢占式 Worker
 
-1. 将控制面部署到 Worker 能访问的 HTTPS 地址，配置数据库、TLS、管理员令牌和引导令牌。
-2. 按 [Masscan 构建说明](deploy/masscan/README.md) 生成扫描器；准备自己的公开 CA 文件并打包：
+1. 将控制面部署到 Worker 可访问的 HTTPS 地址，配置数据库、TLS 和令牌。
+2. 构建 Masscan，准备工具与自己的公开 CA 文件，打包：
 
    ```sh
    deploy/nuclei/download.sh
@@ -146,103 +181,83 @@ AGENT_CA_FILE=/path/to/public-ca.crt
    CONTROL_CA_FILE=/path/to/public-ca.crt deploy/build-release.sh
    ```
 
-3. 将 Agent 包发布到受控 HTTPS 下载地址，记录 SHA-256。配置 `SCAN_AGENT_PACKAGE_URL`、`SCAN_AGENT_PACKAGE_SHA256` 和 `SCAN_CONTROL_PUBLIC_URL`。
-4. 设置 `SCAN_CLOUD_PROVIDER=aliyun`，在 Workers → 阿里云账号中验证并保存 AK/SK，在资源配置中选择地域、可用区并准备网络。
-5. 设置目标 Worker 数量并启动。实例通过 cloud-init 下载校验过的安装包，启动 Agent；注册成功后才计入健康容量。
-6. 点击停止时，平台先排空任务，再释放实例。以云端确认释放为准。
+3. 发布 `bin/release/scan-agent-linux-amd64.tar.gz` 及对应 Masscan 源码归档，配置 `SCAN_AGENT_PACKAGE_URL`、`SCAN_AGENT_PACKAGE_SHA256`、`SCAN_CONTROL_PUBLIC_URL` 和公开 CA 路径。
+4. 设置 `SCAN_CLOUD_PROVIDER=aliyun`，在 **Workers → 阿里云账号** 中验证并保存凭据，选择地域、可用区并一键准备 VPC、交换机和安全组。
+5. 设置目标 Worker 数量并启动。cloud-init 校验安装包，安装 Nmap 数据和系统 Chrome，启动 Agent；浏览器安装失败会单独报告，不阻断普通扫描。
+6. 停止节点池时先排空任务，再释放实例。以云端释放结果为准。
 
-云账号需要与所用功能对应的 ECS 创建、查询、释放、系统事件读取及 VPC 网络管理权限。地域、镜像、可用规格和库存会影响实例申请。当前通过安装包引导 Agent，不要求预先制作自定义镜像。
+Chrome 通过系统软件源安装，Agent 包仅携带安装脚本和版本策略。可在基础镜像中预装工具以减少新实例准备时间。云账号需要对应的 ECS、系统事件读取及 VPC 管理权限，库存和可用规格会影响实例申请。
 
-详细配置、systemd 部署和更新步骤见 [部署说明](docs/DEPLOYMENT.md)。云凭据在服务端加密保存；凭据密钥文件与数据库应一起备份。凭据不会返回到浏览器。
+首次部署后，先在 **指纹库 → 来源与更新** 同步 Wapp 规则，再创建需要被动或 JS/DOM 识别的 HTTP 任务。fingers 可使用随 helper 提供的完整规则包；一键更新需要在控制面安装 `fingerprint-worker` 并配置 `FINGERPRINT_CHECKER_BINARY`，详见部署说明。新安装不会继承已有部署的规则和数据。
 
-## 使用流程
+现有 Worker 升级采用 **维护 → 等待空闲 → 替换并重启 → 校验能力 → 恢复调度**，先少量节点再分批推进。上传新包只影响后续实例，不会自动重启现有节点。详见 [部署、配置与升级](docs/DEPLOYMENT.md)。
 
-1. **Workers**：配置云账号和网络，设置希望维持的节点数并启动；也可接入手动 Worker。
-2. **扫描任务**：输入任务名称，手动粘贴或导入目标，选择端口扫描和 / 或 HTTP 指纹。
-3. **扫描结果**：选择任务，展开目标查看开放端口；切换 HTTP 端点查看页面、技术指纹和首页缩略图；点击截图放大。
-4. **PoC 检查**：任务显式开启后，在结果页分别查看“发现检查”和“漏洞验证”的命中、未命中和检测错误。面板或版本页命中不等于漏洞；verification 记录的是固定正向请求与阴性对照共同确认的行为，超时不等于未命中。
-5. **指纹库**：按 HTTP、端口、PoC 分类管理规则。导入 JSON 或受支持的 Nuclei YAML，校验后默认禁用；Nuclei 导入可选择“原始 YAML（`http-basic-v1`）”或旧版兼容规范化。支持按筛选 / 勾选导出及批量删除，内置规则删除后重启也不会恢复。
-6. **规则源**：Wapp 更新进入 HTTP 执行库；Nuclei 更新进入独立“上游原库”，只查看 / 导出，不改变当前 PoC 执行库。
-7. **详情**：查看服务 Banner、请求响应、规则版本及识别依据。失败、取消、未扫描和指纹受限分别显示。
+## 调度与资源控制
 
-创建任务不需要填写预算、发包速率或内部执行阶段。Worker 是全平台共享容量，任务按存活节点认领执行；云节点回收后，未完成任务可由其他节点重派。
+Worker 是平台共享容量，按存活节点和空闲资源认领可重派任务。小规模 IP 任务在满足校准、额度及收益条件时可跨 Worker 拆分端口范围；增加节点不会自动提高同目标的全局额度。
 
-## 调度与默认参数
-
-| 项目 | 当前默认值 / 约束 |
+| 项目 | 仓库默认值 / 当前约束 |
 |---|---|
 | TCP 范围 | IPv4 TCP 1–65535 |
-| 端口发包预算 | 每 Worker 5000 PPS；同目标全局默认5000 PPS，分别由 `SCAN_PORT_RATE_PPS` / `SCAN_TARGET_DISCOVERY_PPS` 设置 |
-| 端口分片 | 默认最多 4 IP；`SCAN_PORT_SHARD_MAX` 支持 1–16，并受执行时间预算约束 |
-| Masscan 并发 | 每 Worker 最多 1 个进程，预留端口任务槽 |
-| Agent 任务槽 | 配置上限17，按资源与阶段限制认领，不代表允许17个重工具同时满载 |
-| 服务识别 | 每Worker最多1个Nmap进程，同IP已发现端口小批次；不重扫全端口发现 |
-| Web | 每入口独立截止/封账，默认2个可复用采集进程；每入口最多8个请求 |
-| HTTP共享额度 | 按实际连接IP共享10个许可/秒，集群250个许可/秒；采集、图标、支持的PoC共用 |
-| PoC 并发 / 超时 | 每 Worker 最多 1 个 PoC；原生 60 秒，Nuclei 90 秒；每规则最多 3 个请求 |
-| 收包等待 / 任务上限 | 15 秒 / 180 秒，任务上限包含结果回传和完成确认 |
-| 高开放率处理 | 保留全部原始端口；单 IP 下游指纹最多选择 1024 个端口 |
-| 结果缓冲 | 有界内存队列；Masscan 原始输出使用临时文件解耦回传，128 MiB 监测阈值 |
+| 发包预算 | 每 Worker 5000 PPS；同目标共享 5000 PPS，可通过环境配置调整 |
+| 端口分片 | 默认最多 4 IP，`SCAN_PORT_SHARD_MAX` 支持 1–16，受执行时间预算约束 |
+| 工具并发 | 每 Worker 最多 1 个 Masscan、1 个 Nmap；默认 2 个可复用 Web 采集进程 |
+| Agent 任务槽 | 上限默认 17，仍受阶段、CPU、内存、连接及上传积压约束 |
+| HTTP 共享许可 | 按实际连接 IP 共享 10 次/秒，集群 250 次/秒 |
+| 完整 HTTP 执行 | 每段最多 1024 个请求许可；入口累计最多 16384、32 段、20 分钟；达到限制明确标记 partial |
+| 浏览器 | 每 Worker 1 个槽；入口最多 32 次请求，JS/DOM 5 秒、含截图时 10 秒；空闲 60 秒回收 Chrome |
+| PoC | 默认关闭；每 Worker 最多 1 个执行任务 |
+| 高开放率目标 | 完整保留原始端口，单 IP 下游指纹默认最多 1024 个端口 |
+| 抢占式回收 | ECS `Instance:PreemptibleInstanceInterruption`、metadata 与租约三层信号；排空或重派 |
 
-PPS 是 Masscan 的发包预算，不能直接视为每秒有效 SYN 探针数。内置 Masscan 保留开放端口收尾，去掉对关闭端口 RST 的多余回复；Linux 瞬态发送错误会有界重试同一个报文，持续失败则报错，该分片不能封账为完整覆盖。更高速率仍需结合网络、捕获丢包、CPU、内存与结果入库能力验证。代码缺省值保持 5000 PPS / 最多 4 IP；部署参数可独立配置，不能将 20,000 PPS 等可调上限视为已经通过容量验收。
+PPS 是发包预算，不等于有效 SYN 吞吐。完整端口覆盖与已收到的开放端口证据独立计量；失联或租约过期不能被视为已停止发包。共享 HTTP 许可也不等于网络到达的精确滑动窗口速率。
 
-2026-10-18 的验证配置为每 Worker **10000 PPS、最多 8 IP/片**，每目标发现额度同为 10000 PPS。5 台相同 2 核 / 2 GiB Worker 扫描 1000 个自建 IP，TCP 全端口、服务及 HTTP 识别全部完成，API 观察耗时 **29 分 22.48 秒**；独立核验 65,535,000 个 SYN、全部端口位图及 3000 个预期 HTTP 端点，失败任务与观察器丢包均为 0。另有 1 台隔离 Control/目标机；整轮资源创建至释放 39 分 41.98 秒。该配置已用于本次部署的新任务，既有任务范围和参数保留。
+## 验证记录
 
-这是经过 100 IP 预检后的同进程容量实测。严格同节点、同目标、同 5000 PPS 的 100 IP 配对另测得整包耗时减少 **29.38%**；两个结果分别记录，不将参数收益重复归为代码收益，也不将合成目标耗时当作任意公网目标的保证。完整条件、请求响应、位图、截图和已知限制见 [扫描速度验证](docs/SCAN_SPEED_VALIDATION.md)。
+| 验证 | 已记录结果 | 证据 |
+|---|---|---|
+| TCP 全端口流水线 | 5 台 2 核 / 2 GiB Worker 扫描 1000 个自建 IP，端口、服务和当时版本的 HTTP 识别完成；API 观察耗时 29 分 22.48 秒，核验 65,535,000 个 SYN | [扫描速度验证](docs/SCAN_SPEED_VALIDATION.md) |
+| 完整 HTTP 指纹 | httpx Runner 与 fingers 工具链、原始资源装载、进度及证据验证 | [HTTP 重构验证](docs/HTTP_FULL_VALIDATION.md) |
+| JS/DOM 与截图 | 2 CPU / 2 GiB 配额下，自建目标六种选项组合、图片鉴权、缩略图和真实 Chrome 验证 | [浏览器能力验证](docs/HTTP_BROWSER_VALIDATION.md) |
 
-少量IP可以按端口区间跨Worker执行，但必须先取得启动预留、匹配实测profile且通过收益门槛。未校准时保守用整IP分片；不会仅因在线节点变多就提高单目标额度。未知旧执行占用的额度保持冻结，确认停发后释放；租约过期不等于网络已经停止。
+TCP 压测使用每 Worker **10000 PPS、最多 8 IP/片**，与仓库默认配置不同；该记录早于最新 HTTP 与浏览器改造，**不能代表开启全量主动指纹、JS/DOM 和截图后的相同耗时**。自建目标与配额验证也不代表公网或百万 IP 持续负载的容量保证。各报告保留条件、截图和完整请求响应。
 
-P1已实现共享HTTP请求许可、未来批次自动调优、基于实测成本的端口分片、工具进程复用及提前派生下游任务。隔离云环境中，9台2核Worker扫描128个自建IP的TCP全端口，新旧版本均核验完整覆盖，耗时从505.8秒降至477.9秒，首个可见结果从121.9秒提前到4.7秒。这是一次同批节点对比，服务识别任务数量同时增加，不代表百万IP或公网长期吞吐保证。条件、原始报文和截图见[P1验收记录](docs/P1_VALIDATION.md)。
+## 文档与开发
 
-更多细节见 [扫描速度验证与瓶颈分析](docs/SCAN_SPEED_VALIDATION.md)、[调度与完整性](docs/SCHEDULING.md)、[P1调度实现](docs/P1_SCHEDULING.md)、[指纹策略](docs/FINGERPRINTS.md)、[工作台显示逻辑](docs/WORKBENCH.md) 和 [API](docs/API.md)。
+| 文档 | 内容 |
+|---|---|
+| [部署说明](docs/DEPLOYMENT.md) | 环境配置、TLS、云资源、维护升级与备份 |
+| [HTTP 选项与截图](docs/HTTP_BROWSER.md) | 四种选项、浏览器调度、截图存储和安装 |
+| [完整 HTTP 执行](docs/HTTP_FINGERPRINT_FULL_IMPLEMENTATION.md) | httpx / fingers 职责、请求复用与恢复 |
+| [指纹规则包](docs/FINGERPRINT_BUNDLES.md) | 原始来源、完整导入导出和更新语义 |
+| [规则与 PoC](docs/RULE_LIBRARY.md) | 管理、产品匹配与检测结果 |
+| [Nuclei 兼容范围](docs/NUCLEI_MIGRATION_PLAN.md) | 原始 YAML 执行与当前限制 |
+| [执行架构](docs/SCAN_ARCHITECTURE_V2.md) | 任务制与 v0.5 设计基线 |
+| [P1 调度](docs/P1_SCHEDULING.md) / [P2 资源](docs/P2_EXECUTION.md) | 共享限速、批次调优、资源准入与阶段积压 |
+| [API](docs/API.md) | 管理接口、Agent 协议与结果结构 |
 
-## 当前边界
+源码入口：`cmd/server`、`cmd/agent`；两个 helper 位于各自独立的 `cmd/*-worker` Go module。控制面、执行器和云节点管理分别位于 `internal/control`、`internal/agent`、`internal/cloud`，前端位于 `web`。
 
-- 当前使用单管理员令牌登录，尚无多用户、项目隔离或细粒度 RBAC。
-- TCP 全端口执行器仅支持 IPv4；指纹库不承诺识别所有产品。11 条 native verification 使用固定正负对照。`http-basic-v1` 不支持 DSL、extractor、动态变量、raw、payload、fuzz、race、flow、重定向及其他协议；这些模板不会因同步原库或导入失败而执行。PoC 仍默认关闭，只对任务中显式开启且命中产品绑定的端点派发。
-- 网页首屏截图可按任务开启并在 HTTP 列表预览；完整报告生成、OSS 证据归档和高级灰度发布尚未实现。
-- 原始端口仍按行存储；没有完成密集位图、网段自动熔断和自动归档。
-- 临时文件用于解耦收包和回传，不是跨实例回收的持久检查点；实例丢失依靠租约与重试恢复。
-- 尚未完成百万 IP 长期负载、复杂公网丢包及数据库主备切换的完整验收。
-
-## 目录
-
-```text
-cmd/server/        控制面入口
-cmd/agent/         Worker Agent 入口
-cmd/web-probe-worker/ 有界采集 helper（独立Go module）
-cmd/fingerprint-worker/ 常驻被动指纹 helper（独立Go module）
-internal/control/  任务、租约、结果与 API
-internal/agent/    执行器、指纹、回传与停止
-internal/cloud/    云账号、网络准备、实例与回收事件
-internal/rulelib/  指纹定义、内置库、匹配与 Nuclei 模板校验
-internal/rulesource/ 固定官方源下载、许可校验和安全转换
-deploy/            发布脚本、systemd、PostgreSQL、固定扫描器构建
-web/               React 工作台
-docs/              部署、调度、API 与使用说明
-```
-
-## 开发检查
-
-设计基线：[Worker执行架构与平台调度 V2](docs/SCAN_ARCHITECTURE_V2.md)（v0.5，保留任务制）；P0实现与必要验证记录见 [P0核心闭环](docs/P0_CORE.md)。
-
-实现说明：[原始 Nuclei YAML 兼容性适配方案](docs/NUCLEI_MIGRATION_PLAN.md)。
+按改动范围运行必要检查。根模块测试不包含独立 helper 模块：
 
 ```sh
 go test ./...
+(cd cmd/web-probe-worker && go test ./...)
+(cd cmd/fingerprint-worker && go test ./...)
 npm run build --prefix web
 ```
 
-PostgreSQL 集成用例需要单独设置 `CONTROL_TEST_DATABASE_URL`；未设置时相关用例会跳过。普通本地检查不会自动启动付费 ECS。`deploy/cloud-fixture.sh` 和 `deploy/load-fixture.sh` 只用于显式启用的隔离验证环境。
+PostgreSQL 集成检查需设置 `CONTROL_TEST_DATABASE_URL`；未设置时相关用例会跳过。真实 Chrome 检查需要对应 Linux 运行环境。普通本地检查不会自动创建付费 ECS。
 
-## 仓库与第三方组件
+## 当前边界与许可
 
-公开仓库包含源码、必要测试、构建脚本与通用文档，不包含实际云账号、密钥、运行环境文件、部署证书、数据库或真实环境的原始报文。
+- TCP 全端口执行器仅支持 IPv4。当前为单管理员令牌，没有多用户或细粒度 RBAC。
+- 浏览器受同源范围、时间、请求和图片大小限制，部分网站可能只获得不完整截图或指纹证据。
+- Nuclei 执行仍为上述兼容子集；完整报告导出、OSS 证据归档、高级自动灰度和百万 IP 持续负载验收尚未完成。
+- 原始端口按行保存；密集位图存储、网段自动熔断与自动归档尚未完成。实例回收后的恢复依赖平台租约与重试，本机临时文件不是跨实例持久检查点。
 
-Masscan 及其修改使用 AGPLv3，相关许可证、固定源码与补丁说明见 [deploy/masscan](deploy/masscan/README.md)。发布脚本会将对应源码和许可证一起放入 Agent 包。其他依赖的许可见各自项目；本仓库当前尚未为平台自有代码声明单独的开源许可证。
+公开仓库不包含云账号密钥、私有运行配置、部署证书、数据库或真实资产的私有报文。验证材料使用自建目标和隔离测试数据。
 
-Nuclei 引擎固定为 v3.11.1（MIT），下载校验和许可见 [deploy/nuclei](deploy/nuclei/README.md)。HTTPx 固定为 v1.12.0（MIT），见 [deploy/httpx](deploy/httpx/README.md)。内置 bootstrap 保留了早期从 MIT `wappalyzergo` 人工改写的 85 条 HTTP 信号及产品专用规则；[第三方声明](internal/rulelib/THIRD_PARTY_NOTICES.md) 继续保留。
+Masscan 及其修改使用 **AGPLv3**，许可证、固定源码和补丁见 [deploy/masscan](deploy/masscan/README.md)，发布包携带对应源码。Nuclei v3.11.1 和 httpx v1.12.0 的下载校验与许可见 [deploy/nuclei](deploy/nuclei/README.md)、[deploy/httpx](deploy/httpx/README.md)。其他组件与规则数据按各自来源许可使用，[第三方声明](internal/rulelib/THIRD_PARTY_NOTICES.md)继续保留历史来源记录。
 
-**历史版本记录（已被 HTTP 重构替代）**：当时的 HTTP 执行库为 **7,793 条**（7,642 个 Wapp app + 151 条 bootstrap），port 为 22 条。PoC 执行库保持 **907 条**（896 discovery + 11 native verification）。Nuclei revision `17f5725dc10ced09f464dd2d255c19957aad51e7` 的独立上游原库包含 14,075 条目录规则和 377 个 Files（其中 44 个是非模板 YAML）；这些目录规则不计入 907 条 PoC，也不可执行。
-
-参考 Nemo 的历史调研与 bootstrap 取舍见 [规则来源](docs/RULE_SOURCES.md) 和 [PoC 来源](docs/POC_SOURCES.md)；11 条 native verification 的证据闭环和结果边界见 [只读漏洞验证](docs/READONLY_VERIFICATION.md)；一键更新、失败保护、升级顺序和容量边界见 [规则源更新](docs/RULE_UPDATES.md)。
+本仓库尚未为平台自有代码声明单独的开源许可证。
