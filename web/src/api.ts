@@ -199,6 +199,7 @@ export interface NucleiMetadata {
   default_disabled_reason?: string; runtime_reason?: string; info?: unknown; classification?: unknown
 }
 export interface LibraryRule {
+	collection?: { path: string; products: string[]; source_rule_id?: string; source_rule_revision?: number }
   purpose?: string; verification?: Verification
   nuclei?: NucleiMetadata; execution_profile?: string; template_id?: string; content_sha256?: string
   fingerprint?: Record<string, unknown>; execution_available?: boolean; runtime_reason?: string

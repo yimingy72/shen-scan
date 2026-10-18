@@ -19,6 +19,7 @@ import (
 
 	"scanplatform/internal/httpadmission"
 	"scanplatform/internal/rulelib"
+	"scanplatform/internal/webevidence"
 )
 
 const (
@@ -31,6 +32,7 @@ const (
 var titlePattern = regexp.MustCompile(`(?is)<title[^>]*>(.*?)</title>`)
 
 type httpPayload struct {
+	WebEnrichmentProfile    string         `json:"web_enrichment_profile,omitempty"`
 	Endpoints               []Endpoint     `json:"endpoints"`
 	TimeoutSeconds          int            `json:"timeout_seconds"`
 	Rules                   []rulelib.Rule `json:"rules"`
@@ -59,6 +61,9 @@ func (a *Agent) runHTTP(ctx context.Context, task Task, emit func(Observation) e
 	}
 	payload.Rules = rules
 	binary, helper := webProbeBinary()
+	if payload.WebEnrichmentProfile != "" && (payload.WebEnrichmentProfile != webevidence.EnrichmentProfile || !helper) {
+		return &TaskError{Reason: "unsupported web enrichment profile/helper", Retryable: false}
+	}
 	cffEnabled := hasEnabledHTTPXCFF(payload.Rules)
 	a.updateHTTPReservation(task.ID, len(payload.Endpoints), helper, cffEnabled)
 	if helper {

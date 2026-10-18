@@ -111,6 +111,7 @@ func (s *Server) createRun(w http.ResponseWriter, r *http.Request) {
 		snapshot.FingerprintBundleSchema = fingerprintbundle.Schema
 	}
 	snapshot.WebProfile = webevidence.Profile
+	snapshot.WebEnrichmentProfile = webevidence.EnrichmentProfile
 	snapshotJSON, _ := json.Marshal(snapshot)
 	requiresHTTPXCFF := false
 	for _, rule := range snapshot.HTTP {
@@ -134,6 +135,7 @@ func (s *Server) createRun(w http.ResponseWriter, r *http.Request) {
 				}
 				profile["fingerprint_bundle"] = snapshot.FingerprintBundle
 				profile["fingerprint_bundle_schema"] = snapshot.FingerprintBundleSchema
+				profile["web_enrichment_profile"] = snapshot.WebEnrichmentProfile
 			}
 			payload, marshalErr := json.Marshal(seed.payload)
 			if marshalErr != nil {

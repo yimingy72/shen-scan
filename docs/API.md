@@ -123,3 +123,40 @@ PoC 观测包含 `rule_id`、`rule_name`、`rule_revision`、`engine`、`severit
 完整详情的 `template` 会按 Upstream revision / path 从 BYTEA 恢复，不取自 JSONB 索引副本。files 响应为 `{items:[{path,sha256,size,is_template}],total,revision}`；raw 响应带 `X-Content-SHA256`。raw 和 ZIP 始终返回未修改的源文件字节；ZIP 包含 `.shen-source-manifest.json`，不经过 JSON 导入端点。
 
 Wapp source 更新会发布到可执行 `rule_library`；Nuclei source 更新只发布到独立 catalog/files，不修改当前 907 条 PoC。catalog-only Rule 不能通过 CRUD 或 JSON 导入混入可执行规则库。
+
+## 有限 Web enrichment 协议
+
+新建 run 内部快照增加 `web_enrichment_profile:"bounded-enrichment-v1"`，初始及服务派生的 HTTP payload 继承该值。原 `web_profile:"bounded-passive-v1"` 保留；createRun 请求不新增 profile 开关。旧 run 缺字段时不自动开启重定向或补采。
+
+Agent claim 增加 `web_enrichment_profile` 字符串。payload 非空时必须精确匹配，普通认领及同 request_id 重放均检查；不匹配返回 `task:null`，不改变原执行身份或额度。payload 字段为空时，新旧 Agent 继续经过原有能力检查。Agent 只有从实际 helper capability 得到 `enrichment_profile:"bounded-enrichment-v1"` 才声明该能力。
+
+HTTP collection 规则使用已有规则库接口，列表摘要、详情、执行 rules_ref 和 JSON 导入导出均包含：
+
+```json
+{
+  "collection": {
+    "path": "/readme.html",
+    "products": ["WordPress"],
+    "source_rule_id": "poc-wordpress-readme",
+    "source_rule_revision": 1
+  }
+}
+```
+
+该对象只适用于 native、info、discovery 的 HTTP 产品指纹，执行固定为静态同源路径 GET；产品绑定为 1–16 个。来源字段可同时省略，提供来源 ID 时版本必须为正整数。主页面匹配不会直接执行 collection 条件。先匹配主页面候选产品，再对选中规则对应的独立响应做确认；同 URL 多条规则共用响应。创建/修改、启停、删除及默认禁用的导入行为沿用现有接口，后续库变更不修改已冻结 run。
+
+新 profile 最多跟随 3 跳严格同源重定向、使用 8 次逻辑 collect、额外请求 2 个不同补采 URL，最多保留 64 条候选规则。所有阶段共用入口的 90 秒父截止；重定向、图标、失败尝试和补采均占共用预算。PoC 仍须 `poc_enabled:true`，collection 响应不会生成独立 HTTP 任务或 PoC finding。
+
+Agent→helper JSONL 请求增加 `enrichment_profile`、`step`（`entry` / `supplement`）和 `max_requests`。结果增加 `input_url`、`enrichment_profile`、`redirects[]`；每个 redirect 含 `from_url/to_url/status_code/outcome/attempt_index`，其中索引从 0 开始绑定源 attempt。被阻止的跨源目的地只能作为停止原因出现在证据中。enriched `attempts` 包含图标尝试，其数量等于 helper 的 `requests`，图标对应 attempts 尾部。
+
+新 profile 的 token 化 loopback `/admit` 请求带逻辑序号：
+
+```json
+{"id":"<ITEM_ID>","url":"https://example.test/start","wait":true,"request_seq":1}
+```
+
+这不是公开控制面接口。序号范围为 1–8，同 item/序号只能对应同 URL；等待或 TLS 后刷新仍调用共享 HTTP 许可，但不重复扣逻辑 collect 预算。每条补采拥有独立 item ID，仅允许对应精确 URL 的一次逻辑 GET，主采集和补采共用总预算。公开 `http-permit` 的 request_id、有效期及协作式准入语义不变。
+
+HTTP observation 的 `evidence` 仍为 JSON 字符串，enrichment 增加 `requests_budget_used`、`supplement_plan`、`supplements[]` 和 `storage`。supplement 含 `url/rule_ids/outcome/response/matches/rule_results/error/reused/storage`，各 rule result 含 `rule_id/rule_revision/outcome`。规则结论包括 matched/not_matched、partial/error，以及因预算、数量或不完整复用而 skipped 的状态；它们不属于 findings。
+
+主 observation 保留原 `work_key` / Target，URL 可为合法同源最终路径。成功结果必须带绑定原 InputURL 的主 Probe 证据；明确的 setup 失败允许无 URL，但仍校验工作身份并记 partial。补采 response 正文最多保留 32 KiB 原字节（JSON base64），标明 complete/prefix；主 Probe 正文为 hash_only。新 profile 按完整 JSON 大小收敛，省略和截断有标志；仍无法放入 2 MiB 批次的单条 observation 按不可重试错误处理。详见 [Web enrichment 执行边界](WEB_ENRICHMENT.md)。

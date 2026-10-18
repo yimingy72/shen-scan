@@ -1,0 +1,32 @@
+[
+  {
+    "URL": "http://127.0.0.1:63815/",
+    "Request": "POST / HTTP/1.1\r\nHost: 127.0.0.1:63815\r\nAccept-Encoding: gzip\r\nAuthorization: Bearer synthetic-local-token\r\nConnection: close\r\nContent-Length: 77\r\nUser-Agent: Go-http-client/1.1\r\n\r\n{\"id\":\"synthetic-entry\",\"url\":\"https://fixture.test:63814/start\",\"wait\":true}",
+    "Response": "HTTP/1.1 200 OK\r\nContent-Length: 35\r\nConnection: close\r\nContent-Type: text/plain; charset=utf-8\r\nDate: Sun, 18 Oct 2026 00:13:00 GMT\r\n\r\n{\"valid_for_ms\":475,\"waited_ms\":0}\n",
+    "Note": ""
+  },
+  {
+    "URL": "http://127.0.0.1:63815/",
+    "Request": "POST / HTTP/1.1\r\nHost: 127.0.0.1:63815\r\nAccept-Encoding: gzip\r\nAuthorization: Bearer synthetic-local-token\r\nConnection: close\r\nContent-Length: 82\r\nUser-Agent: Go-http-client/1.1\r\n\r\n{\"id\":\"synthetic-entry\",\"url\":\"https://fixture.test:63814/middle?x=1\",\"wait\":true}",
+    "Response": "HTTP/1.1 200 OK\r\nContent-Length: 35\r\nConnection: close\r\nContent-Type: text/plain; charset=utf-8\r\nDate: Sun, 18 Oct 2026 00:13:00 GMT\r\n\r\n{\"valid_for_ms\":475,\"waited_ms\":0}\n",
+    "Note": ""
+  },
+  {
+    "URL": "http://127.0.0.1:63815/",
+    "Request": "POST / HTTP/1.1\r\nHost: 127.0.0.1:63815\r\nAccept-Encoding: gzip\r\nAuthorization: Bearer synthetic-local-token\r\nConnection: close\r\nContent-Length: 81\r\nUser-Agent: Go-http-client/1.1\r\n\r\n{\"id\":\"synthetic-entry\",\"url\":\"https://fixture.test:63814/final?x=2\",\"wait\":true}",
+    "Response": "HTTP/1.1 200 OK\r\nContent-Length: 35\r\nConnection: close\r\nContent-Type: text/plain; charset=utf-8\r\nDate: Sun, 18 Oct 2026 00:13:00 GMT\r\n\r\n{\"valid_for_ms\":475,\"waited_ms\":0}\n",
+    "Note": ""
+  },
+  {
+    "URL": "http://127.0.0.1:63815/",
+    "Request": "POST / HTTP/1.1\r\nHost: 127.0.0.1:63815\r\nAccept-Encoding: gzip\r\nAuthorization: Bearer synthetic-local-token\r\nConnection: close\r\nContent-Length: 75\r\nUser-Agent: Go-http-client/1.1\r\n\r\n{\"id\":\"synthetic-entry\",\"url\":\"https://fixture.test:63814/ico\",\"wait\":true}",
+    "Response": "HTTP/1.1 200 OK\r\nContent-Length: 35\r\nConnection: close\r\nContent-Type: text/plain; charset=utf-8\r\nDate: Sun, 18 Oct 2026 00:13:00 GMT\r\n\r\n{\"valid_for_ms\":475,\"waited_ms\":0}\n",
+    "Note": ""
+  },
+  {
+    "URL": "http://127.0.0.1:63815/",
+    "Request": "POST / HTTP/1.1\r\nHost: 127.0.0.1:63815\r\nAccept-Encoding: gzip\r\nAuthorization: Bearer synthetic-local-token\r\nConnection: close\r\nContent-Length: 83\r\nUser-Agent: Go-http-client/1.1\r\n\r\n{\"id\":\"synthetic-entry\",\"url\":\"https://fixture.test:63814/favicon.ico\",\"wait\":true}",
+    "Response": "HTTP/1.1 200 OK\r\nContent-Length: 35\r\nConnection: close\r\nContent-Type: text/plain; charset=utf-8\r\nDate: Sun, 18 Oct 2026 00:13:00 GMT\r\n\r\n{\"valid_for_ms\":475,\"waited_ms\":0}\n",
+    "Note": ""
+  }
+]

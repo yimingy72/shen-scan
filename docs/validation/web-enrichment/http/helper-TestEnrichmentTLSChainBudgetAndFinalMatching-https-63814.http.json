@@ -1,0 +1,32 @@
+[
+  {
+    "URL": "https://fixture.test:63814/start",
+    "Request": "GET /start HTTP/1.1\r\nHost: fixture.test:63814\r\nAccept: text/html,application/xhtml+xml,*/*;q=0.8\r\nAccept-Charset: utf-8\r\nAccept-Encoding: identity\r\nConnection: close\r\nUser-Agent: shen-scan/2\r\n\r\n",
+    "Response": "HTTP/1.1 302 Found\r\nContent-Length: 10\r\nConnection: close\r\nDate: Sun, 18 Oct 2026 00:13:00 GMT\r\nLocation: /middle?x=1#remove\r\nSet-Cookie: synthetic_session=do-not-forward\r\n\r\nold-marker",
+    "Note": ""
+  },
+  {
+    "URL": "https://fixture.test:63814/middle?x=1",
+    "Request": "GET /middle?x=1 HTTP/1.1\r\nHost: fixture.test:63814\r\nAccept: text/html,application/xhtml+xml,*/*;q=0.8\r\nAccept-Charset: utf-8\r\nAccept-Encoding: identity\r\nConnection: close\r\nUser-Agent: shen-scan/2\r\n\r\n",
+    "Response": "HTTP/1.1 307 Temporary Redirect\r\nContent-Length: 13\r\nConnection: close\r\nDate: Sun, 18 Oct 2026 00:13:00 GMT\r\nLocation: ./final?x=2\r\n\r\nmiddle-marker",
+    "Note": ""
+  },
+  {
+    "URL": "https://fixture.test:63814/final?x=2",
+    "Request": "GET /final?x=2 HTTP/1.1\r\nHost: fixture.test:63814\r\nAccept: text/html,application/xhtml+xml,*/*;q=0.8\r\nAccept-Charset: utf-8\r\nAccept-Encoding: identity\r\nConnection: close\r\nUser-Agent: shen-scan/2\r\n\r\n",
+    "Response": "HTTP/1.1 200 OK\r\nContent-Length: 61\r\nConnection: close\r\nContent-Type: text/html; charset=utf-8\r\nDate: Sun, 18 Oct 2026 00:13:00 GMT\r\n\r\n\u003ctitle\u003efinal\u003c/title\u003efinal-marker\u003clink rel=\"icon\" href=\"/ico\"\u003e",
+    "Note": ""
+  },
+  {
+    "URL": "https://fixture.test:63814/ico",
+    "Request": "GET /ico HTTP/1.1\r\nHost: fixture.test:63814\r\nAccept: text/html,application/xhtml+xml,*/*;q=0.8\r\nAccept-Charset: utf-8\r\nAccept-Encoding: identity\r\nConnection: close\r\nUser-Agent: shen-scan/2\r\n\r\n",
+    "Response": "HTTP/1.1 200 OK\r\nContent-Length: 4\r\nConnection: close\r\nContent-Type: text/plain; charset=utf-8\r\nDate: Sun, 18 Oct 2026 00:13:00 GMT\r\n\r\nicon",
+    "Note": ""
+  },
+  {
+    "URL": "https://fixture.test:63814/favicon.ico",
+    "Request": "GET /favicon.ico HTTP/1.1\r\nHost: fixture.test:63814\r\nAccept: text/html,application/xhtml+xml,*/*;q=0.8\r\nAccept-Charset: utf-8\r\nAccept-Encoding: identity\r\nConnection: close\r\nUser-Agent: shen-scan/2\r\n\r\n",
+    "Response": "HTTP/1.1 200 OK\r\nContent-Length: 4\r\nConnection: close\r\nContent-Type: text/plain; charset=utf-8\r\nDate: Sun, 18 Oct 2026 00:13:00 GMT\r\n\r\nicon",
+    "Note": ""
+  }
+]

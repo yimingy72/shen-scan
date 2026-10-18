@@ -1,0 +1,8 @@
+[
+  {
+    "URL": "http://fixture.test:63847/start",
+    "Request": "GET /start HTTP/1.1\r\nHost: fixture.test:63847\r\nAccept: text/html,application/xhtml+xml,*/*;q=0.8\r\nAccept-Charset: utf-8\r\nAccept-Encoding: identity\r\nConnection: close\r\nUser-Agent: shen-scan/2\r\n\r\n",
+    "Response": "HTTP/1.1 302 Found\r\nConnection: close\r\nDate: Sun, 18 Oct 2026 00:13:00 GMT\r\nLocation: http://outside.invalid:63847/outside\r\nContent-Length: 0\r\n\r\n",
+    "Note": ""
+  }
+]

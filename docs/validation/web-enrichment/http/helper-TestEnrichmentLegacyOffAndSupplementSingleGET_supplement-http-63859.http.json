@@ -1,0 +1,8 @@
+[
+  {
+    "URL": "http://fixture.test:63859/start",
+    "Request": "GET /start HTTP/1.1\r\nHost: fixture.test:63859\r\nAccept: text/html,application/xhtml+xml,*/*;q=0.8\r\nAccept-Charset: utf-8\r\nAccept-Encoding: identity\r\nConnection: close\r\nUser-Agent: shen-scan/2\r\n\r\n",
+    "Response": "HTTP/1.1 302 Found\r\nContent-Length: 17\r\nConnection: close\r\nDate: Sun, 18 Oct 2026 00:13:00 GMT\r\nLocation: /final\r\n\r\nsupplement-marker",
+    "Note": ""
+  }
+]

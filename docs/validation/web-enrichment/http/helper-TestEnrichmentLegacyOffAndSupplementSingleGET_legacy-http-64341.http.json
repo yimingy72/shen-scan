@@ -1,0 +1,12 @@
+[
+  {
+    "url": "http://fixture.test:64341/start",
+    "request": "GET /start HTTP/1.1\r\nHost: fixture.test:64341\r\nAccept: text/html,application/xhtml+xml,*/*;q=0.8\r\nAccept-Charset: utf-8\r\nAccept-Encoding: identity\r\nConnection: close\r\nUser-Agent: shen-scan/2\r\n\r\n",
+    "response": "HTTP/1.1 302 Found\r\nContent-Length: 17\r\nConnection: close\r\nDate: Sun, 18 Oct 2026 00:16:30 GMT\r\nLocation: /final\r\n\r\nsupplement-marker"
+  },
+  {
+    "url": "http://fixture.test:64341/favicon.ico",
+    "request": "GET /favicon.ico HTTP/1.1\r\nHost: fixture.test:64341\r\nAccept: text/html,application/xhtml+xml,*/*;q=0.8\r\nAccept-Charset: utf-8\r\nAccept-Encoding: identity\r\nConnection: close\r\nUser-Agent: shen-scan/2\r\n\r\n",
+    "response": "HTTP/1.1 302 Found\r\nContent-Length: 17\r\nConnection: close\r\nDate: Sun, 18 Oct 2026 00:16:30 GMT\r\nLocation: /final\r\n\r\nsupplement-marker"
+  }
+]

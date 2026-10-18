@@ -38,6 +38,9 @@ func webProbeBinary() (string, bool) {
 }
 
 func (a *Agent) runWebProbe(ctx context.Context, task Task, payload httpPayload, binary string, emit func(Observation) error) error {
+	if payload.WebEnrichmentProfile != "" && payload.WebEnrichmentProfile != webevidence.EnrichmentProfile {
+		return &TaskError{Reason: "unsupported web enrichment profile", Retryable: false}
+	}
 	if payload.FingerprintBundle == "" {
 		if payload.FingerprintBundleSchema != "" {
 			return &TaskError{Reason: "external fingerprint schema requires an assigned bundle", Retryable: false}
@@ -94,8 +97,17 @@ func (a *Agent) runWebProbe(ctx context.Context, task Task, payload httpPayload,
 		if err != nil {
 			return webFailure(ep, err)
 		}
-		input := webevidence.ProbeRequest{ID: itemID, Protocol: webevidence.Protocol, URL: raw, ConnectIP: ip, AlternateScheme: ep.URL == "", TimeoutMillis: int(minDuration(boundedTimeout(payload.TimeoutSeconds, 8*time.Second), 8*time.Second) / time.Millisecond), EntryTimeoutMillis: 90000, CFF: cff, CFFSHA256: webevidence.SHA256(cff)}
-		admissionURL, token, closeAdmission, err := startWebAdmission(ctx, input.ID, ip, parsed, input.AlternateScheme)
+		input := webevidence.ProbeRequest{EnrichmentProfile: payload.WebEnrichmentProfile, ID: itemID, Protocol: webevidence.Protocol, URL: raw, ConnectIP: ip, AlternateScheme: ep.URL == "", TimeoutMillis: int(minDuration(boundedTimeout(payload.TimeoutSeconds, 8*time.Second), 8*time.Second) / time.Millisecond), EntryTimeoutMillis: 90000, CFF: cff, CFFSHA256: webevidence.SHA256(cff)}
+		var entryBudget *webEntryBudget
+		var admissionLimit *webAdmissionLimit
+		if payload.WebEnrichmentProfile != "" {
+			input.MaxRequests = 8
+			input.Step = "entry"
+			input.EntryTimeoutMillis = entryMillis(ctx)
+			entryBudget = &webEntryBudget{}
+			admissionLimit = &webAdmissionLimit{entry: entryBudget}
+		}
+		admissionURL, token, closeAdmission, err := startWebAdmissionLimited(ctx, input.ID, ip, parsed, input.AlternateScheme, admissionLimit)
 		if err != nil {
 			return webFailure(ep, err)
 		}
@@ -109,13 +121,16 @@ func (a *Agent) runWebProbe(ctx context.Context, task Task, payload httpPayload,
 		if err = json.Unmarshal(output, &result); err != nil {
 			return webFailure(ep, fmt.Errorf("decode web helper: %w", err))
 		}
-		if result.ID != input.ID || result.Protocol != webevidence.Protocol || result.CFFSHA256 != input.CFFSHA256 {
-			return webFailure(ep, fmt.Errorf("web helper contract/digest mismatch"))
+		if err = validateWebResult(input, result); err != nil {
+			return webFailure(ep, err)
 		}
-		observed, err := url.Parse(result.Response.URL)
-		if err != nil || !sameAuthority(observed, parsed) || observed.EscapedPath() != parsed.EscapedPath() || observed.RawQuery != parsed.RawQuery || observed.User != nil || observed.Fragment != "" || (observed.Scheme != parsed.Scheme && !input.AlternateScheme) || result.Response.ConnectIP != ip {
-			return webFailure(ep, fmt.Errorf("web helper returned an unrelated endpoint"))
+		if entryBudget != nil {
+			if entryBudget.count() > result.Requests {
+				return webFailure(ep, fmt.Errorf("helper underreported admitted requests"))
+			}
+			entryBudget.consumeAtLeast(result.Requests)
 		}
+
 		obs := webProbeObservation(ep, result, payload.Rules)
 		var actualMatch webevidence.MatchResult
 		if result.Response.StatusCode > 0 && result.Response.Completeness == "full" {
@@ -138,16 +153,26 @@ func (a *Agent) runWebProbe(ctx context.Context, task Task, payload httpPayload,
 				obs.Technologies = mergeTechnologies(obs.Technologies, additional)
 			}
 		}
+		var supplements []webSupplement
+		var supplementSummary *supplementPlan
+		if entryBudget != nil {
+			products := make([]string, 0, len(obs.Technologies))
+			for _, technology := range obs.Technologies {
+				products = append(products, technology.Name)
+			}
+			var added []Technology
+			var plan supplementPlan
+			supplements, added, plan = a.collectWebSupplements(ctx, binary, input, result, payload.Rules, products, entryBudget)
+			supplementSummary = &plan
+			obs.Technologies = mergeTechnologies(obs.Technologies, added)
+		}
 		// An assigned bundle is distinct from a matcher actually executed. Missing
 		// or partial HTTP evidence does not pretend that fingerprinting ran.
-		evidence := struct {
-			Probe          webevidence.ProbeResult `json:"probe"`
-			Fingerprint    webevidence.MatchResult `json:"fingerprint"`
-			AssignedBundle string                  `json:"assigned_fingerprint_bundle"`
-			BundleSchema   string                  `json:"fingerprint_bundle_schema,omitempty"`
-		}{compactProbe(result), actualMatch, payload.FingerprintBundle, payload.FingerprintBundleSchema}
-		encoded, _ := json.Marshal(evidence)
-		obs.Evidence = string(encoded)
+		evidence := webEvidenceEnvelope{SupplementPlan: supplementSummary, Probe: compactProbe(result), Fingerprint: actualMatch, AssignedBundle: payload.FingerprintBundle, BundleSchema: payload.FingerprintBundleSchema, Supplements: supplements}
+		if entryBudget != nil {
+			evidence.RequestsBudgetUsed = entryBudget.count()
+		}
+		storeWebEvidence(&obs, &evidence, payload.WebEnrichmentProfile != "")
 		return obs
 	}, emit)
 }
@@ -266,15 +291,16 @@ func runWebHelper(ctx context.Context, binary string, input []byte) ([]byte, err
 }
 
 type webProbeProcess struct {
-	resources *resourceSampler
-	slot      chan struct{}
-	cmd       *exec.Cmd
-	stdin     io.WriteCloser
-	scanner   *bufio.Scanner
-	stderr    *stderrTail
-	done      chan error
-	binary    string
-	dir       string
+	resources  *resourceSampler
+	slot       chan struct{}
+	cmd        *exec.Cmd
+	stdin      io.WriteCloser
+	scanner    *bufio.Scanner
+	stderr     *stderrTail
+	done       chan error
+	enrichment string
+	binary     string
+	dir        string
 }
 
 func (p *webProbeProcess) run(ctx context.Context, binary string, request webevidence.ProbeRequest) ([]byte, error) {
@@ -294,6 +320,10 @@ func (p *webProbeProcess) run(ctx context.Context, binary string, request webevi
 		if err := p.start(binary); err != nil {
 			return nil, err
 		}
+	}
+	if request.EnrichmentProfile != "" && p.enrichment != webevidence.EnrichmentProfile {
+		p.stop()
+		return nil, fmt.Errorf("web helper lacks exact enrichment capability")
 	}
 	type reply struct {
 		data []byte
@@ -353,12 +383,14 @@ func (p *webProbeProcess) start(binary string) (err error) {
 	err = capability.Run()
 	capCancel()
 	var contract struct {
-		Admission string `json:"request_admission"`
-		Stream    string `json:"stream_protocol"`
+		Enrichment string `json:"enrichment_profile"`
+		Admission  string `json:"request_admission"`
+		Stream     string `json:"stream_protocol"`
 	}
 	if err != nil || advertised.overflow || json.Unmarshal(advertised.Bytes(), &contract) != nil || contract.Admission != "loopback-v2" || contract.Stream != "jsonl-item-v1" {
 		return fmt.Errorf("web helper lacks request admission/item isolation capability")
 	}
+	p.enrichment = contract.Enrichment
 	dir, err := os.MkdirTemp("", "shen-web-")
 	if err != nil {
 		return err
@@ -575,9 +607,13 @@ func (p *fingerprintProcess) stop() {
 // Identity is checked once per Agent/client lifetime. Tools are changed during a
 // drained Worker upgrade, followed by Agent restart, never underneath a run.
 func discoverWebCapabilities() (string, string, string) {
+	p, b, s, _ := discoverWebCapabilitiesFull()
+	return p, b, s
+}
+func discoverWebCapabilitiesFull() (string, string, string, string) {
 	binary, present := webProbeBinary()
 	if !present {
-		return "", "", ""
+		return "", "", "", ""
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -596,16 +632,17 @@ func discoverWebCapabilities() (string, string, string) {
 	}
 	raw, err := identity(binary, "--capabilities")
 	if err != nil {
-		return "", "", ""
+		return "", "", "", ""
 	}
 	var profile struct {
-		Protocol  string `json:"protocol"`
-		Profile   string `json:"profile"`
-		Admission string `json:"request_admission"`
-		Stream    string `json:"stream_protocol"`
+		Enrichment string `json:"enrichment_profile"`
+		Protocol   string `json:"protocol"`
+		Profile    string `json:"profile"`
+		Admission  string `json:"request_admission"`
+		Stream     string `json:"stream_protocol"`
 	}
 	if json.Unmarshal(raw, &profile) != nil || profile.Protocol != webevidence.Protocol || profile.Profile != webevidence.Profile || profile.Admission != "loopback-v2" || profile.Stream != "jsonl-item-v1" {
-		return "", "", ""
+		return "", "", "", ""
 	}
 	matcher := os.Getenv("FINGERPRINT_WORKER_BINARY")
 	if matcher == "" {
@@ -613,13 +650,17 @@ func discoverWebCapabilities() (string, string, string) {
 	}
 	raw, err = identity(matcher, "--bundle")
 	if err != nil || strings.TrimSpace(string(raw)) != webevidence.FingerprintBundle {
-		return "", "", ""
+		return "", "", "", ""
 	}
 	embedded := strings.TrimSpace(string(raw))
+	enrichment := ""
+	if profile.Enrichment == webevidence.EnrichmentProfile {
+		enrichment = profile.Enrichment
+	}
 	raw, err = identity(matcher, "--capabilities")
 	var capabilities fb.Capabilities
 	if err == nil && json.Unmarshal(raw, &capabilities) == nil && capabilities.Schema == fb.Schema && capabilities.EngineRevision == fb.EngineRevision && capabilities.SelectionProfile == fb.SelectionProfile && capabilities.EmbeddedBundle == embedded {
-		return profile.Profile, embedded, capabilities.Schema
+		return profile.Profile, embedded, capabilities.Schema, enrichment
 	}
-	return profile.Profile, embedded, ""
+	return profile.Profile, embedded, "", enrichment
 }

@@ -7,8 +7,9 @@ func Builtins() []Rule {
 	rules = append(rules, builtinHTTPRules()...)
 	rules = append(rules, expandedHTTPRules()...)
 	rules = append(rules, builtinPortRules()...)
-	rules = append(rules, builtinPoCRules()...)
-	rules = append(rules, expandedPoCRules()...)
+	poc := append(builtinPoCRules(), expandedPoCRules()...)
+	rules = append(rules, builtinHTTPCollections(poc)...)
+	rules = append(rules, poc...)
 	return rules
 }
 

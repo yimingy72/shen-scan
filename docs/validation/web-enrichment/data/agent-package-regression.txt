@@ -1,0 +1,6 @@
+2026/10/18 08:21:43 WARN batch upload failed; retrying same sequence task_id=task batch_seq=0 error="control API 503 Service Unavailable: retry"
+--- FAIL: TestHTTPProtocolFallbackSharesEndpointTimeout (0.32s)
+    agent_test.go:507: protocol fallback exceeded the shared endpoint budget: 302.938125ms
+FAIL
+FAIL	scanplatform/internal/agent	41.057s
+FAIL

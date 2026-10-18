@@ -1,0 +1,15 @@
+{
+  "source": "Existing tool outputs recorded when tests ran; not rerun to prepare report",
+  "checks": [
+    {
+      "command": "go test ./internal/rulelib -run 'TestHTTPCollectionIsolationAndBindings|TestBuiltins' -count=1",
+      "exit_code": 0,
+      "output": "ok scanplatform/internal/rulelib 0.394s"
+    },
+    {
+      "command": "go test ./internal/rulelib -run 'TestProductBindingsAndNucleiMetadata|TestImportedProductAliases|TestExpandedPoCProductsHaveHTTPFingerprints' -count=1",
+      "exit_code": 0,
+      "output": "ok scanplatform/internal/rulelib 0.193s"
+    }
+  ]
+}

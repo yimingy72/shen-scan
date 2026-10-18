@@ -14,6 +14,7 @@ const (
 	Protocol          = "shen-web-v1"
 	FingerprintBundle = "b5946286a877ff75a1c7b9914e9c3e4b0aba4e15287ee1cf594eef6db8e18538"
 	Profile           = "bounded-passive-v1"
+	EnrichmentProfile = "bounded-enrichment-v1"
 	MaxBody           = 2 << 20
 	MaxIcon           = 256 << 10
 	MaxMessage        = 12 << 20
@@ -21,6 +22,9 @@ const (
 
 type ProbeRequest struct {
 	ID                 string          `json:"id"`
+	EnrichmentProfile  string          `json:"enrichment_profile,omitempty"`
+	Step               string          `json:"step,omitempty"`
+	MaxRequests        int             `json:"max_requests,omitempty"`
 	AdmissionURL       string          `json:"admission_url,omitempty"`
 	AdmissionToken     string          `json:"admission_token,omitempty"`
 	Protocol           string          `json:"protocol"`
@@ -61,18 +65,31 @@ type Response struct {
 }
 
 type ProbeResult struct {
-	ID           string     `json:"id"`
-	Protocol     string     `json:"protocol"`
-	Engine       string     `json:"engine"`
-	Profile      string     `json:"profile"`
-	Response     Response   `json:"response"`
-	Attempts     []Response `json:"attempts,omitempty"`
-	Icons        []Response `json:"icons,omitempty"`
-	Title        string     `json:"title,omitempty"`
-	Technologies []string   `json:"technologies,omitempty"`
-	CFFSHA256    string     `json:"cff_sha256,omitempty"`
-	Requests     int        `json:"requests"`
-	Error        string     `json:"error,omitempty"`
+	ID                string         `json:"id"`
+	EnrichmentProfile string         `json:"enrichment_profile,omitempty"`
+	InputURL          string         `json:"input_url,omitempty"`
+	Redirects         []RedirectStep `json:"redirects,omitempty"`
+	Protocol          string         `json:"protocol"`
+	Engine            string         `json:"engine"`
+	Profile           string         `json:"profile"`
+	Response          Response       `json:"response"`
+	Attempts          []Response     `json:"attempts,omitempty"`
+	Icons             []Response     `json:"icons,omitempty"`
+	Title             string         `json:"title,omitempty"`
+	Technologies      []string       `json:"technologies,omitempty"`
+	CFFSHA256         string         `json:"cff_sha256,omitempty"`
+	Requests          int            `json:"requests"`
+	Error             string         `json:"error,omitempty"`
+}
+
+// Attempts hold the bounded response evidence; each redirect names its source
+// attempt. A stopped destination is recorded without making a request to it.
+type RedirectStep struct {
+	FromURL      string `json:"from_url"`
+	ToURL        string `json:"to_url,omitempty"`
+	StatusCode   int    `json:"status_code"`
+	Outcome      string `json:"outcome"`
+	AttemptIndex int    `json:"attempt_index"`
 }
 
 type MatchRequest struct {

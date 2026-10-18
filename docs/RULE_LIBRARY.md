@@ -1,6 +1,6 @@
 # 指纹库与只读 PoC
 
-工作台“指纹库”分为 HTTP 指纹、端口指纹和 PoC 执行库。当前 bootstrap 为 **151 条 HTTP、22 条端口、43 条 PoC**。完整 Wapp 更新后，HTTP 执行库预计为 **7,793 条**（7,642 Wapp + 151 bootstrap）；PoC 执行库保持 **907 条**。实际数量以 live 数据库为准。
+工作台“指纹库”分为 HTTP 指纹、端口指纹和 PoC 执行库。当前 bootstrap 为 **157 条 HTTP、22 条端口、43 条 PoC**。完整 Wapp 更新后，HTTP 执行库预计为 **7,799 条**（7,642 Wapp + 157 bootstrap）；PoC 执行库保持 **907 条**。实际数量以 live 数据库为准。
 
 ![PoC 库：规则、请求范围、引擎和启用状态](images/rule-library.png)
 
@@ -138,3 +138,7 @@ Nuclei 下载与校验见 [固定引擎部署](../deploy/nuclei/README.md)。全
 
 
 新安装仅带内置执行规则（151 HTTP、22端口、43 PoC）；本文的907条PoC是既有部署此前已保存的执行库规模。新的Nuclei原库同步只收录原文目录，不会在新安装中自动建立旧兼容执行库；可执行原始 YAML 需按 `http-basic-v1` 单独导入。
+
+## HTTP 产品补采
+
+新增 6 条 `collection` HTTP 规则，只在已识别产品匹配后请求固定路径。支持现有编辑、禁用、删除、JSON 导入/导出与任务快照；不是将整个 PoC 库作为 HTTP 规则执行。新任务使用 Web helper + WappalyzerGo/fingers，旧 CLI 说明仅适用于历史兼容路径。预算、数据模型和证据详见 [Web 补采](WEB_ENRICHMENT.md)。

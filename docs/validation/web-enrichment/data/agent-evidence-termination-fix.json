@@ -1,0 +1,14 @@
+{
+  "change": "storeWebEvidence exhausts each existing reduction, clears fingerprint/probe technologies at most once, then returns when no remaining reduction can make progress. Unreducible oversized evidence stays oversized for the existing non-retryable common emit guard; no fake successful complete observation.",
+  "changed_source": [
+    "internal/agent/web_enrichment.go",
+    "internal/agent/web_enrichment_test.go"
+  ],
+  "scope": "No other implementation changed in this repair.",
+  "command": "go test ./internal/agent -run '^(TestP2OversizedEvidenceReturnsWithoutProgress|TestP2WorstCaseEvidenceStaysBelowIngest)$' -count=1 -v",
+  "cwd": "/Users/yym1ng/Documents/Codex/2026-10-16/shen/outputs/shen-scan-public",
+  "exit_code": 0,
+  "actual_output": "=== RUN   TestP2WorstCaseEvidenceStaysBelowIngest\n--- PASS: TestP2WorstCaseEvidenceStaysBelowIngest (0.03s)\n=== RUN   TestP2OversizedEvidenceReturnsWithoutProgress\n=== RUN   TestP2OversizedEvidenceReturnsWithoutProgress/escaped_control_characters\n=== RUN   TestP2OversizedEvidenceReturnsWithoutProgress/overlong_input_url\n--- PASS: TestP2OversizedEvidenceReturnsWithoutProgress (0.05s)\n    --- PASS: TestP2OversizedEvidenceReturnsWithoutProgress/escaped_control_characters (0.03s)\n    --- PASS: TestP2OversizedEvidenceReturnsWithoutProgress/overlong_input_url (0.01s)\nPASS\nok  \tscanplatform/internal/agent\t0.532s\n",
+  "guard_reference": "internal/agent/agent.go:597 rejects len(encoded)+2 > maxBatchBytes-4096 as TaskError Retryable:false",
+  "tests": "Original worst-case bounded evidence PASS; escaped-control and overlong metadata return within2s test bound, remain oversized and preserve exact metadata."
+}

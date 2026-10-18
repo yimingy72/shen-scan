@@ -1,0 +1,26 @@
+{
+  "run_id": "c72f60c4-d5bf-45e6-ac20-0e3d6cad36bf",
+  "status": "completed",
+  "tasks": {
+    "http": 1
+  },
+  "primary_url": "http://127.0.0.1:18583/home",
+  "input_url": "http://127.0.0.1:18583/start",
+  "requests_budget_used": 4,
+  "redirects": [
+    {
+      "from_url": "http://127.0.0.1:18583/start",
+      "to_url": "http://127.0.0.1:18583/home",
+      "status_code": 302,
+      "outcome": "followed",
+      "attempt_index": 0
+    }
+  ],
+  "matched_collection_rules": [
+    "http-collect-wordpress-readme"
+  ],
+  "poc_enabled": false,
+  "poc_checked_count": 0,
+  "real_control_agent_pg_helper": true,
+  "synthetic_owned_target": true
+}

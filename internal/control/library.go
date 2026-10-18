@@ -27,35 +27,36 @@ const (
 )
 
 type ruleSummary struct {
-	MatchSummary           string            `json:"match_summary"`
-	ID                     string            `json:"id"`
-	Kind                   string            `json:"kind"`
-	Name                   string            `json:"name"`
-	Description            string            `json:"description,omitempty"`
-	Engine                 string            `json:"engine"`
-	Severity               string            `json:"severity"`
-	Enabled                bool              `json:"enabled"`
-	Builtin                bool              `json:"builtin"`
-	Revision               int               `json:"revision"`
-	Tags                   []string          `json:"tags,omitempty"`
-	Source                 string            `json:"source,omitempty"`
-	AppliesTo              []string          `json:"applies_to,omitempty"`
-	SourceID               string            `json:"source_id,omitempty"`
-	Purpose                string            `json:"purpose"`
-	VerificationID         string            `json:"verification_id,omitempty"`
-	CVEs                   []string          `json:"cves,omitempty"`
-	VerificationCategory   string            `json:"verification_category,omitempty"`
-	EvidenceLevel          string            `json:"evidence_level,omitempty"`
-	Capabilities           []string          `json:"capabilities,omitempty"`
-	DefaultDisabledReason  string            `json:"default_disabled_reason,omitempty"`
-	RuntimeReason          string            `json:"runtime_reason,omitempty"`
-	CatalogOnly            bool              `json:"catalog_only,omitempty"`
-	ExecutionProfile       string            `json:"execution_profile,omitempty"`
-	TemplateID             string            `json:"template_id,omitempty"`
-	ContentSHA256          string            `json:"content_sha256,omitempty"`
-	ExecutionAvailable     bool              `json:"execution_available"`
-	CatalogSanitizedFields []string          `json:"catalog_sanitized_fields,omitempty"`
-	Upstream               *rulelib.Upstream `json:"upstream,omitempty"`
+	MatchSummary           string                  `json:"match_summary"`
+	ID                     string                  `json:"id"`
+	Kind                   string                  `json:"kind"`
+	Name                   string                  `json:"name"`
+	Description            string                  `json:"description,omitempty"`
+	Engine                 string                  `json:"engine"`
+	Severity               string                  `json:"severity"`
+	Enabled                bool                    `json:"enabled"`
+	Builtin                bool                    `json:"builtin"`
+	Revision               int                     `json:"revision"`
+	Tags                   []string                `json:"tags,omitempty"`
+	Source                 string                  `json:"source,omitempty"`
+	AppliesTo              []string                `json:"applies_to,omitempty"`
+	SourceID               string                  `json:"source_id,omitempty"`
+	Purpose                string                  `json:"purpose"`
+	VerificationID         string                  `json:"verification_id,omitempty"`
+	CVEs                   []string                `json:"cves,omitempty"`
+	VerificationCategory   string                  `json:"verification_category,omitempty"`
+	EvidenceLevel          string                  `json:"evidence_level,omitempty"`
+	Capabilities           []string                `json:"capabilities,omitempty"`
+	DefaultDisabledReason  string                  `json:"default_disabled_reason,omitempty"`
+	RuntimeReason          string                  `json:"runtime_reason,omitempty"`
+	CatalogOnly            bool                    `json:"catalog_only,omitempty"`
+	ExecutionProfile       string                  `json:"execution_profile,omitempty"`
+	TemplateID             string                  `json:"template_id,omitempty"`
+	ContentSHA256          string                  `json:"content_sha256,omitempty"`
+	ExecutionAvailable     bool                    `json:"execution_available"`
+	CatalogSanitizedFields []string                `json:"catalog_sanitized_fields,omitempty"`
+	Upstream               *rulelib.Upstream       `json:"upstream,omitempty"`
+	Collection             *rulelib.HTTPCollection `json:"collection,omitempty"`
 }
 
 type ruleExportLicense struct {
@@ -82,6 +83,7 @@ type ruleSnapshot struct {
 	ServiceProfile          string         `json:"service_profile,omitempty"`
 	FingerprintBundle       string         `json:"fingerprint_bundle,omitempty"`
 	WebProfile              string         `json:"web_profile,omitempty"`
+	WebEnrichmentProfile    string         `json:"web_enrichment_profile,omitempty"`
 	HTTP                    []rulelib.Rule `json:"http"`
 	Port                    []rulelib.Rule `json:"port"`
 	POC                     []rulelib.Rule `json:"poc"`
@@ -90,15 +92,16 @@ type ruleSnapshot struct {
 }
 
 type executionRule struct {
-	ID          string             `json:"id"`
-	Kind        string             `json:"kind"`
-	Name        string             `json:"name"`
-	Engine      string             `json:"engine"`
-	Severity    string             `json:"severity"`
-	Enabled     bool               `json:"enabled"`
-	Revision    int                `json:"revision"`
-	Definition  rulelib.Definition `json:"definition"`
-	Fingerprint json.RawMessage    `json:"fingerprint,omitempty"`
+	ID          string                  `json:"id"`
+	Kind        string                  `json:"kind"`
+	Name        string                  `json:"name"`
+	Engine      string                  `json:"engine"`
+	Severity    string                  `json:"severity"`
+	Enabled     bool                    `json:"enabled"`
+	Revision    int                     `json:"revision"`
+	Definition  rulelib.Definition      `json:"definition"`
+	Fingerprint json.RawMessage         `json:"fingerprint,omitempty"`
+	Collection  *rulelib.HTTPCollection `json:"collection,omitempty"`
 }
 
 func executionRules(rules []rulelib.Rule) []executionRule {
@@ -106,7 +109,7 @@ func executionRules(rules []rulelib.Rule) []executionRule {
 	for _, rule := range rules {
 		result = append(result, executionRule{ID: rule.ID, Kind: rule.Kind, Name: rule.Name, Engine: rule.Engine,
 			Severity: rule.Severity, Enabled: rule.Enabled, Revision: rule.Revision, Definition: rule.Definition,
-			Fingerprint: rule.Fingerprint})
+			Fingerprint: rule.Fingerprint, Collection: rule.Collection})
 	}
 	return result
 }
@@ -260,7 +263,7 @@ func summarizeRule(rule rulelib.Rule, sourceID string) ruleSummary {
 	item := ruleSummary{MatchSummary: string(summary), ID: rule.ID, Kind: rule.Kind, Name: rule.Name, Description: rule.Description,
 		Engine: rule.Engine, Severity: rule.Severity, Enabled: rule.Enabled, Builtin: rule.Builtin,
 		Revision: rule.Revision, Tags: rule.Tags, Source: rule.Source, AppliesTo: rule.AppliesTo, SourceID: sourceID,
-		Purpose: rulelib.VerificationPurpose(rule), ExecutionAvailable: true}
+		Purpose: rulelib.VerificationPurpose(rule), ExecutionAvailable: true, Collection: rule.Collection}
 	if rule.Verification != nil {
 		item.VerificationID = rule.Verification.ID
 		item.CVEs = rule.Verification.CVEs

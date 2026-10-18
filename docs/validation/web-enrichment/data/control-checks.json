@@ -1,0 +1,64 @@
+{
+  "scope": "Control frozen HTTP enrichment profile, rule collection persistence, claim/replay capability fence, observation scope and pre-probe failure completion",
+  "source": "Prior execution outputs in this task; no tests rerun for this record or final read-only review",
+  "database": "Existing local shen-p1-postgres; private DSN loaded into subprocess environment without printing; each PG test creates and drops its own schema",
+  "checks": [
+    {
+      "command": "CONTROL_TEST_DATABASE_URL=<PRIVATE_LOCAL_DSN> go test ./internal/control -run '^Test(HTTPEnrichmentScopeAndRuleProjection|PostgresHTTPEnrichmentSnapshotAndCapabilities)$' -count=1 -v",
+      "exit_code": 0,
+      "output": "TestHTTPEnrichmentScopeAndRuleProjection PASS\nTestPostgresHTTPEnrichmentSnapshotAndCapabilities PASS (0.62s)\nok scanplatform/internal/control 0.955s",
+      "phase": "Initial frozen-profile/capability/scope verification"
+    },
+    {
+      "command": "CONTROL_TEST_DATABASE_URL=<PRIVATE_LOCAL_DSN> go test ./internal/control -run '^Test(HTTPEnrichmentScopeAndRuleProjection|PostgresHTTPEnrichmentSnapshotAndCapabilities|POCFingerprintPolicyAndLateServiceReconciliation|PostgresSchedulingInvariants)$' -count=1 -v",
+      "exit_code": 0,
+      "output": "TestHTTPEnrichmentScopeAndRuleProjection PASS\nTestPostgresHTTPEnrichmentSnapshotAndCapabilities PASS (2.79s)\nTestPOCFingerprintPolicyAndLateServiceReconciliation PASS (2.52s)\nTestPostgresSchedulingInvariants PASS (2.85s)\nok scanplatform/internal/control 8.492s",
+      "phase": "Collection persistence/frozen execution rules plus related policy and scheduling checks"
+    },
+    {
+      "command": "CONTROL_TEST_DATABASE_URL=<PRIVATE_LOCAL_DSN> go test ./internal/control -run '^Test(HTTPEnrichmentScopeAndRuleProjection|PostgresHTTPEnrichmentSnapshotAndCapabilities)$' -count=1 -v",
+      "exit_code": 0,
+      "output": "TestHTTPEnrichmentScopeAndRuleProjection PASS\nTestPostgresHTTPEnrichmentSnapshotAndCapabilities PASS (0.67s)\nok scanplatform/internal/control 1.004s",
+      "phase": "Additional original-entry PoC binding and legacy replay checks"
+    },
+    {
+      "command": "CONTROL_TEST_DATABASE_URL=<PRIVATE_LOCAL_DSN> go test ./internal/control -run '^Test(HTTPEnrichmentScopeAndRuleProjection|PostgresHTTPEnrichmentSnapshotAndCapabilities|RuleLibraryAndPOCClosure|BinaryObservationBatchRoundTrip|PostgresSchedulingInvariants)$' -count=1 -v",
+      "exit_code": 1,
+      "output": "TestHTTPEnrichmentScopeAndRuleProjection PASS\nTestPostgresHTTPEnrichmentSnapshotAndCapabilities PASS (0.72s)\nTestRuleLibraryAndPOCClosure FAIL: expected canonical trailing slash for root PoC endpoint\nTestBinaryObservationBatchRoundTrip PASS (0.46s)\nTestPostgresSchedulingInvariants FAIL: receipt attempt fixture omitted required new-profile probe evidence\nFAIL scanplatform/internal/control 4.050s",
+      "phase": "Strict success evidence and pre-probe failure binding",
+      "disposition": "Canonical root slash preserved in derived PoC endpoint; legacy receipt fixture updated to include a valid direct-response probe. Affected failures rerun below."
+    },
+    {
+      "command": "CONTROL_TEST_DATABASE_URL=<PRIVATE_LOCAL_DSN> go test ./internal/control -run '^Test(RuleLibraryAndPOCClosure|PostgresSchedulingInvariants)$' -count=1 -v",
+      "exit_code": 0,
+      "output": "TestRuleLibraryAndPOCClosure PASS (0.78s)\nTestPostgresSchedulingInvariants PASS (2.57s)\nlarge_cancel_response_over_closing_TLS_connection PASS (0.20s)\nok scanplatform/internal/control 3.827s",
+      "phase": "Affected regression recheck after canonical slash and fixture correction"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "output": ""
+    }
+  ],
+  "covered": [
+    "New createRun profile frozen into seed and rule snapshot",
+    "Old run does not inherit global enrichment profile",
+    "Service-derived HTTP inherits new/old snapshot exactly",
+    "Collection CRUD/import/export/list and execution-rules/ref retention",
+    "Collection snapshot remains frozen after library update",
+    "Missing/wrong claim capability cannot claim new task",
+    "Capability downgrade cannot replay a new-profile lease",
+    "Both old/new capability can replay legacy task",
+    "Wrong InputURL/redirect source/work identity/foreign origin rejected",
+    "Supplement response stays nested and same-origin",
+    "Successful result requires primary probe evidence",
+    "Explicit implicit-endpoint setup failure with empty URL binds WorkKey and completes partial",
+    "DNS/helper/unknown-protocol failure contracts",
+    "PoC disabled produces no derived PoC work; explicitly enabled PoC retains original assigned entry"
+  ],
+  "limits": [
+    "No cloud, deployment, full test suite or performance benchmark run by this subagent",
+    "No helper/Agent tests were rerun for the final read-only review",
+    "Parent owns actual live Control+Agent+PG+helper smoke, HTTP transcripts and screenshots; see smoke-result.json for its limited functional result"
+  ]
+}

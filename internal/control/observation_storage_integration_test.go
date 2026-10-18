@@ -32,7 +32,7 @@ func TestBinaryObservationBatchRoundTrip(t *testing.T) {
 			Task *Task `json:"task"`
 		}
 		callAPI(t, handler, http.MethodPost, "/api/tasks/claim", worker.WorkerToken, map[string]any{
-			"worker_id": worker.WorkerID, "session_id": "binary-session", "service_profile": "nmap-light-v1", "web_evidence_profile": webevidence.Profile, "fingerprint_bundle": webevidence.FingerprintBundle, "supports_confirmed_stop": true, "supports_http_request_budget": true, "request_id": kind, "types": []string{kind},
+			"worker_id": worker.WorkerID, "session_id": "binary-session", "service_profile": "nmap-light-v1", "web_evidence_profile": webevidence.Profile, "web_enrichment_profile": webevidence.EnrichmentProfile, "fingerprint_bundle": webevidence.FingerprintBundle, "supports_confirmed_stop": true, "supports_http_request_budget": true, "request_id": kind, "types": []string{kind},
 		}, http.StatusOK, &out)
 		if out.Task == nil {
 			t.Fatalf("no %s task", kind)
@@ -70,6 +70,7 @@ func TestBinaryObservationBatchRoundTrip(t *testing.T) {
 			item.URL, item.Protocol, item.StatusCode = "http://192.0.2.20:3306/", "http", 200
 			item.BodyExcerpt, item.ResponseRaw = "body\x00tail", "HTTP/1.1 200 OK\r\n\r\nbody\x00tail"
 			item.Headers = map[string][]string{"X-Fixture": {"literal \\u0000", "zero\x00end"}}
+			item = controlHTTPFixture(item)
 		}
 		items := []Observation{item}
 		batch(task, items, http.StatusOK)

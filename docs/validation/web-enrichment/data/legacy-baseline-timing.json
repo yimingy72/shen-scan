@@ -1,0 +1,61 @@
+{
+  "purpose": "Preserve already-executed pristine baseline timing failure; this JSON assembly did not rerun tests.",
+  "baseline_commit": "dc1cf0bff8b496a02b4bcd09c674adf9a1957f63",
+  "baseline_source_preparation": {
+    "method": "git archive HEAD read into memory, extract into fresh tempfile.mkdtemp(prefix=\"p2-agent-head-replay-\") via tarfile.extractall(filter=\"data\"); execute only the targeted test there; finally delete temporary directory",
+    "executed_git_argv": [
+      "git",
+      "archive",
+      "HEAD"
+    ],
+    "resolved_HEAD": "dc1cf0bff8b496a02b4bcd09c674adf9a1957f63",
+    "working_copy_product_edits_included": false
+  },
+  "baseline_test": {
+    "executed_argv": [
+      "go",
+      "test",
+      "./internal/agent",
+      "-run",
+      "^TestHTTPProtocolFallbackSharesEndpointTimeout$",
+      "-count=1",
+      "-v"
+    ],
+    "cwd": "Fresh temporary extraction of the baseline commit; exact ephemeral directory path was not retained.",
+    "timeout_seconds": 90,
+    "exit_code": 1,
+    "actual_output": "HEAD dc1cf0bff8b496a02b4bcd09c674adf9a1957f63\n=== RUN   TestHTTPProtocolFallbackSharesEndpointTimeout\n    agent_test.go:507: protocol fallback exceeded the shared endpoint budget: 304.937ms\n--- FAIL: TestHTTPProtocolFallbackSharesEndpointTimeout (0.33s)\nFAIL\nFAIL\tscanplatform/internal/agent\t0.825s\nFAIL\n",
+    "original_log": "work/p2-web-enrichment/legacy-fallback-head-replay.log"
+  },
+  "source_references": [
+    {
+      "commit": "dc1cf0bff8b496a02b4bcd09c674adf9a1957f63",
+      "path": "internal/agent/http.go",
+      "lines": "197-221",
+      "function": "(*Agent).fetchHTTP",
+      "source": "func (a *Agent) fetchHTTP(ctx context.Context, ep Endpoint, timeout time.Duration) Observation {\n\tendpointCtx, cancel := context.WithTimeout(ctx, 90*time.Second)\n\tdefer cancel()\n\tfirstTimeout := timeout\n\tif ep.URL == \"\" && timeout > time.Nanosecond {\n\t\tfirstTimeout = timeout / 2\n\t}\n\tobs := a.fetchHTTPOnce(endpointCtx, ep, firstTimeout)\n\tif ep.URL != \"\" || obs.Error == \"\" || obs.StatusCode != 0 {\n\t\treturn obs\n\t}\n\tfirstError := obs.Error\n\talternate := ep\n\tscheme := \"https\"\n\tif strings.HasPrefix(obs.URL, \"https://\") {\n\t\tscheme = \"http\"\n\t}\n\talternate.URL, _ = endpointURLWithScheme(ep, scheme)\n\talt := a.fetchHTTPOnce(endpointCtx, alternate, timeout)\n\tif alt.Error == \"\" || alt.StatusCode != 0 {\n\t\treturn alt\n\t}\n\tobs.Error = firstError + \"; alternate protocol: \" + alt.Error\n\treturn obs\n}\n",
+      "unchanged_in_current_worktree": true
+    },
+    {
+      "commit": "dc1cf0bff8b496a02b4bcd09c674adf9a1957f63",
+      "path": "internal/agent/agent_test.go",
+      "lines": "456-509",
+      "function": "TestHTTPProtocolFallbackSharesEndpointTimeout",
+      "source": "func TestHTTPProtocolFallbackSharesEndpointTimeout(t *testing.T) {\n\tlistener, err := net.Listen(\"tcp4\", \"127.0.0.1:0\")\n\tif err != nil {\n\t\tt.Fatal(err)\n\t}\n\tdefer listener.Close()\n\tvar mu sync.Mutex\n\tvar connections []net.Conn\n\tdone := make(chan struct{})\n\tgo func() {\n\t\tdefer close(done)\n\t\tfor {\n\t\t\tconn, err := listener.Accept()\n\t\t\tif err != nil {\n\t\t\t\treturn\n\t\t\t}\n\t\t\tmu.Lock()\n\t\t\tconnections = append(connections, conn)\n\t\t\tmu.Unlock()\n\t\t}\n\t}()\n\tdefer func() {\n\t\t_ = listener.Close()\n\t\t<-done\n\t\tmu.Lock()\n\t\tdefer mu.Unlock()\n\t\tfor _, conn := range connections {\n\t\t\t_ = conn.Close()\n\t\t}\n\t}()\n\n\ta, err := New(Config{ControlURL: \"http://127.0.0.1:1\", JoinToken: \"join\", InstanceID: \"test\", Hostname: \"test\", SessionID: \"test\", AllowPrivateTargets: true})\n\tif err != nil {\n\t\tt.Fatal(err)\n\t}\n\t_, portText, _ := net.SplitHostPort(listener.Addr().String())\n\tport, _ := strconv.Atoi(portText)\n\tstarted := time.Now()\n\tobs := a.fetchHTTP(context.Background(), Endpoint{IP: \"127.0.0.1\", Port: port}, 200*time.Millisecond)\n\telapsed := time.Since(started)\n\tif obs.Error == \"\" {\n\t\tt.Fatal(\"silent endpoint unexpectedly returned a response\")\n\t}\n\ttime.Sleep(20 * time.Millisecond)\n\tmu.Lock()\n\taccepted := len(connections)\n\tmu.Unlock()\n\tif accepted != 2 {\n\t\tt.Fatalf(\"protocol fallback opened %d connections; want both protocol attempts\", accepted)\n\t}\n\tif elapsed > 300*time.Millisecond {\n\t\tt.Fatalf(\"protocol fallback exceeded the shared endpoint budget: %v\", elapsed)\n\t}\n}"
+    }
+  ],
+  "other_existing_runs": {
+    "current_package_regression": {
+      "result": "FAIL; this is the current modified worktree, not the pristine baseline",
+      "actual_failure_excerpt": "--- FAIL: TestHTTPProtocolFallbackSharesEndpointTimeout (0.32s)\n    agent_test.go:507: protocol fallback exceeded the shared endpoint budget: 302.938125ms",
+      "original_log": "work/p2-web-enrichment/agent-package-regression.log"
+    },
+    "current_isolated_recheck": {
+      "result": "FAIL; current modified worktree",
+      "actual_output": "=== RUN   TestHTTPProtocolFallbackSharesEndpointTimeout\n    agent_test.go:507: protocol fallback exceeded the shared endpoint budget: 311.071208ms\n--- FAIL: TestHTTPProtocolFallbackSharesEndpointTimeout (0.33s)\nFAIL\nFAIL\tscanplatform/internal/agent\t0.622s\nFAIL\n",
+      "original_log": "work/p2-web-enrichment/legacy-fallback-recheck.log"
+    }
+  },
+  "interpretation": "The pristine baseline independently failed its 300ms assertion at304.937ms. Current worktree package failure302.938125ms and isolatedrecheck311.071208ms must not be labeled baseline runs. The unchanged legacy code uses timeout/2 for the first attempt and timeout for fallback (nominal100ms+200ms at the test input), plus overhead. This establishes a pre-existing timing-sensitive failure, not full package success.",
+  "rerun_performed_for_this_record": false
+}

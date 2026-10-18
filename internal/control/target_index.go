@@ -117,7 +117,8 @@ func observationTarget(typeName string, payload []byte, source string, item *Obs
 			return "", errors.New("HTTP observation belongs to a different source target")
 		}
 		var p struct {
-			Endpoints []taskEndpoint `json:"endpoints"`
+			Endpoints            []taskEndpoint `json:"endpoints"`
+			WebEnrichmentProfile string         `json:"web_enrichment_profile"`
 		}
 		if json.Unmarshal(payload, &p) != nil {
 			return "", errors.New("invalid HTTP task payload")
@@ -125,9 +126,17 @@ func observationTarget(typeName string, payload []byte, source string, item *Obs
 		if item.URL != "" {
 			inside := false
 			for _, ep := range p.Endpoints {
+				if item.WorkKey != "" && ep.WorkKey != "" && item.WorkKey != ep.WorkKey {
+					continue
+				}
 				if _, ok := observedEndpoint(ep, item.URL); ok {
-					if item.WorkKey != "" && ep.WorkKey != "" && item.WorkKey != ep.WorkKey {
-						return "", errors.New("HTTP work binding does not match assigned entry")
+					if p.WebEnrichmentProfile != "" {
+						if _, valid := httpEvidenceURL(item.URL); !valid {
+							return "", errors.New("HTTP observation has an invalid final URL")
+						}
+						if err := validateHTTPEnrichmentEvidence(ep, item, p.WebEnrichmentProfile); err != nil {
+							return "", err
+						}
 					}
 					if ep.WorkKey != "" {
 						item.WorkKey = ep.WorkKey
@@ -139,8 +148,29 @@ func observationTarget(typeName string, payload []byte, source string, item *Obs
 			if !inside {
 				return "", errors.New("HTTP observation URL is outside assigned entry")
 			}
-		} else if item.Error == "" {
-			return "", errors.New("HTTP observation must include URL or an explicit error")
+		} else {
+			if item.Error == "" {
+				return "", errors.New("HTTP observation must include URL or an explicit error")
+			}
+			if p.WebEnrichmentProfile != "" {
+				bound := false
+				for _, ep := range p.Endpoints {
+					if item.WorkKey != "" && ep.WorkKey != item.WorkKey || item.WorkKey == "" && len(p.Endpoints) != 1 {
+						continue
+					}
+					if ep.IP != "" && item.IP != "" && canonicalTarget(ep.IP) != canonicalTarget(item.IP) {
+						continue
+					}
+					if err := validateHTTPEnrichmentEvidence(ep, item, p.WebEnrichmentProfile); err != nil {
+						return "", err
+					}
+					item.WorkKey, bound = ep.WorkKey, true
+					break
+				}
+				if !bound {
+					return "", errors.New("HTTP setup failure does not bind to assigned work")
+				}
+			}
 		}
 		return source, nil
 	}

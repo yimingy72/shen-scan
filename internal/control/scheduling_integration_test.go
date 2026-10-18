@@ -66,7 +66,7 @@ func TestPostgresSchedulingInvariants(t *testing.T) {
 	}, http.StatusOK, &registered)
 	claimBody := func(requestID string, types []string) map[string]any {
 		return map[string]any{"worker_id": registered.WorkerID, "session_id": "session-1", "supports_confirmed_stop": true, "supports_http_request_budget": true, "request_id": requestID, "types": types,
-			"service_profile": "nmap-light-v1", "web_evidence_profile": webevidence.Profile, "fingerprint_bundle": webevidence.FingerprintBundle}
+			"service_profile": "nmap-light-v1", "web_evidence_profile": webevidence.Profile, "web_enrichment_profile": webevidence.EnrichmentProfile, "fingerprint_bundle": webevidence.FingerprintBundle}
 	}
 	// Logical cancellation does not prove a fixture executor has stopped. Model
 	// that acknowledgement before reusing this worker for the next scenario.
@@ -381,7 +381,7 @@ func TestPostgresSchedulingInvariants(t *testing.T) {
 	if receiptAttempt1.Task == nil {
 		t.Fatal("expected receipt test task")
 	}
-	receiptItems := []Observation{{Kind: "http", Target: "https://receipt.example.com", URL: "https://receipt.example.com/", StatusCode: 200}}
+	receiptItems := []Observation{controlHTTPFixture(Observation{Kind: "http", Target: "https://receipt.example.com", URL: "https://receipt.example.com/", StatusCode: 200})}
 	receiptBatch := map[string]any{"worker_id": registered.WorkerID, "session_id": "session-1", "attempt_no": receiptAttempt1.Task.AttemptNo,
 		"batch_seq": 0, "items": receiptItems}
 	callAPI(t, handler, http.MethodPost, "/api/tasks/"+receiptAttempt1.Task.ID+"/batches", registered.WorkerToken, receiptBatch, http.StatusOK, nil)
@@ -408,7 +408,7 @@ func TestPostgresSchedulingInvariants(t *testing.T) {
 		t.Fatal("unsealed receipt attempt appeared in accepted result view")
 	}
 	currentBatch := map[string]any{"worker_id": registered.WorkerID, "session_id": "session-1", "attempt_no": receiptAttempt2.Task.AttemptNo, "batch_seq": 0,
-		"items": []Observation{{Kind: "http", Target: "https://receipt.example.com/", URL: "https://receipt.example.com/", StatusCode: 201, Coverage: "complete", Outcome: "identified"}}}
+		"items": []Observation{controlHTTPFixture(Observation{Kind: "http", Target: "https://receipt.example.com/", URL: "https://receipt.example.com/", StatusCode: 201, Coverage: "complete", Outcome: "identified"})}}
 	callAPI(t, handler, http.MethodPost, "/api/tasks/"+receiptAttempt2.Task.ID+"/batches", registered.WorkerToken, currentBatch, http.StatusOK, nil)
 	callAPI(t, handler, http.MethodPost, "/api/tasks/"+receiptAttempt2.Task.ID+"/complete", registered.WorkerToken,
 		map[string]any{"worker_id": registered.WorkerID, "session_id": "session-1", "attempt_no": receiptAttempt2.Task.AttemptNo, "last_batch_seq": 0}, http.StatusOK, nil)

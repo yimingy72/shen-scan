@@ -35,6 +35,9 @@ func Validate(rule Rule) error {
 	if err := validateRuleEnvelope(rule); err != nil {
 		return err
 	}
+	if err := validateHTTPCollection(rule); err != nil {
+		return err
+	}
 	purpose := VerificationPurpose(rule)
 	if !oneOf(purpose, "discovery", "verification", "check") {
 		return fmt.Errorf("invalid purpose %q", rule.Purpose)

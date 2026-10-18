@@ -1,0 +1,84 @@
+{
+  "enrichment_profile": "bounded-enrichment-v1",
+  "http_payload": "web_enrichment_profile",
+  "claim_capability": "web_enrichment_profile (only exact helper advertisement)",
+  "evidence": {
+    "supplements": [
+      {
+        "url": "absolute same-origin URL",
+        "rule_ids": [
+          "frozen rule id"
+        ],
+        "outcome": "matched | not_matched | partial | error | skipped_budget | skipped_limit | skipped_incomplete_reuse",
+        "response": "webevidence.Response: decoded byte Body<=32KiB (JSONbase64), BodyStorage complete only for full response fitting32KiB, otherwise prefix; BodySHA256 preserves complete collected-body hash; Completeness distinguishes partial network body",
+        "matches": "[]Technology (RuleID/RuleRevision/Evidence)",
+        "rule_results": [
+          {
+            "rule_id": "id",
+            "rule_revision": 1,
+            "outcome": "matched/not_matched/partial/error/skipped..."
+          }
+        ],
+        "error": "optional string",
+        "reused": "optional bool",
+        "storage": {
+          "body": "complete | prefix when response exists; hash_only is only the no-response/skipped sentinel, not a policy discarding small response bodies",
+          "request_truncated": false,
+          "headers_truncated": false
+        }
+      }
+    ],
+    "requests_budget_used": "conservatively charged logical collect operations, <=8; permit refresh reuses request_seq and central grants remain individually charged",
+    "supplement_plan": {
+      "matched_rules_count": "candidate-bound enabled HTTP collection rules",
+      "selected_rules_count": "<=64 sorted by ID",
+      "omitted_rules_count": "not checked",
+      "truncated_plan": "true when candidate rules exceed64"
+    },
+    "storage": {
+      "bounded": true,
+      "headers_omitted": "only if ingest guard needed",
+      "omitted_supplements": "explicit count if ingest guard drops stored groups",
+      "omitted_technologies": "explicit count if ingest guard trims persisted technology list"
+    }
+  },
+  "agent_guards": [
+    "shared entry90s context, never reset for supplements",
+    "shared logical collect cap8 across entry/fallback/icons/supplements; permit issuance is NOT the request count",
+    "supplement exact URL callback scope and MaxRequests=1 logical collect; refresh/retry may obtain additional central permits",
+    "<=2 unique new network supplementalURLs; duplicates reuse complete response only; incomplete previously collected response is explicitly skipped",
+    "trace continuity, final identity/digests, fixedIP and sameorigin checked before matching",
+    "local supplement failure never overwrites primaryHTTP outcome",
+    "<=64 candidate-bound rules sorted by ID; excess explicitly omitted, never marked checked",
+    "Serialized observation reduced toward2MiB with explicit storage omission markers; every loop iteration reduces data or returns. Irreducible oversize is preserved and rejected by common emit guard as non-retryable."
+  ],
+  "callback_extension": {
+    "new_profile_only": true,
+    "request_seq": "int1..MaxRequests, fixed for all grant refresh/retry calls within one collect",
+    "identity": "unique IPC ID per supplement; logical key(ID,seq) bound to exactURL",
+    "central_admission": "unchanged, every permission grant charged separately",
+    "legacy": "old callback shape and behavior preserved"
+  },
+  "source_ready": true,
+  "tests_log": "work/p2-web-enrichment/agent-tests.log",
+  "helper_attempt_contract": "For bounded-enrichment-v1 only, Attempts includes every collect, including icon and failed redirect fetch; Requests == len(Attempts). Legacy attempts layout unchanged.",
+  "redirect_outcomes": [
+    "followed",
+    "fetch_failed",
+    "blocked_cross_origin",
+    "loop",
+    "missing_location",
+    "invalid_location",
+    "location_too_long",
+    "hop_limit",
+    "skipped_budget",
+    "canceled"
+  ],
+  "checks": {
+    "focused_agent": "PASS:8 TestP2 tests with actual local web/fingerprint helpers, latest4.617s",
+    "actual_parent_smoke": "PASS as reported by root: completed,4requests,WordPress/readme only,PoC0; smoke-result.json/http/smoke-*.json",
+    "agent_package_regression": "FAIL at existing legacy fallback timing assertion; pristine HEAD dc1cf0b replay ALSO FAIL304.937ms>300ms; legacy fallback source unchanged. See agent-package-regression.log, legacy-fallback-recheck.log, legacy-fallback-head-replay.log.",
+    "evidence_termination": "PASS: original worst-case bound + escaped-control and overlong metadata termination cases;0.532s;agent-evidence-termination-tests.log"
+  },
+  "request_seq": "Per collect operation monotonically assigned by helper; permission retry/refresh keeps same seq. Agent bounds seq1..8 and supplement to one distinct seq. Central admission still charges each issued permit."
+}

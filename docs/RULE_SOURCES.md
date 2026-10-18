@@ -17,7 +17,7 @@ Wappalyzer 转换不再把上游 app 降级成少量 Go word / regex。每个 ap
 
 HTTPx 的 `-cff` 会叠加自身 embedded fingerprints，因此 Agent 只接纳当前冻结快照中启用产品的输出。禁用 app 不会因为 HTTPx 内置库仍存在而重新出现。旧 native HTTP 规则继续支持自定义规则和历史任务快照，并可与 HTTPx 使用同一份响应证据。
 
-当前完整 Wapp app 为 7,642 条，加上 151 条 bootstrap HTTP 规则，更新后的 HTTP 执行库预计为 **7,793 条**；最终数量以 live 数据库列表为准。Port 规则仍为 22 条。Wapp 更新继续保留用户的禁用、删除和编辑状态；新上游默认启停策略仅在没有本地 override 时生效。
+当前完整 Wapp app 为 7,642 条，加上 157 条 bootstrap HTTP 规则，更新后的 HTTP 执行库预计为 **7,799 条**；最终数量以 live 数据库列表为准。Port 规则仍为 22 条。Wapp 更新继续保留用户的禁用、删除和编辑状态；新上游默认启停策略仅在没有本地 override 时生效。
 
 HTTPx 安装、固定版本和运行参数见 [HTTPx 引擎说明](../deploy/httpx/README.md)。本地普通 HTTP / HTTPS fixture 覆盖了默认端口、同 origin 多 URL、漏结果检测及失败协议回退；3 个端点在验证环境中约 2.0 秒完成。Mac 小型 fixture 的观测最大 RSS 为 216 MiB；这些数据用于说明当前测试边界，不是大规模容量承诺。
 
@@ -47,3 +47,7 @@ Nuclei HEAD 同步后的所有可解析模板都写入独立 source catalog，�
 控制面只访问固定 GitHub API、codeload 仓库和 commit，不接受任意 URL。下载后校验归档边界、文件路径、大小和 MIT 许可，并在一个数据库事务中发布；失败保留上一成功版本。同一 HEAD 且 ConverterVersion 未变化时不重复下载，当前转换版本为 **4**。
 
 完整 MIT 文本可在工作台查看，也随规则或上游原库导出。更新、失败保护和 API 见 [规则源更新](RULE_UPDATES.md)，PoC 执行库边界见 [PoC 来源](POC_SOURCES.md)。
+
+## HTTP 产品补采
+
+新增 6 条 `collection` HTTP 规则，只在已识别产品匹配后请求固定路径。支持现有编辑、禁用、删除、JSON 导入/导出与任务快照；不是将整个 PoC 库作为 HTTP 规则执行。新任务使用 Web helper + WappalyzerGo/fingers，旧 CLI 说明仅适用于历史兼容路径。预算、数据模型和证据详见 [Web 补采](WEB_ENRICHMENT.md)。

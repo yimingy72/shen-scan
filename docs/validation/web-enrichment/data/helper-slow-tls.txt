@@ -1,0 +1,4 @@
+=== RUN   TestEnrichmentSupplementSlowTLSUsesOneLogicalRequest
+--- PASS: TestEnrichmentSupplementSlowTLSUsesOneLogicalRequest (0.61s)
+PASS
+ok  	scanplatform/webprobe	2.517s

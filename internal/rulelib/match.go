@@ -11,13 +11,17 @@ func MatchesProducts(rule Rule, products []string) bool {
 	if rule.Kind != "poc" || len(rule.AppliesTo) == 0 || len(products) == 0 {
 		return false
 	}
+	return matchesProductBindings(rule.AppliesTo, products)
+}
+
+func matchesProductBindings(bindings, products []string) bool {
 	detected := make(map[string]bool, len(products))
 	for _, product := range products {
 		if normalized := normalizeProduct(product); normalized != "" && !prohibitedProductBinding(normalized) {
 			detected[normalized] = true
 		}
 	}
-	for _, appliesTo := range rule.AppliesTo {
+	for _, appliesTo := range bindings {
 		if normalized := normalizeProduct(appliesTo); normalized != "" && detected[normalized] {
 			return true
 		}
@@ -60,7 +64,7 @@ func normalizeProduct(product string) string {
 }
 
 func Match(rule Rule, input Input) (MatchResult, bool) {
-	if rule.Kind == "poc" || rule.Engine != "native" {
+	if rule.Kind == "poc" || rule.Engine != "native" || rule.Collection != nil {
 		return MatchResult{}, false
 	}
 	d := rule.Definition

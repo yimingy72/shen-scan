@@ -1,0 +1,42 @@
+[
+  {
+    "request": "GET /start HTTP/1.1\r\nHost: 127.0.0.1:50388\r\nAccept: text/html,application/xhtml+xml,*/*;q=0.8\r\nAccept-Charset: utf-8\r\nAccept-Encoding: identity\r\nConnection: close\r\nUser-Agent: shen-scan/2\r\n\r\n",
+    "response": "HTTP/1.1 302 Found\r\nConnection: close\r\nContent-Type: text/html\r\nDate: Sun, 18 Oct 2026 00:23:15 GMT\r\nLocation: /home\r\n\r\n"
+  },
+  {
+    "request": "GET /favicon.ico HTTP/1.1\r\nHost: 127.0.0.1:50388\r\nAccept: text/html,application/xhtml+xml,*/*;q=0.8\r\nAccept-Charset: utf-8\r\nAccept-Encoding: identity\r\nConnection: close\r\nUser-Agent: shen-scan/2\r\n\r\n",
+    "response": "HTTP/1.1 404 Not Found\r\nConnection: close\r\nContent-Type: text/html\r\nDate: Sun, 18 Oct 2026 00:23:15 GMT\r\n\r\nmissing"
+  },
+  {
+    "request": "GET /start HTTP/1.1\r\nHost: 127.0.0.1:50388\r\nAccept: text/html,application/xhtml+xml,*/*;q=0.8\r\nAccept-Charset: utf-8\r\nAccept-Encoding: identity\r\nConnection: close\r\nUser-Agent: shen-scan/2\r\n\r\n",
+    "response": "HTTP/1.1 302 Found\r\nConnection: close\r\nContent-Type: text/html\r\nDate: Sun, 18 Oct 2026 00:23:17 GMT\r\nLocation: /home\r\n\r\n"
+  },
+  {
+    "request": "GET /home HTTP/1.1\r\nHost: 127.0.0.1:50388\r\nAccept: text/html,application/xhtml+xml,*/*;q=0.8\r\nAccept-Charset: utf-8\r\nAccept-Encoding: identity\r\nConnection: close\r\nUser-Agent: shen-scan/2\r\n\r\n",
+    "response": "HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: text/html\r\nDate: Sun, 18 Oct 2026 00:23:17 GMT\r\n\r\n\u003ctitle\u003eFixture\u003c/title\u003efixture-marker"
+  },
+  {
+    "request": "GET /favicon.ico HTTP/1.1\r\nHost: 127.0.0.1:50388\r\nAccept: text/html,application/xhtml+xml,*/*;q=0.8\r\nAccept-Charset: utf-8\r\nAccept-Encoding: identity\r\nConnection: close\r\nUser-Agent: shen-scan/2\r\n\r\n",
+    "response": "HTTP/1.1 404 Not Found\r\nConnection: close\r\nContent-Type: text/html\r\nDate: Sun, 18 Oct 2026 00:23:17 GMT\r\n\r\nmissing"
+  },
+  {
+    "request": "GET /confirm HTTP/1.1\r\nHost: 127.0.0.1:50388\r\nAccept: text/html,application/xhtml+xml,*/*;q=0.8\r\nAccept-Charset: utf-8\r\nAccept-Encoding: identity\r\nConnection: close\r\nUser-Agent: shen-scan/2\r\n\r\n",
+    "response": "HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: text/html\r\nDate: Sun, 18 Oct 2026 00:23:17 GMT\r\n\r\nconfirmed-product version1.2"
+  },
+  {
+    "request": "GET /bad HTTP/1.1\r\nHost: 127.0.0.1:50388\r\nAccept: text/html,application/xhtml+xml,*/*;q=0.8\r\nAccept-Charset: utf-8\r\nAccept-Encoding: identity\r\nConnection: close\r\nUser-Agent: shen-scan/2\r\n\r\n",
+    "response": "HTTP/1.1 200 OK\r\nContent-Length: 200\r\nContent-Type: text/html\r\nDate: Sun, 18 Oct 2026 00:23:17 GMT\r\n\r\nshort"
+  },
+  {
+    "request": "GET /start HTTP/1.1\r\nHost: 127.0.0.1:50388\r\nAccept: text/html,application/xhtml+xml,*/*;q=0.8\r\nAccept-Charset: utf-8\r\nAccept-Encoding: identity\r\nConnection: close\r\nUser-Agent: shen-scan/2\r\n\r\n",
+    "response": "HTTP/1.1 302 Found\r\nConnection: close\r\nContent-Type: text/html\r\nDate: Sun, 18 Oct 2026 00:23:17 GMT\r\nLocation: /home\r\n\r\n"
+  },
+  {
+    "request": "GET /home HTTP/1.1\r\nHost: 127.0.0.1:50388\r\nAccept: text/html,application/xhtml+xml,*/*;q=0.8\r\nAccept-Charset: utf-8\r\nAccept-Encoding: identity\r\nConnection: close\r\nUser-Agent: shen-scan/2\r\n\r\n",
+    "response": "HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: text/html\r\nDate: Sun, 18 Oct 2026 00:23:17 GMT\r\n\r\n\u003ctitle\u003eFixture\u003c/title\u003efixture-marker"
+  },
+  {
+    "request": "GET /favicon.ico HTTP/1.1\r\nHost: 127.0.0.1:50388\r\nAccept: text/html,application/xhtml+xml,*/*;q=0.8\r\nAccept-Charset: utf-8\r\nAccept-Encoding: identity\r\nConnection: close\r\nUser-Agent: shen-scan/2\r\n\r\n",
+    "response": "HTTP/1.1 404 Not Found\r\nConnection: close\r\nContent-Type: text/html\r\nDate: Sun, 18 Oct 2026 00:23:17 GMT\r\n\r\nmissing"
+  }
+]

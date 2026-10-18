@@ -1,8 +1,8 @@
 # HTTP 与服务指纹依据
 
-当前随项目发布的 bootstrap 包含 151 条 HTTP 规则、22 条端口规则和 43 条 PoC。Wapp source 更新加入 7,642 个完整 app，由 HTTPx v1.12.0 被动识别；本轮更新后已验证 HTTP 执行库为 7,793 条，后续数量随上游更新与本地修改变化。下面列举 native bootstrap 的主要依据，完整执行规则以任务创建时的冻结快照为准。
+当前 bootstrap 包含 **157 条 HTTP 规则（151 条原有规则 + 6 条按产品补采）、22 条端口规则和 43 条 PoC**。记录的 Wapp source 为 7,642 个完整 app；与当前 bootstrap 合计理论值为 7,799，实际数量取决于 source 更新和本地编辑。完整执行规则以任务冻结快照为准。
 
-HTTP 指纹只使用本次 HTTP 探测响应，不为识别 CMS、框架或版本增加请求。HTTPx 使用完整 Wapp CFF 识别后，Agent 只保留冻结快照中启用的产品，并继续用同一响应运行 native 补充规则。服务指纹优先读取连接已经返回的首段 Banner；6379 和 11211 端口分别发送一次无副作用的 `PING` 和 `version` 命令。
+新任务由 Web helper 采集响应并运行 WappalyzerGo，Agent 继续用同一响应运行 fingers 与 native 被动规则；识别到产品后，按冻结 HTTP collection 规则有限补采。补采使用独立响应匹配，不拼接正文。六项规则、同源跳转和预算见 [Web 补采](WEB_ENRICHMENT.md)。服务产品规则仍只依据真实协议与 Banner，不从端口号猜测。
 
 ## HTTP 规则
 
@@ -50,7 +50,7 @@ Bootstrap 中 85 个被动信号是早期对 MIT `projectdiscovery/wappalyzergo`
 
 ## 调度边界
 
-含 httpx-cff 的 HTTP 任务使用每任务批量 CLI，默认最多 2 个 HTTPx 进程、每进程 8 线程。每次协议尝试的请求超时不超过 12 秒；显式 URL 保持输入协议，端口派生且未指定 URL 的端点在首选协议无响应时批量尝试另一协议，整个任务仍受统一执行截止时间约束。本轮 HTTPx 不自动跟随重定向，保留响应中的 Location，跳转目标需要单独作为已授权输入。旧的纯 native 快照保留此前 2 端点并发和共享 12 秒协议回退预算。服务任务仍受 Agent 端点并发约束，控制面仍为开放端口派生 HTTP 候选。
+新任务冻结 `bounded-enrichment-v1`，使用 Web helper 和常驻 fingers；最多跟随 3 次同源跳转，并共享 8 次逻辑采集、最多 2 个补采 URL 和 90 秒父截止时间。跨 scheme、host 或有效端口不跟随。没有新 profile 的历史快照保持原行为；旧 HTTPx CLI / native 路径继续兼容，不会自动增加网络动作。连接预算和 helper 进程复用见 [P2 执行资源](P2_EXECUTION.md)。
 
 ## 匹配质量
 

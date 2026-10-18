@@ -1,0 +1,42 @@
+=== RUN   TestEnrichmentTLSChainBudgetAndFinalMatching
+--- PASS: TestEnrichmentTLSChainBudgetAndFinalMatching (0.07s)
+=== RUN   TestEnrichmentStopsAndRetainsLastResponse
+=== RUN   TestEnrichmentStopsAndRetainsLastResponse/loop
+=== RUN   TestEnrichmentStopsAndRetainsLastResponse/missing
+=== RUN   TestEnrichmentStopsAndRetainsLastResponse/invalid
+=== RUN   TestEnrichmentStopsAndRetainsLastResponse/userinfo
+=== RUN   TestEnrichmentStopsAndRetainsLastResponse/long
+=== RUN   TestEnrichmentStopsAndRetainsLastResponse/budget
+=== RUN   TestEnrichmentStopsAndRetainsLastResponse/network_failure
+=== RUN   TestEnrichmentStopsAndRetainsLastResponse/canceled
+--- PASS: TestEnrichmentStopsAndRetainsLastResponse (0.10s)
+    --- PASS: TestEnrichmentStopsAndRetainsLastResponse/loop (0.00s)
+    --- PASS: TestEnrichmentStopsAndRetainsLastResponse/missing (0.00s)
+    --- PASS: TestEnrichmentStopsAndRetainsLastResponse/invalid (0.00s)
+    --- PASS: TestEnrichmentStopsAndRetainsLastResponse/userinfo (0.00s)
+    --- PASS: TestEnrichmentStopsAndRetainsLastResponse/long (0.00s)
+    --- PASS: TestEnrichmentStopsAndRetainsLastResponse/budget (0.00s)
+    --- PASS: TestEnrichmentStopsAndRetainsLastResponse/network_failure (0.00s)
+    --- PASS: TestEnrichmentStopsAndRetainsLastResponse/canceled (0.08s)
+=== RUN   TestEnrichmentBlocksCrossOriginAndLimitsHops
+=== RUN   TestEnrichmentBlocksCrossOriginAndLimitsHops/port
+=== RUN   TestEnrichmentBlocksCrossOriginAndLimitsHops/host
+=== RUN   TestEnrichmentBlocksCrossOriginAndLimitsHops/scheme
+=== RUN   TestEnrichmentBlocksCrossOriginAndLimitsHops/three_hops
+--- PASS: TestEnrichmentBlocksCrossOriginAndLimitsHops (0.01s)
+    --- PASS: TestEnrichmentBlocksCrossOriginAndLimitsHops/port (0.00s)
+    --- PASS: TestEnrichmentBlocksCrossOriginAndLimitsHops/host (0.00s)
+    --- PASS: TestEnrichmentBlocksCrossOriginAndLimitsHops/scheme (0.00s)
+    --- PASS: TestEnrichmentBlocksCrossOriginAndLimitsHops/three_hops (0.00s)
+=== RUN   TestEnrichmentLegacyOffAndSupplementSingleGET
+=== RUN   TestEnrichmentLegacyOffAndSupplementSingleGET/legacy
+=== RUN   TestEnrichmentLegacyOffAndSupplementSingleGET/supplement
+--- PASS: TestEnrichmentLegacyOffAndSupplementSingleGET (0.00s)
+    --- PASS: TestEnrichmentLegacyOffAndSupplementSingleGET/legacy (0.00s)
+    --- PASS: TestEnrichmentLegacyOffAndSupplementSingleGET/supplement (0.00s)
+=== RUN   TestEnrichmentRejectsInvalidPlanBeforeRequests
+--- PASS: TestEnrichmentRejectsInvalidPlanBeforeRequests (0.00s)
+=== RUN   TestEnrichmentSupplementSlowTLSUsesOneLogicalRequest
+--- PASS: TestEnrichmentSupplementSlowTLSUsesOneLogicalRequest (0.61s)
+PASS
+ok  	scanplatform/webprobe	2.746s

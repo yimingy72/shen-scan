@@ -11,6 +11,8 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
+	"sync"
 	"time"
 
 	"scanplatform/internal/httpadmission"
@@ -111,7 +113,29 @@ func (b budgetHTTPTransport) RoundTrip(request *http.Request) (*http.Response, e
 
 // This callback carries only one item's random bearer token. Worker credentials
 // and the complete task binding remain in this process, never helper IPC/env.
+type webEntryBudget struct {
+	mu         sync.Mutex
+	used       int
+	operations map[string]string
+}
+
+func (b *webEntryBudget) consumeAtLeast(n int) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.used = max(b.used, n)
+}
+func (b *webEntryBudget) count() int { b.mu.Lock(); defer b.mu.Unlock(); return b.used }
+
+type webAdmissionLimit struct {
+	entry       *webEntryBudget
+	exactURL    bool
+	maxRequests int
+}
+
 func startWebAdmission(ctx context.Context, inputID, fixedIP string, base *url.URL, alternate bool) (string, string, func(), error) {
+	return startWebAdmissionLimited(ctx, inputID, fixedIP, base, alternate, nil)
+}
+func startWebAdmissionLimited(ctx context.Context, inputID, fixedIP string, base *url.URL, alternate bool, limit *webAdmissionLimit) (string, string, func(), error) {
 	listener, err := net.Listen("tcp4", "127.0.0.1:0")
 	if err != nil {
 		return "", "", nil, err
@@ -122,6 +146,7 @@ func startWebAdmission(ctx context.Context, inputID, fixedIP string, base *url.U
 		return "", "", nil, err
 	}
 	server := &http.Server{ReadHeaderTimeout: time.Second, BaseContext: func(net.Listener) context.Context { return ctx }}
+	localOperations := map[int]string{}
 	server.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		started := time.Now()
 		if r.Method != http.MethodPost || r.URL.Path != "/admit" || subtle.ConstantTimeCompare([]byte(r.Header.Get("Authorization")), []byte("Bearer "+token)) != 1 {
@@ -129,11 +154,16 @@ func startWebAdmission(ctx context.Context, inputID, fixedIP string, base *url.U
 			return
 		}
 		var item struct {
-			ID   string `json:"id"`
-			URL  string `json:"url"`
-			Wait *bool  `json:"wait,omitempty"`
+			ID         string `json:"id"`
+			URL        string `json:"url"`
+			Wait       *bool  `json:"wait,omitempty"`
+			RequestSeq int    `json:"request_seq,omitempty"`
 		}
-		if json.NewDecoder(io.LimitReader(r.Body, 4097)).Decode(&item) != nil || item.ID != inputID {
+		bodyLimit := int64(4097)
+		if limit != nil {
+			bodyLimit = 8193
+		}
+		if json.NewDecoder(io.LimitReader(r.Body, bodyLimit)).Decode(&item) != nil || item.ID != inputID {
 			http.Error(w, "invalid item", 400)
 			return
 		}
@@ -141,6 +171,44 @@ func startWebAdmission(ctx context.Context, inputID, fixedIP string, base *url.U
 		if err != nil || target.User != nil || target.Fragment != "" || !sameAuthority(target, base) || (target.Scheme != base.Scheme && (!alternate || target.Scheme != "http" && target.Scheme != "https")) {
 			http.Error(w, "outside entry", 400)
 			return
+		}
+		if limit != nil {
+			if !strings.EqualFold(target.Hostname(), base.Hostname()) {
+				http.Error(w, "outside exact entry host", 400)
+				return
+			}
+			limit.entry.mu.Lock()
+			defer limit.entry.mu.Unlock()
+			if item.RequestSeq < 1 || item.RequestSeq > 8 {
+				http.Error(w, "invalid logical request sequence", 400)
+				return
+			}
+			if limit.exactURL && (target.Scheme != base.Scheme || target.EscapedPath() != base.EscapedPath() || target.RawQuery != base.RawQuery || target.ForceQuery != base.ForceQuery) {
+				http.Error(w, "outside supplemental URL", 400)
+				return
+			}
+			if prior, exists := localOperations[item.RequestSeq]; exists && prior != item.URL {
+				http.Error(w, "logical request URL changed", 400)
+				return
+			}
+			key := item.ID + "/" + strconv.Itoa(item.RequestSeq)
+			if limit.entry.operations == nil {
+				limit.entry.operations = map[string]string{}
+			}
+			if prior, exists := limit.entry.operations[key]; exists {
+				if prior != item.URL {
+					http.Error(w, "logical request URL changed", 400)
+					return
+				}
+			} else {
+				if limit.entry.used >= 8 || limit.maxRequests > 0 && len(localOperations) >= limit.maxRequests {
+					http.Error(w, "entry request budget exhausted", 429)
+					return
+				}
+				limit.entry.used++
+				limit.entry.operations[key] = item.URL
+				localOperations[item.RequestSeq] = item.URL
+			}
 		}
 		wait := item.Wait == nil || *item.Wait
 		deadline, err := admitHTTPPermitMode(r.Context(), fixedIP, target.Hostname(), urlPort(target), wait)

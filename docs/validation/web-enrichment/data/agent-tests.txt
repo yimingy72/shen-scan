@@ -1,0 +1,25 @@
+=== RUN   TestP2AgentEnrichmentRealHelper
+--- PASS: TestP2AgentEnrichmentRealHelper (1.54s)
+=== RUN   TestP2ValidateTraceAndFixedIP
+--- PASS: TestP2ValidateTraceAndFixedIP (0.00s)
+=== RUN   TestP2AdmissionRefreshCountsLogicalOperation
+--- PASS: TestP2AdmissionRefreshCountsLogicalOperation (0.00s)
+=== RUN   TestP2WorstCaseEvidenceStaysBelowIngest
+--- PASS: TestP2WorstCaseEvidenceStaysBelowIngest (0.02s)
+=== RUN   TestP2CandidatePlanBoundAndResponseReuse
+--- PASS: TestP2CandidatePlanBoundAndResponseReuse (0.01s)
+=== RUN   TestP2SlowTLSSupplementRefreshesOneLogicalRequest
+    web_enrichment_test.go:312: slowTLS650ms > TTL500ms: 2central grants,1logical request,1actualGET
+--- PASS: TestP2SlowTLSSupplementRefreshesOneLogicalRequest (0.73s)
+=== RUN   TestP2ClaimAdvertisesOnlyExactEnrichmentCapability
+=== RUN   TestP2ClaimAdvertisesOnlyExactEnrichmentCapability/#00
+=== RUN   TestP2ClaimAdvertisesOnlyExactEnrichmentCapability/bounded-enrichment-future
+=== RUN   TestP2ClaimAdvertisesOnlyExactEnrichmentCapability/bounded-enrichment-v1
+--- PASS: TestP2ClaimAdvertisesOnlyExactEnrichmentCapability (0.68s)
+    --- PASS: TestP2ClaimAdvertisesOnlyExactEnrichmentCapability/#00 (0.33s)
+    --- PASS: TestP2ClaimAdvertisesOnlyExactEnrichmentCapability/bounded-enrichment-future (0.19s)
+    --- PASS: TestP2ClaimAdvertisesOnlyExactEnrichmentCapability/bounded-enrichment-v1 (0.16s)
+=== RUN   TestP2RealEightRequestAndCrossOriginBoundary
+--- PASS: TestP2RealEightRequestAndCrossOriginBoundary (1.41s)
+PASS
+ok  	scanplatform/internal/agent	4.617s

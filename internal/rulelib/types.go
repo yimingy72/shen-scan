@@ -19,9 +19,19 @@ type Rule struct {
 	Upstream     *Upstream       `json:"upstream,omitempty" yaml:"upstream,omitempty"`
 	Nuclei       *NucleiMetadata `json:"nuclei,omitempty" yaml:"nuclei,omitempty"`
 	Fingerprint  json.RawMessage `json:"fingerprint,omitempty" yaml:"fingerprint,omitempty"`
+	Collection   *HTTPCollection `json:"collection,omitempty" yaml:"collection,omitempty"`
 	Source       string          `json:"source,omitempty" yaml:"source,omitempty"`
 	Definition   Definition      `json:"definition" yaml:"definition"`
 	Template     string          `json:"template,omitempty" yaml:"template,omitempty"`
+}
+
+// HTTPCollection is an optional product-confirmation GET, separate from PoC.
+// Its complete definition is frozen in the run's HTTP rule snapshot.
+type HTTPCollection struct {
+	Path               string   `json:"path" yaml:"path"`
+	Products           []string `json:"products" yaml:"products"`
+	SourceRuleID       string   `json:"source_rule_id,omitempty" yaml:"source_rule_id,omitempty"`
+	SourceRuleRevision int      `json:"source_rule_revision,omitempty" yaml:"source_rule_revision,omitempty"`
 }
 
 type Upstream struct {

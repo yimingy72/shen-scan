@@ -32,7 +32,7 @@ import (
 
 func main() {
 	if len(os.Args) == 2 && os.Args[1] == "--capabilities" {
-		json.NewEncoder(os.Stdout).Encode(map[string]string{"protocol": webevidence.Protocol, "profile": webevidence.Profile, "engine": "httpx-sdk-v1.12.0/bounded-transport+wappalyzergo-v0.2.96", "request_admission": "loopback-v2", "stream_protocol": "jsonl-item-v1"})
+		json.NewEncoder(os.Stdout).Encode(map[string]string{"protocol": webevidence.Protocol, "profile": webevidence.Profile, "engine": "httpx-sdk-v1.12.0/bounded-transport+wappalyzergo-v0.2.96", "request_admission": "loopback-v2", "stream_protocol": "jsonl-item-v1", "enrichment_profile": webevidence.EnrichmentProfile})
 		return
 	}
 	if err := serve(os.Stdin, os.Stdout); err != nil {
@@ -64,14 +64,45 @@ func serve(input io.Reader, output io.Writer) error {
 
 func fatal(err error) { fmt.Fprintln(os.Stderr, err); os.Exit(1) }
 
+const maxRedirectLocation = 4096
+
 func probe(ctx context.Context, input webevidence.ProbeRequest) (webevidence.ProbeResult, error) {
-	result := webevidence.ProbeResult{ID: input.ID, Protocol: webevidence.Protocol, Profile: webevidence.Profile, Engine: "httpx-sdk-v1.12.0/bounded-transport+wappalyzergo-v0.2.96"}
+	result := webevidence.ProbeResult{ID: input.ID, Protocol: webevidence.Protocol, Profile: webevidence.Profile, EnrichmentProfile: input.EnrichmentProfile, InputURL: input.URL, Engine: "httpx-sdk-v1.12.0/bounded-transport+wappalyzergo-v0.2.96"}
 	target, err := url.Parse(input.URL)
 	if err != nil || target.Hostname() == "" || target.User != nil || target.Fragment != "" || (target.Scheme != "http" && target.Scheme != "https") || net.ParseIP(input.ConnectIP) == nil {
 		return result, errors.New("invalid fixed HTTP target")
 	}
 	if input.Protocol != webevidence.Protocol {
 		return result, errors.New("unsupported IPC protocol")
+	}
+	enriched := input.EnrichmentProfile != ""
+	if enriched && input.EnrichmentProfile != webevidence.EnrichmentProfile {
+		return result, errors.New("unsupported enrichment profile")
+	}
+	if input.Step != "" && input.Step != "entry" && input.Step != "supplement" {
+		return result, errors.New("unsupported probe step")
+	}
+	supplement := input.Step == "supplement"
+	if supplement && !enriched {
+		return result, errors.New("supplement requires enrichment profile")
+	}
+	budget := 8
+	if enriched {
+		if len(input.URL) > maxRedirectLocation || len(target.String()) > maxRedirectLocation {
+			return result, errors.New("entry URL exceeds enrichment limit")
+		}
+		if input.MaxRequests < 0 || input.MaxRequests > 8 {
+			return result, errors.New("invalid enrichment request budget")
+		}
+		if input.MaxRequests > 0 {
+			budget = input.MaxRequests
+		}
+		if supplement {
+			if input.MaxRequests > 1 {
+				return result, errors.New("supplement request budget must be 1")
+			}
+			budget = 1
+		}
 	}
 	if len(input.CFF) > 32<<20 {
 		return result, errors.New("fingerprint snapshot exceeds limit")
@@ -90,19 +121,32 @@ func probe(ctx context.Context, input webevidence.ProbeRequest) (webevidence.Pro
 	}
 	ctx, cancel := context.WithTimeout(ctx, entryTimeout)
 	defer cancel()
-	count := 0
-	fetch := func(u *url.URL, limit int) webevidence.Response {
-		count++
-		if count > 8 {
-			return webevidence.Response{URL: u.String(), Completeness: "missing", Error: "request budget exhausted"}
+	// Count actual collect calls, including failed attempts; never count a skipped plan.
+	fetch := func(u *url.URL, limit int, icon bool) (webevidence.Response, bool) {
+		response := webevidence.Response{URL: u.String(), Host: u.Host, ConnectIP: input.ConnectIP, Completeness: "missing"}
+		if ctx.Err() != nil {
+			response.Error = context.Cause(ctx).Error()
+			return response, false
 		}
-		return collect(ctx, u, input.ConnectIP, timeout, limit, func(ctx context.Context, ip, host, port string, wait bool) (time.Time, error) {
-			return localHTTPPermit(ctx, input, u, wait)
+		if result.Requests >= budget {
+			response.Error = "request budget exhausted"
+			return response, false
+		}
+		result.Requests++
+		sequence := result.Requests
+		response = collect(ctx, u, input.ConnectIP, timeout, limit, func(ctx context.Context, ip, host, port string, wait bool) (time.Time, error) {
+			return localHTTPPermit(ctx, input, u, wait, sequence)
 		})
+		if enriched || !icon {
+			result.Attempts = append(result.Attempts, metadata(response))
+		}
+		return response, true
 	}
-	result.Response = fetch(target, webevidence.MaxBody)
-	result.Attempts = append(result.Attempts, metadata(result.Response))
-	if result.Response.StatusCode == 0 && input.AlternateScheme && ctx.Err() == nil {
+	result.Response, _ = fetch(target, webevidence.MaxBody, false)
+	if supplement {
+		return result, nil
+	}
+	if result.Response.StatusCode == 0 && input.AlternateScheme && ctx.Err() == nil && result.Requests < budget {
 		alternate := *target
 		if alternate.Port() == "" {
 			alternate.Host = net.JoinHostPort(target.Hostname(), portOf(target))
@@ -112,14 +156,62 @@ func probe(ctx context.Context, input webevidence.ProbeRequest) (webevidence.Pro
 		} else {
 			alternate.Scheme = "http"
 		}
-		// Keep the same port when switching a port-derived endpoint's protocol.
-		result.Response = fetch(&alternate, webevidence.MaxBody)
-		result.Attempts = append(result.Attempts, metadata(result.Response))
+		result.Response, _ = fetch(&alternate, webevidence.MaxBody, false)
 		target = &alternate
+	}
+	if enriched && result.Response.StatusCode > 0 {
+		visited := map[string]bool{redirectIdentity(target): true}
+		followed := 0
+		for redirectStatus(result.Response.StatusCode) {
+			source := result.Response
+			step := webevidence.RedirectStep{FromURL: source.URL, StatusCode: source.StatusCode, AttemptIndex: len(result.Attempts) - 1}
+			next, outcome := redirectDestination(target, source.Headers.Get("Location"))
+			step.Outcome = outcome
+			if next != nil {
+				step.ToURL = next.String()
+			}
+			if step.Outcome == "" {
+				switch {
+				case ctx.Err() != nil:
+					step.Outcome = "canceled"
+				case visited[redirectIdentity(next)]:
+					step.Outcome = "loop"
+				case followed >= 3:
+					step.Outcome = "hop_limit"
+				case result.Requests >= budget:
+					step.Outcome = "skipped_budget"
+				default:
+					response, attempted := fetch(next, webevidence.MaxBody, false)
+					if !attempted {
+						if ctx.Err() != nil {
+							step.Outcome = "canceled"
+						} else {
+							step.Outcome = "skipped_budget"
+						}
+					} else if response.StatusCode == 0 {
+						if ctx.Err() != nil {
+							step.Outcome = "canceled"
+						} else {
+							step.Outcome = "fetch_failed"
+						}
+					} else {
+						step.Outcome = "followed"
+						result.Response = response
+						target = next
+						visited[redirectIdentity(next)] = true
+						followed++
+					}
+				}
+			}
+			result.Redirects = append(result.Redirects, step)
+			if step.Outcome != "followed" {
+				break
+			}
+		}
 	}
 	if result.Response.StatusCode > 0 {
 		result.Title = hx.ExtractTitle(&hx.Response{Data: result.Response.Body, Raw: result.Response.HeaderRaw + string(result.Response.Body)})
-		// Opaque rule engines cannot prove negative/body-hash matches on a prefix.
+		// Match only the final complete primary response, never splice different pages.
 		if result.Response.Completeness == "full" && len(input.CFF) > 0 {
 			matcher, err := cachedMatcher(input.CFF, result.CFFSHA256)
 			if err != nil {
@@ -131,15 +223,56 @@ func probe(ctx context.Context, input webevidence.ProbeRequest) (webevidence.Pro
 			sort.Strings(result.Technologies)
 		}
 		for _, icon := range iconURLs(target, result.Response.Body) {
-			if ctx.Err() != nil {
+			if ctx.Err() != nil || result.Requests >= budget {
 				break
 			}
-			result.Icons = append(result.Icons, fetch(icon, webevidence.MaxIcon))
+			if response, attempted := fetch(icon, webevidence.MaxIcon, true); attempted {
+				result.Icons = append(result.Icons, response)
+			}
 		}
 	}
-	result.Requests = count
 	return result, nil
 }
+func redirectStatus(status int) bool {
+	return status == 301 || status == 302 || status == 303 || status == 307 || status == 308
+}
+func redirectIdentity(value *url.URL) string {
+	path := value.EscapedPath()
+	if path == "" {
+		path = "/"
+	}
+	if value.RawQuery != "" || value.ForceQuery {
+		path += "?" + value.RawQuery
+	}
+	return value.Scheme + "://" + net.JoinHostPort(strings.ToLower(value.Hostname()), portOf(value)) + path
+}
+func redirectDestination(base *url.URL, location string) (*url.URL, string) {
+	if len(location) > maxRedirectLocation {
+		return nil, "location_too_long"
+	}
+	location = strings.TrimSpace(location)
+	if location == "" {
+		return nil, "missing_location"
+	}
+	reference, err := url.Parse(location)
+	if err != nil {
+		return nil, "invalid_location"
+	}
+	next := base.ResolveReference(reference)
+	next.Scheme = strings.ToLower(next.Scheme)
+	next.Fragment, next.RawFragment = "", ""
+	if next.User != nil || next.Opaque != "" || next.Hostname() == "" || (next.Scheme != "http" && next.Scheme != "https") {
+		return nil, "invalid_location"
+	}
+	if len(next.String()) > maxRedirectLocation {
+		return nil, "location_too_long"
+	}
+	if next.Scheme != base.Scheme || !strings.EqualFold(next.Hostname(), base.Hostname()) || portOf(next) != portOf(base) {
+		return next, "blocked_cross_origin"
+	}
+	return next, ""
+}
+
 func metadata(response webevidence.Response) webevidence.Response {
 	response.Body = nil
 	return response
@@ -185,8 +318,10 @@ func collect(ctx context.Context, target *url.URL, ip string, timeout time.Durat
 	if len(permits) > 0 {
 		permit = permits[0]
 	}
-	client := &http.Client{Transport: httpadmission.Transport{Base: transport, NetworkTimeout: timeout, Permit: permit}, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
-	response, err := client.Do(request.Request)
+	// RoundTrip never parses/follows Location. Even a malformed Location must
+	// preserve the received 3xx response for the explicit redirect trace.
+	gate := httpadmission.Transport{Base: transport, NetworkTimeout: timeout, Permit: permit}
+	response, err := gate.RoundTrip(request.Request)
 
 	if err != nil {
 		result.Error = err.Error()
@@ -359,7 +494,7 @@ func admit(ctx context.Context, input webevidence.ProbeRequest, target *url.URL)
 	_, err := localHTTPPermit(ctx, input, target, true)
 	return err
 }
-func localHTTPPermit(ctx context.Context, input webevidence.ProbeRequest, target *url.URL, wait bool) (time.Time, error) {
+func localHTTPPermit(ctx context.Context, input webevidence.ProbeRequest, target *url.URL, wait bool, requestSeq ...int) (time.Time, error) {
 	if input.AdmissionURL == "" && input.AdmissionToken == "" {
 		return time.Now().Add(500 * time.Millisecond), nil
 	}
@@ -367,7 +502,11 @@ func localHTTPPermit(ctx context.Context, input webevidence.ProbeRequest, target
 	if err != nil || endpoint.Scheme != "http" || endpoint.Hostname() != "127.0.0.1" || endpoint.User != nil || input.AdmissionToken == "" {
 		return time.Time{}, errors.New("invalid local admission endpoint")
 	}
-	payload, _ := json.Marshal(map[string]any{"id": input.ID, "url": target.String(), "wait": wait})
+	body := map[string]any{"id": input.ID, "url": target.String(), "wait": wait}
+	if input.EnrichmentProfile == webevidence.EnrichmentProfile && len(requestSeq) > 0 {
+		body["request_seq"] = requestSeq[0]
+	}
+	payload, _ := json.Marshal(body)
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint.String(), bytes.NewReader(payload))
 	if err != nil {
 		return time.Time{}, err

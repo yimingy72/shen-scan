@@ -29,6 +29,7 @@ type Client struct {
 	nmapBinary              string
 	serviceProfile          string
 	webCapabilityOnce       sync.Once
+	webEnrichmentProfile    string
 	webEvidenceProfile      string
 	fingerprintBundle       string
 	fingerprintBundleSchema string
@@ -105,9 +106,9 @@ func (c *Client) Claim(ctx context.Context, workerID, sessionID, requestID strin
 		}
 	})
 	c.webCapabilityOnce.Do(func() {
-		c.webEvidenceProfile, c.fingerprintBundle, c.fingerprintBundleSchema = discoverWebCapabilities()
+		c.webEvidenceProfile, c.fingerprintBundle, c.fingerprintBundleSchema, c.webEnrichmentProfile = discoverWebCapabilitiesFull()
 	})
-	sentAt, err := c.do(ctx, c.control, http.MethodPost, "/api/tasks/claim", c.workerToken, map[string]any{
+	claim := map[string]any{
 		"worker_id": workerID, "session_id": sessionID, "request_id": requestID,
 		"types": types, "use_rule_sets": true, "supports_httpx_cff": true,
 		"supports_nuclei_http_original": supportsNucleiOriginal,
@@ -118,7 +119,11 @@ func (c *Client) Claim(ctx context.Context, workerID, sessionID, requestID strin
 		"supports_port_ranges":          true, "port_start_reserved": reserved,
 		"web_evidence_profile": c.webEvidenceProfile, "fingerprint_bundle": c.fingerprintBundle,
 		"fingerprint_bundle_schema": c.fingerprintBundleSchema,
-	}, &out)
+	}
+	if c.webEnrichmentProfile != "" {
+		claim["web_enrichment_profile"] = c.webEnrichmentProfile
+	}
+	sentAt, err := c.do(ctx, c.control, http.MethodPost, "/api/tasks/claim", c.workerToken, claim, &out)
 	if out.Task != nil {
 		out.Task.requestSentAt = sentAt
 	}

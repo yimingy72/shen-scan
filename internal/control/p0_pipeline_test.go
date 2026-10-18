@@ -157,7 +157,7 @@ func TestP0CorePipelineAndQuotaRecovery(t *testing.T) {
 		var out struct {
 			Task *Task `json:"task"`
 		}
-		callAPI(t, h, "POST", "/api/tasks/claim", w.Token, map[string]any{"worker_id": w.ID, "session_id": "s1", "supports_confirmed_stop": true, "supports_http_request_budget": true, "request_id": fmt.Sprintf("next-%d", request), "types": types, "service_profile": "nmap-light-v1", "web_evidence_profile": webevidence.Profile, "fingerprint_bundle": webevidence.FingerprintBundle}, 200, &out)
+		callAPI(t, h, "POST", "/api/tasks/claim", w.Token, map[string]any{"worker_id": w.ID, "session_id": "s1", "supports_confirmed_stop": true, "supports_http_request_budget": true, "request_id": fmt.Sprintf("next-%d", request), "types": types, "service_profile": "nmap-light-v1", "web_evidence_profile": webevidence.Profile, "web_enrichment_profile": webevidence.EnrichmentProfile, "fingerprint_bundle": webevidence.FingerprintBundle}, 200, &out)
 		return out.Task
 	}
 	service := claim("service")
@@ -335,7 +335,7 @@ func TestP0IndependentWebEntriesShareTwoTargetSlots(t *testing.T) {
 		var out struct {
 			Task *Task `json:"task"`
 		}
-		callAPI(t, h, "POST", "/api/tasks/claim", w.Token, map[string]any{"worker_id": w.ID, "session_id": "s1", "supports_confirmed_stop": true, "supports_http_request_budget": true, "request_id": fmt.Sprintf("web-%d", request), "types": []string{stage}, "service_profile": "nmap-light-v1", "web_evidence_profile": webevidence.Profile, "fingerprint_bundle": webevidence.FingerprintBundle}, 200, &out)
+		callAPI(t, h, "POST", "/api/tasks/claim", w.Token, map[string]any{"worker_id": w.ID, "session_id": "s1", "supports_confirmed_stop": true, "supports_http_request_budget": true, "request_id": fmt.Sprintf("web-%d", request), "types": []string{stage}, "service_profile": "nmap-light-v1", "web_evidence_profile": webevidence.Profile, "web_enrichment_profile": webevidence.EnrichmentProfile, "fingerprint_bundle": webevidence.FingerprintBundle}, 200, &out)
 		return out.Task
 	}
 	slow := create("slow")

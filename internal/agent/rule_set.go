@@ -133,6 +133,11 @@ func cloneRules(rules []rulelib.Rule) []rulelib.Rule {
 		cloned[index].Tags = append([]string(nil), rule.Tags...)
 		cloned[index].AppliesTo = append([]string(nil), rule.AppliesTo...)
 		cloned[index].Fingerprint = append([]byte(nil), rule.Fingerprint...)
+		if rule.Collection != nil {
+			collection := *rule.Collection
+			collection.Products = append([]string(nil), rule.Collection.Products...)
+			cloned[index].Collection = &collection
+		}
 		if rule.Upstream != nil {
 			upstream := *rule.Upstream
 			cloned[index].Upstream = &upstream

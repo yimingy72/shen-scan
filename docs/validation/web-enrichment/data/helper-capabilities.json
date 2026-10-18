@@ -1,0 +1,1 @@
+{"engine":"httpx-sdk-v1.12.0/bounded-transport+wappalyzergo-v0.2.96","enrichment_profile":"bounded-enrichment-v1","profile":"bounded-passive-v1","protocol":"shen-web-v1","request_admission":"loopback-v2","stream_protocol":"jsonl-item-v1"}

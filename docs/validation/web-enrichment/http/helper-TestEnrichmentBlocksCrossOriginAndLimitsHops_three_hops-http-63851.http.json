@@ -1,0 +1,26 @@
+[
+  {
+    "URL": "http://fixture.test:63851/hop1",
+    "Request": "GET /hop1 HTTP/1.1\r\nHost: fixture.test:63851\r\nAccept: text/html,application/xhtml+xml,*/*;q=0.8\r\nAccept-Charset: utf-8\r\nAccept-Encoding: identity\r\nConnection: close\r\nUser-Agent: shen-scan/2\r\n\r\n",
+    "Response": "HTTP/1.1 308 Permanent Redirect\r\nContent-Length: 4\r\nConnection: close\r\nDate: Sun, 18 Oct 2026 00:13:00 GMT\r\nLocation: /hop2\r\n\r\nhop1",
+    "Note": ""
+  },
+  {
+    "URL": "http://fixture.test:63851/hop2",
+    "Request": "GET /hop2 HTTP/1.1\r\nHost: fixture.test:63851\r\nAccept: text/html,application/xhtml+xml,*/*;q=0.8\r\nAccept-Charset: utf-8\r\nAccept-Encoding: identity\r\nConnection: close\r\nUser-Agent: shen-scan/2\r\n\r\n",
+    "Response": "HTTP/1.1 308 Permanent Redirect\r\nContent-Length: 4\r\nConnection: close\r\nDate: Sun, 18 Oct 2026 00:13:00 GMT\r\nLocation: /hop3\r\n\r\nhop2",
+    "Note": ""
+  },
+  {
+    "URL": "http://fixture.test:63851/hop3",
+    "Request": "GET /hop3 HTTP/1.1\r\nHost: fixture.test:63851\r\nAccept: text/html,application/xhtml+xml,*/*;q=0.8\r\nAccept-Charset: utf-8\r\nAccept-Encoding: identity\r\nConnection: close\r\nUser-Agent: shen-scan/2\r\n\r\n",
+    "Response": "HTTP/1.1 308 Permanent Redirect\r\nContent-Length: 4\r\nConnection: close\r\nDate: Sun, 18 Oct 2026 00:13:00 GMT\r\nLocation: /hop4\r\n\r\nhop3",
+    "Note": ""
+  },
+  {
+    "URL": "http://fixture.test:63851/hop4",
+    "Request": "GET /hop4 HTTP/1.1\r\nHost: fixture.test:63851\r\nAccept: text/html,application/xhtml+xml,*/*;q=0.8\r\nAccept-Charset: utf-8\r\nAccept-Encoding: identity\r\nConnection: close\r\nUser-Agent: shen-scan/2\r\n\r\n",
+    "Response": "HTTP/1.1 308 Permanent Redirect\r\nContent-Length: 4\r\nConnection: close\r\nDate: Sun, 18 Oct 2026 00:13:00 GMT\r\nLocation: /hop5\r\n\r\nhop4",
+    "Note": ""
+  }
+]
