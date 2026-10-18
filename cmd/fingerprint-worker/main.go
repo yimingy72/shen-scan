@@ -1,4 +1,4 @@
-// fingerprint-worker is a persistent, passive-only fingers SDK process.
+// fingerprint-worker is a persistent HTTP fingers SDK process.
 package main
 
 import (
@@ -15,18 +15,31 @@ import (
 	"net/url"
 	"os"
 	"sort"
+	"strings"
 
 	fingers "github.com/chainreactors/fingers"
 	"github.com/chainreactors/fingers/common"
 	"github.com/chainreactors/fingers/resources"
 	"github.com/chainreactors/logs"
+	"github.com/chainreactors/utils/encode"
+	"github.com/chainreactors/utils/httputils"
 	fb "scanplatform/internal/fingerprintbundle"
 	"scanplatform/internal/webevidence"
 )
 
-var engines = []string{fingers.FingersEngine, fingers.FingerPrintEngine, fingers.EHoleEngine}
+var legacyEngines = []string{fingers.FingersEngine, fingers.FingerPrintEngine, fingers.EHoleEngine}
+var engines = append(append([]string{}, legacyEngines...), fingers.GobyEngine)
 
 func bundleID() string {
+	hash := sha256.New()
+	for _, data := range [][]byte{resources.FingersHTTPData, resources.FingerprinthubWebData, resources.EholeData, resources.AliasesData, resources.GobyData} {
+		hash.Write(data)
+		hash.Write([]byte{0})
+	}
+	hash.Write([]byte("e870395e8984/full-http-v1"))
+	return hex.EncodeToString(hash.Sum(nil))
+}
+func legacyEmbeddedBundleID() string {
 	hash := sha256.New()
 	for _, data := range [][]byte{resources.FingersHTTPData, resources.FingerprinthubWebData, resources.EholeData, resources.AliasesData} {
 		hash.Write(data)
@@ -91,6 +104,7 @@ func main() {
 	}
 	bundle := bundleID()
 	rootOnly := false
+	legacyEmbedded := len(os.Args) == 2 && os.Args[1] == "--legacy-embedded"
 	var snapshot *fb.Package
 	if len(os.Args) == 3 && (os.Args[1] == "--bundle-file" || os.Args[1] == "--check-bundle") {
 		p, data, err := readBundle(os.Args[2])
@@ -99,7 +113,12 @@ func main() {
 		}
 		snapshot = &p
 		bundle = fb.Digest(data)
-		rootOnly = true
+		rootOnly = p.Legacy()
+	} else if legacyEmbedded {
+		bundle = legacyEmbeddedBundleID()
+		if bundle != fb.LegacyEmbeddedBundle {
+			bundleFatal(fmt.Errorf("legacy embedded fingerprint bundle differs from protocol snapshot"))
+		}
 	} else if len(os.Args) != 1 {
 		bundleFatal(fmt.Errorf("unsupported helper arguments"))
 	}
@@ -108,21 +127,34 @@ func main() {
 	if snapshot != nil {
 		engine, err = loadSnapshotEngine(*snapshot)
 	} else {
-		engine, err = fingers.NewEngine(engines...)
+		names := engines
+		if legacyEmbedded {
+			names = legacyEngines
+		}
+		engine, err = fingers.NewEngine(names...)
 	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 	engine.EnableMatchDetail()
-	if snapshot == nil && bundle != webevidence.FingerprintBundle {
-		fmt.Fprintln(os.Stderr, "embedded fingerprint bundle differs from protocol snapshot")
-		os.Exit(1)
+	if legacyEmbedded {
+		engine.EHole().LegacyTitleBody = true
+		engine.FingerPrintHub().EnableLegacyPassive()
 	}
+
 	if snapshot != nil && os.Args[1] == "--check-bundle" {
 		capabilities := fb.CurrentCapabilities()
 		capabilities.Bundle = bundle
 		capabilities.Validation = snapshot.Validation
+		capabilities.Schema = snapshot.Schema
+		capabilities.SelectionProfile = snapshot.SelectionProfile
+		if snapshot.Legacy() {
+			capabilities.ActiveHTTP = false
+			capabilities.ExecutionProfile = ""
+			capabilities.HTTPEngines = append([]string{}, legacyEngines...)
+			capabilities.EmbeddedBundle = fb.LegacyEmbeddedBundle
+		}
 		if err = json.NewEncoder(output).Encode(capabilities); err != nil {
 			bundleFatal(err)
 		}
@@ -138,12 +170,23 @@ func main() {
 			result.Error = err.Error()
 		} else {
 			result.ID = input.ID
+			result.ExecutionProfile = input.ExecutionProfile
+			result.Identity = input.Identity
 			if input.Protocol != webevidence.Protocol {
 				result.Error = "unsupported IPC protocol"
 			} else if (rootOnly && input.ExpectedBundle != bundle) || (input.ExpectedBundle != "" && input.ExpectedBundle != bundle) {
 				result.Error = "fingerprint bundle mismatch"
 			} else {
-				result.Matches, err = matchSnapshot(engine, input, rootOnly)
+				if legacyEmbedded && input.Active != nil {
+					result.Error = "legacy embedded profile does not support active execution"
+				} else {
+					result.Matches, err = matchEvidence(engine, input, rootOnly || legacyEmbedded, rootOnly)
+				}
+				if err == nil && result.Error == "" && input.Active != nil {
+					var activeMatches []webevidence.Match
+					activeMatches, result.Active, err = executeActive(engine, input)
+					result.Matches = append(result.Matches, activeMatches...)
+				}
 				if err != nil {
 					result.Error = err.Error()
 				}
@@ -164,10 +207,13 @@ func match(engine *fingers.Engine, input webevidence.MatchRequest) ([]webevidenc
 	return matchSnapshot(engine, input, false)
 }
 func matchSnapshot(engine *fingers.Engine, input webevidence.MatchRequest, rootOnly bool) ([]webevidence.Match, error) {
+	return matchEvidence(engine, input, rootOnly, rootOnly)
+}
+func matchEvidence(engine *fingers.Engine, input webevidence.MatchRequest, legacy, rootOnly bool) ([]webevidence.Match, error) {
 	if input.Response.BodyStorage == "hash_only" || (input.Response.BodySHA256 != "" && input.Response.BodySHA256 != webevidence.SHA256(input.Response.Body)) {
 		return nil, fmt.Errorf("full matching evidence is unavailable")
 	}
-	if len(input.Response.Body) > webevidence.MaxBody || len(input.Icons) > 2 {
+	if len(input.Response.Body) > webevidence.MaxBody || len(input.Icons) > webevidence.MaxMessage/webevidence.MaxIcon {
 		return nil, fmt.Errorf("evidence exceeds profile")
 	}
 	// The SDK's generic results cannot distinguish negative/hash rules over a
@@ -175,7 +221,17 @@ func matchSnapshot(engine *fingers.Engine, input webevidence.MatchRequest, rootO
 	if input.Response.Completeness != "full" || input.Response.StatusCode == 0 {
 		return nil, nil
 	}
+	var icons [][]byte
+	for _, icon := range input.Icons {
+		if len(icon.Body) > webevidence.MaxIcon {
+			return nil, fmt.Errorf("icon exceeds profile")
+		}
+		if icon.BodyStorage != "hash_only" && icon.Completeness == "full" && icon.StatusCode >= 200 && icon.StatusCode < 300 && (icon.BodySHA256 == "" || icon.BodySHA256 == webevidence.SHA256(icon.Body)) {
+			icons = append(icons, icon.Body)
+		}
+	}
 	var output []webevidence.Match
+	candidateReasons := map[*common.Framework]string{}
 	appendMatches := func(name string, frames common.Frameworks) {
 		keys := make([]string, 0, len(frames))
 		for key := range frames {
@@ -189,10 +245,15 @@ func matchSnapshot(engine *fingers.Engine, input webevidence.MatchRequest, rootO
 			if frame.Attributes != nil {
 				version = frame.Version
 			}
-			output = append(output, webevidence.Match{Name: frame.Name, Version: version, Engine: name, Evidence: detail})
+			reason := candidateReasons[frame]
+			output = append(output, webevidence.Match{Name: frame.Name, Version: version, Engine: name, Evidence: detail, Candidate: reason != "", CandidateReason: reason})
 		}
 	}
-	for _, name := range engines {
+	names := engines
+	if legacy {
+		names = legacyEngines
+	}
+	for _, name := range names {
 		if rootOnly && name == fingers.FingerPrintEngine {
 			u, err := url.Parse(input.Response.URL)
 			if err != nil || u.Host == "" || (u.Path != "" && u.Path != "/") || (u.RawPath != "" && u.RawPath != "/") || u.RawQuery != "" || u.ForceQuery {
@@ -219,7 +280,28 @@ func matchSnapshot(engine *fingers.Engine, input webevidence.MatchRequest, rootO
 			}
 			response.TLS = state
 		}
-		appendMatches(name, engine.WebMatch(response))
+
+		if !legacy && (name == fingers.FingersEngine || name == fingers.FingerPrintEngine) {
+			raw := httputils.ReadRaw(response)
+			if name == fingers.FingersEngine {
+				cert := ""
+				if response.TLS != nil && len(response.TLS.PeerCertificates) > 0 {
+					cert = strings.Join(response.TLS.PeerCertificates[0].DNSNames, ",") + " " + response.TLS.PeerCertificates[0].Subject.String()
+				}
+				frames, _ := engine.Fingers().HTTPMatchWithIcons(raw, cert, icons)
+				appendMatches(name, engine.MergeFrameworks(make(common.Frameworks), frames))
+			} else {
+				appendMatches(name, engine.MergeFrameworks(make(common.Frameworks), engine.FingerPrintHub().WebMatchWithIcons(raw, icons)))
+			}
+		} else if name == fingers.GobyEngine {
+			frames, assessments := gobyMatches(engine, string(httputils.ReadRaw(response)))
+			for frame, reason := range assessments {
+				candidateReasons[frame] = reason
+			}
+			appendMatches(name, frames)
+		} else {
+			appendMatches(name, engine.WebMatch(response))
+		}
 	}
 	for _, icon := range input.Icons {
 		if icon.BodyStorage == "hash_only" || (icon.BodySHA256 != "" && icon.BodySHA256 != webevidence.SHA256(icon.Body)) {
@@ -229,7 +311,27 @@ func matchSnapshot(engine *fingers.Engine, input webevidence.MatchRequest, rootO
 			return nil, fmt.Errorf("icon exceeds profile")
 		}
 		if icon.Completeness == "full" && icon.StatusCode >= 200 && icon.StatusCode < 300 {
-			appendMatches(fingers.FaviconEngine, engine.MatchFavicon(icon.Body))
+
+			if legacy {
+				appendMatches(fingers.FaviconEngine, engine.MatchFavicon(icon.Body))
+			} else {
+				// Iterate source records, preserving products that share an icon hash.
+				frames := make(common.Frameworks)
+				hash := encode.Mmh3Hash32(icon.Body)
+				for _, f := range engine.EHole().Fingerprints {
+					if f.Method == "faviconhash" {
+						for _, h := range f.Keyword {
+							if h == hash {
+								frame := common.NewFramework(f.Cms, common.FrameFromEhole)
+								frame.MatchDetail = &common.MatchDetail{MatcherType: "favicon_mmh3", MatcherValue: hash}
+								frames.Add(frame)
+								break
+							}
+						}
+					}
+				}
+				appendMatches(fingers.EHoleEngine, engine.MergeFrameworks(make(common.Frameworks), frames))
+			}
 		}
 	}
 	return output, nil

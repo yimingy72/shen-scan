@@ -59,7 +59,7 @@ func TestFingersDownloaderUsesOnlyPinnedDataPaths(t *testing.T) {
 		return &http.Response{StatusCode: status, Status: http.StatusText(status), Body: io.NopCloser(bytes.NewReader(payload)), Header: http.Header{}}, nil
 	})}
 	input, err := fetchFingersRevision(context.Background(), revision, client)
-	if err != nil || count != 4 || len(input.Files) != 4 || input.SourceRevision != revision {
+	if err != nil || count != len(fingerprintbundle.Paths()) || len(input.Files) != len(fingerprintbundle.Paths()) || input.SourceRevision != revision {
 		t.Fatalf("download did not preserve fixed resources: %v, %d", err, count)
 	}
 	if !bytes.Equal(input.Files["resources/fingers_http.json.gz"], compressed.Bytes()) {
@@ -70,7 +70,7 @@ func TestFingersDownloaderUsesOnlyPinnedDataPaths(t *testing.T) {
 			t.Fatalf("accepted revision %q", invalid)
 		}
 	}
-	if count != 4 {
+	if count != len(fingerprintbundle.Paths()) {
 		t.Fatal("invalid revision performed a download")
 	}
 	fail = true

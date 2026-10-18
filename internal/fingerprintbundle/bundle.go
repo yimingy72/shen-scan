@@ -1,4 +1,4 @@
-// Package fingerprintbundle defines passive rule snapshots without scanner SDK dependencies.
+// Package fingerprintbundle defines versioned HTTP rule snapshots without scanner SDK dependencies.
 package fingerprintbundle
 
 import (
@@ -13,22 +13,35 @@ import (
 )
 
 const (
-	Schema               = "shen-fingerprint-bundle-v1"
-	EngineRevision       = "e870395e898422e43e271ec08f47ff2ccb4003ee"
-	SelectionProfile     = "passive-subset-v1"
-	Repository           = "https://github.com/chainreactors/fingers"
-	EmbeddedBundle       = "b5946286a877ff75a1c7b9914e9c3e4b0aba4e15287ee1cf594eef6db8e18538"
-	MaxInputBytes        = 48 << 20
-	MaxPackageBytes      = 96 << 20
-	MaxRawFileBytes      = 8 << 20
-	MaxDecodedFileBytes  = 16 << 20
-	MaxDecodedTotalBytes = 32 << 20
-	MaxAliasBytes        = 1 << 20
-	MaxRecords           = 100000
+	Schema                 = "shen-fingerprint-bundle-v2"
+	LegacySchema           = "shen-fingerprint-bundle-v1"
+	LegacySelectionProfile = "passive-subset-v1"
+	LegacyEmbeddedBundle   = "b5946286a877ff75a1c7b9914e9c3e4b0aba4e15287ee1cf594eef6db8e18538"
+	EngineRevision         = "e870395e898422e43e271ec08f47ff2ccb4003ee"
+	SelectionProfile       = "full-http-v1"
+	Repository             = "https://github.com/chainreactors/fingers"
+	EmbeddedBundle         = "6f267d12bdb5e7f6fc64db8b44c71cdae78b70175dd93a346a9d05405867e84e"
+	MaxInputBytes          = 48 << 20
+	MaxPackageBytes        = 96 << 20
+	MaxRawFileBytes        = 8 << 20
+	MaxDecodedFileBytes    = 16 << 20
+	MaxDecodedTotalBytes   = 32 << 20
+	MaxAliasBytes          = 1 << 20
+	MaxRecords             = 100000
 )
 
-func Paths() []string {
+func LegacyPaths() []string {
 	return []string{"resources/aliases.yaml", "resources/ehole.json.gz", "resources/fingerprinthub_web.json.gz", "resources/fingers_http.json.gz"}
+}
+
+func Paths() []string { return append(LegacyPaths(), "resources/goby.json.gz") }
+
+func (p Package) Legacy() bool { return p.Schema == LegacySchema }
+func (p Package) Paths() []string {
+	if p.Legacy() {
+		return LegacyPaths()
+	}
+	return Paths()
 }
 
 type RawInput struct {
@@ -71,6 +84,9 @@ type Package struct {
 	Validation       map[string]Stats `json:"validation"`
 }
 type Capabilities struct {
+	ExecutionProfile string           `json:"execution_profile,omitempty"`
+	ActiveHTTP       bool             `json:"active_http"`
+	HTTPEngines      []string         `json:"http_engines,omitempty"`
 	Schema           string           `json:"schema"`
 	EngineRevision   string           `json:"engine_revision"`
 	SelectionProfile string           `json:"selection_profile"`
@@ -80,7 +96,7 @@ type Capabilities struct {
 }
 
 func CurrentCapabilities() Capabilities {
-	return Capabilities{Schema: Schema, EngineRevision: EngineRevision, SelectionProfile: SelectionProfile, EmbeddedBundle: EmbeddedBundle}
+	return Capabilities{ExecutionProfile: "web-full-v2", ActiveHTTP: true, HTTPEngines: []string{"fingers", "fingerprinthub", "ehole", "goby", "favicon"}, Schema: Schema, EngineRevision: EngineRevision, SelectionProfile: SelectionProfile, EmbeddedBundle: EmbeddedBundle}
 }
 func Digest(data []byte) string { v := sha256.Sum256(data); return hex.EncodeToString(v[:]) }
 
@@ -120,14 +136,14 @@ func DecodeRaw(path string, raw []byte) ([]byte, error) {
 var revisionPattern = regexp.MustCompile(`^[0-9a-f]{40}$`)
 
 func Validate(p Package) error {
-	if p.Schema != Schema || p.EngineRevision != EngineRevision || p.SelectionProfile != SelectionProfile || p.Source.Repository != Repository || !revisionPattern.MatchString(p.Source.Revision) {
+	if !((p.Schema == Schema && p.SelectionProfile == SelectionProfile) || (p.Schema == LegacySchema && p.SelectionProfile == LegacySelectionProfile)) || p.EngineRevision != EngineRevision || p.Source.Repository != Repository || !revisionPattern.MatchString(p.Source.Revision) {
 		return fmt.Errorf("unsupported fingerprint package identity")
 	}
-	if len(p.Files) != 4 || len(p.Validation) != 4 {
-		return fmt.Errorf("package requires four resources and four validation records")
+	if len(p.Files) != len(p.Paths()) || len(p.Validation) != len(p.Paths()) {
+		return fmt.Errorf("package requires all resources and validation records")
 	}
 	total, effectiveTotal := 0, 0
-	for _, path := range Paths() {
+	for _, path := range p.Paths() {
 		f, ok := p.Files[path]
 		if !ok {
 			return fmt.Errorf("missing resource %s", path)
@@ -149,10 +165,17 @@ func Validate(p Package) error {
 	if total > MaxDecodedTotalBytes || effectiveTotal > MaxDecodedTotalBytes {
 		return fmt.Errorf("package decoded/effective resources exceed total limit")
 	}
-	for _, key := range []string{"fingers", "fingerprinthub", "ehole", "aliases"} {
+	keys := []string{"fingers", "fingerprinthub", "ehole", "aliases"}
+	if !p.Legacy() {
+		keys = append(keys, "goby")
+	}
+	for _, key := range keys {
 		s, ok := p.Validation[key]
 		if !ok || s.Total < 0 || s.Total > MaxRecords || s.Loaded < 0 || s.ExcludedActive < 0 || s.ExcludedUnsupported < 0 || s.CompileFailed < 0 || s.Total != s.Loaded+s.ExcludedActive+s.ExcludedUnsupported+s.CompileFailed {
 			return fmt.Errorf("invalid validation totals: %s", key)
+		}
+		if !p.Legacy() && s.Total != s.Loaded {
+			return fmt.Errorf("full HTTP package cannot exclude records: %s", key)
 		}
 		counts := map[string]int{}
 		for _, r := range s.Rejections {

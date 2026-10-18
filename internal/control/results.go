@@ -91,7 +91,7 @@ const targetResults = currentResults + `,
  (array_agg(DISTINCT COALESCE(NULLIF(observation->>'product',''),NULLIF(observation->>'server',''))) FILTER(WHERE observation->>'kind' IN('service','http')))[1:12] products,
  (array_agg(DISTINCT observation->>'title') FILTER(WHERE COALESCE(observation->>'title','')<>''))[1:3] titles
  FROM ob GROUP BY target_key),
- tech AS (SELECT target_key,(array_agg(DISTINCT t->>'name'))[1:12] technologies FROM ob
+ tech AS (SELECT target_key,(array_agg(DISTINCT (t->>'name') || CASE WHEN t->>'candidate'='true' THEN '（候选）' ELSE '' END))[1:12] technologies FROM ob
  CROSS JOIN LATERAL jsonb_array_elements(COALESCE(observation->'technologies','[]'::jsonb)) t GROUP BY target_key),
  results AS (SELECT ts.*,COALESCE(os.open_port_count,0) open_port_count,COALESCE(os.ports,'{}'::int[]) ports,
  COALESCE(os.http_count,0) http_count,COALESCE(os.error_count,0) error_count,

@@ -2,7 +2,6 @@ package rulelib
 
 import (
 	"fmt"
-	"strings"
 )
 
 func validateHTTPCollection(rule Rule) error {
@@ -48,42 +47,4 @@ func MatchCollectedHTTP(rule Rule, input Input) (MatchResult, bool) {
 		result.Evidence = "GET " + path + ": " + result.Evidence
 	}
 	return result, ok
-}
-
-// Explicitly selected confirmation definitions, not a severity/purpose filter
-// over the PoC library. Exposure and vulnerability checks are never included.
-func builtinHTTPCollections(source []Rule) []Rule {
-	selected := map[string]bool{
-		"poc-wordpress-readme": true, "poc-joomla-version-manifest": true,
-		"poc-gitlab-health": true, "poc-gitea-version-api": true,
-		"poc-swagger-ui-interface": true, "poc-django-admin-login": true,
-	}
-	var result []Rule
-	for _, rule := range source {
-		if !selected[rule.ID] || rule.Engine != "native" || len(rule.Definition.Requests) != 1 {
-			continue
-		}
-		request := rule.Definition.Requests[0]
-		if request.Method != "GET" || len(request.Headers) != 0 {
-			continue
-		}
-		confirmation := Rule{
-			ID: "http-collect-" + strings.TrimPrefix(rule.ID, "poc-"), Kind: "http", Engine: "native", Purpose: "discovery",
-			Name: rule.Definition.Product + " · HTTP confirmation", Description: "Candidate-bound HTTP fingerprint collection; no vulnerability conclusion.",
-			Severity: "info", Enabled: true, Builtin: true, Revision: 1, Tags: []string{"http", "collection", "product-confirmation"},
-			Source:     rule.Source + "; confirmation-only reuse of " + rule.ID,
-			Collection: &HTTPCollection{Path: request.Path, Products: append([]string(nil), rule.AppliesTo...), SourceRuleID: rule.ID, SourceRuleRevision: rule.Revision},
-			Definition: Definition{Service: "http", Product: rule.Definition.Product, Condition: request.Condition, Matchers: append([]Matcher(nil), request.Matchers...)},
-		}
-		switch rule.ID {
-		case "poc-joomla-version-manifest":
-			confirmation.Definition.VersionRegex = `(?is)<version>\s*([^<\s]+)\s*</version>`
-			confirmation.Definition.VersionPart = "body"
-		case "poc-gitea-version-api":
-			confirmation.Definition.VersionRegex = `"version"\s*:\s*"([^"\s]+)"`
-			confirmation.Definition.VersionPart = "body"
-		}
-		result = append(result, confirmation)
-	}
-	return result
 }

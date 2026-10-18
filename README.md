@@ -12,13 +12,15 @@
 
 > Nuclei全量原库用于查看和导出；执行库已支持 `http-basic-v1` 原始 YAML 子集。目录同步不会自动把全量模板加入执行库，原始规则需单独导入并显式绑定产品。既有部署保留907条执行PoC，新安装仅有43条内置PoC。
 
+HTTP 执行重构与验证见 [完整方案](docs/HTTP_FINGERPRINT_FULL_IMPLEMENTATION.md) 和 [本地验证记录](docs/HTTP_FULL_VALIDATION.md)。
+
 ## 功能
 
 | 模块 | 当前能力 |
 |---|---|
 | 端口扫描 | IPv4 TCP **1–65535**，发现开放端口后继续执行服务指纹 |
-| HTTP 指纹 | 有界 HTTP / HTTPS 采集；httpx SDK + WappalyzerGo，常驻 fingers 补充 Fingers / FingerprintHub / EHole / favicon 被动规则 |
-| 规则数据 | Wapp 一键更新执行库；Nuclei 一键同步独立上游原库；执行规则支持编辑、启停、导入 / 导出 / 删除 |
+| HTTP 指纹 | 完整官方 httpx Runner 采集；WappalyzerGo 响应匹配；fingers 完整 HTTP 被动与主动规则、favicon、title |
+| 规则数据 | 统一 HTTP 目录；Wapp 与 fingers 一键更新；原文/执行包导出及完整包导入；普通执行规则支持编辑、启停、导入 / 导出 / 删除 |
 | PoC / Nuclei | 任务显式开启；按指纹选择，区分命中 / 可证明未命中 / 证据不足 / 检测错误 |
 | 输入 | 手动输入或导入 TXT / CSV；支持 IPv4、CIDR、域名与 HTTP(S) URL |
 | 结果查看 | 按任务 → IP / 域名 → 开放端口 / HTTP 端点查看；提供搜索、筛选和分页 |
@@ -55,8 +57,8 @@ flowchart LR
 - **PostgreSQL**是唯一权威存储；当前没有 Redis 或独立消息队列依赖。
 - **Agent**负责认领、执行、续约、批量回传和停止；管理员令牌、引导令牌、Worker 会话令牌各自独立。
 - **服务识别**由 Nmap 轻量探测已发现端口；HTTP/TLS-Web及未知候选单向进入Web确认，失败不派回Nmap。
-- **Web helper**使用 httpx 请求/标题 SDK 和 WappalyzerGo，通过有界传输层采集一次响应并交给常驻 fingers。任务保存 CFF、被动库和 profile 引用，重试核对相同内容；只承诺已支持规则的识别能力。具体接口及上游边界见 [Web helpers](deploy/WEB_HELPERS.md)。
-- **被动指纹库**支持一键更新、原库与执行包下载。当前已验证可加载11,670条规则及39条别名；主动或不支持的规则单列，新任务使用新包、旧任务保留快照。部署要求及统计见[被动指纹库](docs/FINGERPRINT_BUNDLES.md)。
+- **Web helper**通过官方 `httpx Runner` 采集页面、重定向、TLS、图标及元信息；固定 IP/Host/SNI，所有启用的网络路径共用请求许可。WappalyzerGo 对响应匹配，浏览器 JS/DOM 条件未执行时明确标记能力缺口。
+- **fingers HTTP 指纹**包含 Fingers 8,727、FingerprintHub 3,139、EHole 958、Goby 7,085 条原始记录和 39 条别名；当前固定资源零过滤。没有被动命中也执行主动发现，安全相同请求复用响应，整模板进度可恢复。详见 [完整 HTTP 执行方案](docs/HTTP_FINGERPRINT_FULL_IMPLEMENTATION.md) 与 [规则包](docs/FINGERPRINT_BUNDLES.md)。
 - **P1调度**加入跨Worker的HTTP请求许可、未来批次调优、基于实测成本的异构端口切片、阳性端口提前派生、Web进程复用及兼容Nuclei模板的小批次执行。完整TCP覆盖与已接收阳性证据独立计量；实现和限制见[P1扫描调度](docs/P1_SCHEDULING.md)。
 - **执行资源**按实际Web路径计算连接预算，统计各工具进程和RSS；服务积压时提示有空闲槽的Worker先领取下游任务。Worker详情可查看工具占用，见[P2执行资源与优先策略](docs/P2_EXECUTION.md)。
 - **Web 补采**：新任务支持最多 3 次同源跳转，按已识别产品最多补采 2 个固定路径；与首采、图标共享 8 次请求预算和 90 秒截止时间。规则、请求/响应及跳转链可在界面查看，见 [执行说明](docs/WEB_ENRICHMENT.md) 与 [本地验证](docs/WEB_ENRICHMENT_VALIDATION.md)。
@@ -239,6 +241,6 @@ Masscan 及其修改使用 AGPLv3，相关许可证、固定源码与补丁说�
 
 Nuclei 引擎固定为 v3.11.1（MIT），下载校验和许可见 [deploy/nuclei](deploy/nuclei/README.md)。HTTPx 固定为 v1.12.0（MIT），见 [deploy/httpx](deploy/httpx/README.md)。内置 bootstrap 保留了早期从 MIT `wappalyzergo` 人工改写的 85 条 HTTP 信号及产品专用规则；[第三方声明](internal/rulelib/THIRD_PARTY_NOTICES.md) 继续保留。
 
-完整 Wapp 更新后，本轮已验证的 HTTP 执行库为 **7,793 条**（7,642 个 Wapp app + 151 条 bootstrap），port 为 22 条。PoC 执行库保持 **907 条**（896 discovery + 11 native verification）。Nuclei revision `17f5725dc10ced09f464dd2d255c19957aad51e7` 的独立上游原库包含 14,075 条目录规则和 377 个 Files（其中 44 个是非模板 YAML）；这些目录规则不计入 907 条 PoC，也不可执行。
+**历史版本记录（已被 HTTP 重构替代）**：当时的 HTTP 执行库为 **7,793 条**（7,642 个 Wapp app + 151 条 bootstrap），port 为 22 条。PoC 执行库保持 **907 条**（896 discovery + 11 native verification）。Nuclei revision `17f5725dc10ced09f464dd2d255c19957aad51e7` 的独立上游原库包含 14,075 条目录规则和 377 个 Files（其中 44 个是非模板 YAML）；这些目录规则不计入 907 条 PoC，也不可执行。
 
 参考 Nemo 的历史调研与 bootstrap 取舍见 [规则来源](docs/RULE_SOURCES.md) 和 [PoC 来源](docs/POC_SOURCES.md)；11 条 native verification 的证据闭环和结果边界见 [只读漏洞验证](docs/READONLY_VERIFICATION.md)；一键更新、失败保护、升级顺序和容量边界见 [规则源更新](docs/RULE_UPDATES.md)。

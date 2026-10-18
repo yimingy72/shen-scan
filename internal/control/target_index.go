@@ -119,9 +119,14 @@ func observationTarget(typeName string, payload []byte, source string, item *Obs
 		var p struct {
 			Endpoints            []taskEndpoint `json:"endpoints"`
 			WebEnrichmentProfile string         `json:"web_enrichment_profile"`
+			WebExecutionProfile  string         `json:"web_execution_profile"`
 		}
 		if json.Unmarshal(payload, &p) != nil {
 			return "", errors.New("invalid HTTP task payload")
+		}
+		profile := p.WebEnrichmentProfile
+		if p.WebExecutionProfile != "" {
+			profile = p.WebExecutionProfile
 		}
 		if item.URL != "" {
 			inside := false
@@ -130,11 +135,11 @@ func observationTarget(typeName string, payload []byte, source string, item *Obs
 					continue
 				}
 				if _, ok := observedEndpoint(ep, item.URL); ok {
-					if p.WebEnrichmentProfile != "" {
+					if profile != "" {
 						if _, valid := httpEvidenceURL(item.URL); !valid {
 							return "", errors.New("HTTP observation has an invalid final URL")
 						}
-						if err := validateHTTPEnrichmentEvidence(ep, item, p.WebEnrichmentProfile); err != nil {
+						if err := validateHTTPEnrichmentEvidence(ep, item, profile); err != nil {
 							return "", err
 						}
 					}
@@ -152,7 +157,7 @@ func observationTarget(typeName string, payload []byte, source string, item *Obs
 			if item.Error == "" {
 				return "", errors.New("HTTP observation must include URL or an explicit error")
 			}
-			if p.WebEnrichmentProfile != "" {
+			if profile != "" {
 				bound := false
 				for _, ep := range p.Endpoints {
 					if item.WorkKey != "" && ep.WorkKey != item.WorkKey || item.WorkKey == "" && len(p.Endpoints) != 1 {
@@ -161,7 +166,7 @@ func observationTarget(typeName string, payload []byte, source string, item *Obs
 					if ep.IP != "" && item.IP != "" && canonicalTarget(ep.IP) != canonicalTarget(item.IP) {
 						continue
 					}
-					if err := validateHTTPEnrichmentEvidence(ep, item, p.WebEnrichmentProfile); err != nil {
+					if err := validateHTTPEnrichmentEvidence(ep, item, profile); err != nil {
 						return "", err
 					}
 					item.WorkKey, bound = ep.WorkKey, true

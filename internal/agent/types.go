@@ -2,6 +2,7 @@ package agent
 
 import (
 	"encoding/json"
+	"scanplatform/internal/webevidence"
 	"time"
 
 	"scanplatform/internal/rulelib"
@@ -63,55 +64,58 @@ type Endpoint struct {
 }
 
 type Technology struct {
-	Name         string `json:"name"`
-	Version      string `json:"version,omitempty"`
-	Evidence     string `json:"evidence,omitempty"`
-	RuleID       string `json:"rule_id,omitempty"`
-	RuleRevision int    `json:"rule_revision,omitempty"`
+	Candidate       bool   `json:"candidate,omitempty"`
+	CandidateReason string `json:"candidate_reason,omitempty"`
+	Name            string `json:"name"`
+	Version         string `json:"version,omitempty"`
+	Evidence        string `json:"evidence,omitempty"`
+	RuleID          string `json:"rule_id,omitempty"`
+	RuleRevision    int    `json:"rule_revision,omitempty"`
 }
 
 type Observation struct {
-	CanProveNoMatch   bool                    `json:"can_prove_no_match,omitempty"`
-	EngineVersion     string                  `json:"engine_version,omitempty"`
-	EvidenceProfile   string                  `json:"evidence_profile,omitempty"`
-	WorkKey           string                  `json:"work_key,omitempty"`
-	Outcome           string                  `json:"outcome,omitempty"`
-	Coverage          string                  `json:"coverage,omitempty"`
-	WebCandidate      bool                    `json:"web_candidate,omitempty"`
-	ServiceMethod     string                  `json:"service_method,omitempty"`
-	ServiceConfidence string                  `json:"service_confidence,omitempty"`
-	ServiceTunnel     string                  `json:"service_tunnel,omitempty"`
-	Kind              string                  `json:"kind"`
-	Target            string                  `json:"target"`
-	IP                string                  `json:"ip,omitempty"`
-	Port              int                     `json:"port,omitempty"`
-	Protocol          string                  `json:"protocol,omitempty"`
-	Service           string                  `json:"service,omitempty"`
-	Product           string                  `json:"product,omitempty"`
-	Version           string                  `json:"version,omitempty"`
-	URL               string                  `json:"url,omitempty"`
-	StatusCode        int                     `json:"status_code,omitempty"`
-	Title             string                  `json:"title,omitempty"`
-	Server            string                  `json:"server,omitempty"`
-	Technologies      []Technology            `json:"technologies,omitempty"`
-	Headers           map[string][]string     `json:"headers,omitempty"`
-	BodyExcerpt       string                  `json:"body_excerpt,omitempty"`
-	Banner            string                  `json:"banner,omitempty"`
-	RequestRaw        string                  `json:"request_raw,omitempty"`
-	ResponseRaw       string                  `json:"response_raw,omitempty"`
-	Truncated         bool                    `json:"truncated,omitempty"`
-	RuleID            string                  `json:"rule_id,omitempty"`
-	RuleName          string                  `json:"rule_name,omitempty"`
-	RuleRevision      int                     `json:"rule_revision,omitempty"`
-	TemplateID        string                  `json:"template_id,omitempty"`
-	ExecutionProfile  string                  `json:"execution_profile,omitempty"`
-	ContentSHA256     string                  `json:"content_sha256,omitempty"`
-	Engine            string                  `json:"engine,omitempty"`
-	Severity          string                  `json:"severity,omitempty"`
-	FindingStatus     string                  `json:"finding_status,omitempty"`
-	Evidence          string                  `json:"evidence,omitempty"`
-	Checks            []rulelib.CheckEvidence `json:"checks,omitempty"`
-	Error             string                  `json:"error,omitempty"`
+	HTTPProgress      *webevidence.EntryProgress `json:"http_progress,omitempty"`
+	CanProveNoMatch   bool                       `json:"can_prove_no_match,omitempty"`
+	EngineVersion     string                     `json:"engine_version,omitempty"`
+	EvidenceProfile   string                     `json:"evidence_profile,omitempty"`
+	WorkKey           string                     `json:"work_key,omitempty"`
+	Outcome           string                     `json:"outcome,omitempty"`
+	Coverage          string                     `json:"coverage,omitempty"`
+	WebCandidate      bool                       `json:"web_candidate,omitempty"`
+	ServiceMethod     string                     `json:"service_method,omitempty"`
+	ServiceConfidence string                     `json:"service_confidence,omitempty"`
+	ServiceTunnel     string                     `json:"service_tunnel,omitempty"`
+	Kind              string                     `json:"kind"`
+	Target            string                     `json:"target"`
+	IP                string                     `json:"ip,omitempty"`
+	Port              int                        `json:"port,omitempty"`
+	Protocol          string                     `json:"protocol,omitempty"`
+	Service           string                     `json:"service,omitempty"`
+	Product           string                     `json:"product,omitempty"`
+	Version           string                     `json:"version,omitempty"`
+	URL               string                     `json:"url,omitempty"`
+	StatusCode        int                        `json:"status_code,omitempty"`
+	Title             string                     `json:"title,omitempty"`
+	Server            string                     `json:"server,omitempty"`
+	Technologies      []Technology               `json:"technologies,omitempty"`
+	Headers           map[string][]string        `json:"headers,omitempty"`
+	BodyExcerpt       string                     `json:"body_excerpt,omitempty"`
+	Banner            string                     `json:"banner,omitempty"`
+	RequestRaw        string                     `json:"request_raw,omitempty"`
+	ResponseRaw       string                     `json:"response_raw,omitempty"`
+	Truncated         bool                       `json:"truncated,omitempty"`
+	RuleID            string                     `json:"rule_id,omitempty"`
+	RuleName          string                     `json:"rule_name,omitempty"`
+	RuleRevision      int                        `json:"rule_revision,omitempty"`
+	TemplateID        string                     `json:"template_id,omitempty"`
+	ExecutionProfile  string                     `json:"execution_profile,omitempty"`
+	ContentSHA256     string                     `json:"content_sha256,omitempty"`
+	Engine            string                     `json:"engine,omitempty"`
+	Severity          string                     `json:"severity,omitempty"`
+	FindingStatus     string                     `json:"finding_status,omitempty"`
+	Evidence          string                     `json:"evidence,omitempty"`
+	Checks            []rulelib.CheckEvidence    `json:"checks,omitempty"`
+	Error             string                     `json:"error,omitempty"`
 	httpBody          string
 	httpHeader        string
 }

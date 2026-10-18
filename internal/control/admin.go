@@ -110,6 +110,7 @@ func (s *Server) createRun(w http.ResponseWriter, r *http.Request) {
 	if snapshot.FingerprintBundle != webevidence.FingerprintBundle {
 		snapshot.FingerprintBundleSchema = fingerprintbundle.Schema
 	}
+	snapshot.WebExecutionProfile = webevidence.FullProfile
 	snapshot.WebProfile = webevidence.Profile
 	snapshot.WebEnrichmentProfile = webevidence.EnrichmentProfile
 	snapshotJSON, _ := json.Marshal(snapshot)
@@ -136,6 +137,9 @@ func (s *Server) createRun(w http.ResponseWriter, r *http.Request) {
 				profile["fingerprint_bundle"] = snapshot.FingerprintBundle
 				profile["fingerprint_bundle_schema"] = snapshot.FingerprintBundleSchema
 				profile["web_enrichment_profile"] = snapshot.WebEnrichmentProfile
+				profile["web_execution_profile"] = snapshot.WebExecutionProfile
+				profile["execution_timeout_seconds"] = 1260
+				profile["max_requests"] = 16384
 			}
 			payload, marshalErr := json.Marshal(seed.payload)
 			if marshalErr != nil {

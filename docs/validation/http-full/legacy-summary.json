@@ -1,0 +1,14 @@
+{
+  "passed": true,
+  "old_bundle": "b5946286a877ff75a1c7b9914e9c3e4b0aba4e15287ee1cf594eef6db8e18538",
+  "nonroot_http_target": "http://127.0.0.1:57270/legacy-check",
+  "old_new_results_exactly_equal": true,
+  "match_count": 3,
+  "names": [
+    "nginx",
+    "wordpress",
+    "wordpress"
+  ],
+  "baseline_source": "488f119 + original pinned SDK passive_only",
+  "legacy_scope": "fingers/fingerprinthub/ehole/favicon; no Goby or active execution"
+}

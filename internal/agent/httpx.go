@@ -461,9 +461,19 @@ func mergeTechnologies(groups ...[]Technology) []Technology {
 		for _, technology := range group {
 			key := strings.ToLower(technology.Name)
 			if index, ok := seen[key]; ok {
-				if merged[index].Version == "" && technology.Version != "" {
+				previous := merged[index]
+				// Confirmed evidence owns the product/version metadata. Weak
+				// candidates remain in the merged evidence and native envelope.
+				if previous.Candidate && !technology.Candidate || previous.Candidate == technology.Candidate && previous.Version == "" && technology.Version != "" {
 					merged[index] = technology
 				}
+				merged[index].Candidate = previous.Candidate && technology.Candidate
+				if !merged[index].Candidate {
+					merged[index].CandidateReason = ""
+				} else {
+					merged[index].CandidateReason = joinTechnologyEvidence(previous.CandidateReason, technology.CandidateReason)
+				}
+				merged[index].Evidence = joinTechnologyEvidence(previous.Evidence, technology.Evidence)
 				continue
 			}
 			seen[key] = len(merged)
@@ -471,4 +481,19 @@ func mergeTechnologies(groups ...[]Technology) []Technology {
 		}
 	}
 	return merged
+}
+
+func joinTechnologyEvidence(previous, next string) string {
+	if next == "" || previous == next {
+		return previous
+	}
+	if previous == "" {
+		return next
+	}
+	for _, part := range strings.Split(previous, "\n\n") {
+		if part == next {
+			return previous
+		}
+	}
+	return previous + "\n\n" + next
 }

@@ -3,21 +3,15 @@ package rulelib
 import "testing"
 
 func TestHTTPCollectionIsolationAndBindings(t *testing.T) {
-	rules := builtinHTTPCollections(append(builtinPoCRules(), expandedPoCRules()...))
-	if len(rules) != 6 {
-		t.Fatalf("explicit collection list: got %d, want 6", len(rules))
+	// Legacy/custom collection parsing remains compatible; no collection is seeded.
+	gitlab := Rule{ID: "legacy-custom-http-collect", Kind: "http", Engine: "native", Name: "GitLab legacy confirmation", Severity: "info", Enabled: true, Revision: 1,
+		Collection: &HTTPCollection{Path: "/-/health", Products: []string{"GitLab"}},
+		Definition: Definition{Product: "GitLab", Condition: "and", Matchers: []Matcher{{Part: "status", Type: "status", Status: []int{200}}, {Part: "body", Type: "word", Words: []string{"GitLab OK"}}}}}
+	if err := Validate(gitlab); err != nil {
+		t.Fatal(err)
 	}
-	var gitlab Rule
-	for _, rule := range rules {
-		if err := Validate(rule); err != nil {
-			t.Fatalf("%s: %v", rule.ID, err)
-		}
-		if !CollectionMatchesProducts(rule, []string{rule.Definition.Product}) || CollectionMatchesProducts(rule, []string{"UnknownProduct"}) {
-			t.Fatalf("invalid candidate selection: %s", rule.ID)
-		}
-		if rule.Definition.Product == "GitLab" {
-			gitlab = rule
-		}
+	if !CollectionMatchesProducts(gitlab, []string{"GitLab"}) || CollectionMatchesProducts(gitlab, []string{"UnknownProduct"}) {
+		t.Fatal("legacy product bindings changed")
 	}
 	input := Input{Status: 200, Body: "GitLab OK\n"}
 	if _, ok := Match(gitlab, input); ok {

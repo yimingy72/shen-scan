@@ -31,3 +31,6 @@ require (
 )
 
 replace scanplatform => ../..
+
+replace github.com/chainreactors/fingers => ./third_party/fingers
+replace github.com/chainreactors/neutron => ./third_party/neutron

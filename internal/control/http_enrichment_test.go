@@ -119,23 +119,22 @@ func TestPostgresHTTPEnrichmentSnapshotAndCapabilities(t *testing.T) {
 		t.Fatal(err)
 	}
 	call := earlyEvidenceCaller(t, h)
-	var collectionRule rulelib.Rule
-	for _, rule := range rulelib.Builtins() {
-		if rule.Collection != nil {
-			collectionRule = rule
-			copy := *rule.Collection
-			collectionRule.Collection = &copy
-			break
+	freezeLegacyRun := func(runID string) {
+		t.Helper()
+		if _, err := s.db.Exec(ctx, `UPDATE runs SET rules_snapshot=jsonb_set(rules_snapshot-'web_execution_profile'-'fingerprint_bundle_schema','{fingerprint_bundle}',to_jsonb($2::text)) WHERE id=$1;`, runID, webevidence.LegacyFingerprintBundle); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := s.db.Exec(ctx, `UPDATE tasks SET payload=jsonb_set(payload-'web_execution_profile'-'fingerprint_bundle_schema','{fingerprint_bundle}',to_jsonb($2::text)) WHERE run_id=$1`, runID, webevidence.LegacyFingerprintBundle); err != nil {
+			t.Fatal(err)
 		}
 	}
-	if collectionRule.Collection == nil {
-		t.Fatal("no collection fixture")
-	}
+	collectionRule := rulelib.Rule{ID: "http-legacy-collection-fixture", Kind: "http", Name: "Legacy Grafana collection", Engine: "native", Severity: "info", Enabled: true, Collection: &rulelib.HTTPCollection{Path: "/login", Products: []string{"Grafana"}, SourceRuleID: "legacy-grafana", SourceRuleRevision: 1}, Definition: rulelib.Definition{Product: "Grafana", Condition: "and", Matchers: []rulelib.Matcher{{Part: "body", Type: "word", Words: []string{"Grafana"}}}}}
 	collectionRule.ID, collectionRule.Builtin = "http-enrichment-control-fixture", false
 	call(http.MethodPost, "/api/library", "admin-policy", collectionRule, 201, &collectionRule)
 	frozenPath := collectionRule.Collection.Path
 	var run Run
 	call(http.MethodPost, "/api/runs", "admin-policy", map[string]any{"name": "new enrichment", "targets": []string{"http://192.0.2.70/start"}, "modes": []string{"http"}}, 201, &run)
+	freezeLegacyRun(run.ID)
 	var snapshotProfile, payloadProfile string
 	if err := s.db.QueryRow(ctx, `SELECT r.rules_snapshot->>'web_enrichment_profile',t.payload->>'web_enrichment_profile'
  FROM runs r JOIN tasks t ON t.run_id=r.id WHERE r.id=$1`, run.ID).Scan(&snapshotProfile, &payloadProfile); err != nil || snapshotProfile != webevidence.EnrichmentProfile || payloadProfile != snapshotProfile {
@@ -278,6 +277,7 @@ func TestPostgresHTTPEnrichmentSnapshotAndCapabilities(t *testing.T) {
 	call(http.MethodPost, "/api/library", "admin-policy", pocRule, 201, &pocRule)
 	var enabledRun Run
 	call(http.MethodPost, "/api/runs", "admin-policy", map[string]any{"name": "explicit PoC entry", "targets": []string{"http://192.0.2.73/original"}, "modes": []string{"http"}, "poc_enabled": true, "poc_rule_ids": []string{pocRule.ID}}, 201, &enabledRun)
+	freezeLegacyRun(enabledRun.ID)
 	enabledTask := claim("explicit-poc-entry", webevidence.EnrichmentProfile)
 	if enabledTask == nil || enabledTask.RunID != enabledRun.ID {
 		t.Fatalf("explicit PoC task claim=%+v", enabledTask)

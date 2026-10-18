@@ -1,0 +1,70 @@
+{
+  "resource_records_preserved": 7085,
+  "rule_bytes_unchanged": true,
+  "source_field_restoration_supported": false,
+  "reason": "Pinned source has only name/logic/rule(label,feature,is_equal); pinned fingers transformJSON only JSON re-encoding/gzip. Earlier provenance cannot prove lost protocol fields.",
+  "counterexample": "rdp is inside wordpress, with no standalone rdp in the complete HTTP evidence.",
+  "decision_rule": "Original Goby match remains. Candidate iff rdp occurs only inside other words and removing positive rdp labels makes the original Boolean expression false; independent support prevents downgrade.",
+  "candidate_reason": "goby_rdp_inside_word_required",
+  "matches": [
+    {
+      "candidate": true,
+      "candidate_reason": "goby_rdp_inside_word_required",
+      "name": "microsoft-windows远程连接",
+      "engine": "goby",
+      "evidence": {
+        "name": "microsoft-windows远程连接",
+        "froms": {
+          "10": true
+        },
+        "tags": [
+          "goby"
+        ],
+        "matcher": {
+          "matcher_type": "word",
+          "matcher_value": "rdp"
+        },
+        "attributes": {
+          "part": "a",
+          "product": "Microsoft-Windows远程连接"
+        }
+      }
+    },
+    {
+      "candidate": true,
+      "candidate_reason": "goby_rdp_inside_word_required",
+      "name": "windows",
+      "engine": "goby",
+      "evidence": {
+        "name": "windows",
+        "froms": {
+          "10": true
+        },
+        "tags": [
+          "goby"
+        ],
+        "matcher": {
+          "matcher_type": "word",
+          "matcher_index": 19,
+          "matcher_value": "rdp"
+        },
+        "attributes": {
+          "part": "a",
+          "product": "Windows"
+        }
+      }
+    }
+  ],
+  "local_source_references": [
+    "cmd/fingerprint-worker/third_party/fingers/cmd/transform/transform.go:166",
+    "cmd/fingerprint-worker/third_party/fingers/cmd/transform/transform.go:772",
+    "cmd/fingerprint-worker/third_party/fingers/goby/goby.go:107"
+  ],
+  "upstream_references": [
+    "https://github.com/chainreactors/fingers/blob/e870395e898422e43e271ec08f47ff2ccb4003ee/cmd/transform/transform.go",
+    "https://github.com/chainreactors/fingers/blob/e870395e898422e43e271ec08f47ff2ccb4003ee/goby/goby.go",
+    "https://github.com/chainreactors/fingers/blob/e870395e898422e43e271ec08f47ff2ccb4003ee/README.md"
+  ],
+  "original_observation": "/Users/yym1ng/Documents/Codex/2026-10-16/shen/work/http-fingerprint-implementation/fullstack/observation.json",
+  "original_http": "/Users/yym1ng/Documents/Codex/2026-10-16/shen/work/http-fingerprint-implementation/goby-assessment/fullstack-original-false-positive.http"
+}

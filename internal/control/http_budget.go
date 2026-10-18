@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"scanplatform/internal/webevidence"
 )
 
 const (
@@ -55,6 +56,7 @@ CREATE TABLE IF NOT EXISTS http_endpoint_bindings (
 );` + pocReceiptSchema
 
 type httpPermitRequest struct {
+	Segment   int    `json:"segment,omitempty"`
 	WorkerID  string `json:"worker_id"`
 	SessionID string `json:"session_id"`
 	AttemptNo int    `json:"attempt_no"`
@@ -188,7 +190,7 @@ func (s *Server) admitHTTP(ctx context.Context, taskID string, req httpPermitReq
  AND EXISTS(SELECT 1 FROM worker_pool WHERE enabled)
  AND EXISTS(SELECT 1 FROM target_quotas q WHERE q.task_id=t.id AND q.attempt_no=t.attempt_no AND q.worker_id=w.id AND q.session_id=t.session_id AND q.dimension='web_jobs' AND q.state='active' AND q.valid_until>clock_timestamp())
  AND NOT EXISTS(SELECT 1 FROM target_quotas q WHERE q.task_id=t.id AND q.attempt_no=t.attempt_no AND q.worker_id=w.id AND q.session_id=t.session_id AND q.state IN('suspect','revoking'))
- FOR SHARE OF t,r,w`, taskID, req.WorkerID, req.SessionID, req.AttemptNo).Scan(&token, &lease, &rate)
+ FOR UPDATE OF t FOR SHARE OF r,w`, taskID, req.WorkerID, req.SessionID, req.AttemptNo).Scan(&token, &lease, &rate)
 	hash, ok := ctx.Value(workerTokenKey{}).([32]byte)
 	if errors.Is(err, pgx.ErrNoRows) || err == nil && (!ok || subtle.ConstantTimeCompare(token, hash[:]) != 1) {
 		return out, 409, errors.New("HTTP execution is stale or stopped")
@@ -262,6 +264,22 @@ func (s *Server) admitHTTP(ctx context.Context, taskID string, req httpPermitReq
 		out.ValidUntil = validUntil
 		return out, 200, tx.Commit(ctx)
 	}
+	var full fullHTTPPayload
+	var taskPayload []byte
+	if err = tx.QueryRow(ctx, `SELECT payload FROM tasks WHERE id=$1`, taskID).Scan(&taskPayload); err != nil {
+		return out, 503, err
+	}
+	if json.Unmarshal(taskPayload, &full) != nil {
+		return out, 503, errors.New("invalid HTTP payload")
+	}
+	if full.Profile == webevidence.FullProfile {
+		if full.Progress != nil && req.Segment > full.Progress.ReservedSegment {
+			reserveHTTPFullSegment(full.Progress, req.Segment)
+		}
+		if full.Progress == nil || full.Progress.RequestsUsed >= full.Progress.MaxRequests || full.Progress.SegmentRequestLimit <= 0 || full.Progress.SegmentRequestsUsed >= full.Progress.SegmentRequestLimit || !full.Progress.Deadline.After(out.ServerTime) || req.Segment < 1 || req.Segment > full.Progress.MaxSegments || req.Segment < full.Progress.Segment {
+			return out, 409, errors.New("full HTTP cumulative budget, deadline or segment exhausted")
+		}
+	}
 	if _, err = tx.Exec(ctx, `INSERT INTO http_ip_budgets(connect_ip,next_at) VALUES($1,'epoch') ON CONFLICT DO NOTHING`, req.ConnectIP); err != nil {
 		return out, 503, err
 	}
@@ -286,6 +304,15 @@ func (s *Server) admitHTTP(ctx context.Context, taskID string, req httpPermitReq
 	}
 	if !lease.After(out.ServerTime) || !rate.After(out.ServerTime) {
 		return out, 409, errors.New("HTTP execution expired while awaiting admission")
+	}
+	if full.Profile == webevidence.FullProfile {
+		full.Progress.RequestsUsed++
+		full.Progress.SegmentRequestsUsed++
+		full.Progress.Segment = max(full.Progress.Segment, req.Segment)
+		progress, _ := json.Marshal(full.Progress)
+		if _, err = tx.Exec(ctx, `UPDATE tasks SET payload=jsonb_set(payload,'{http_progress}',$2::jsonb) WHERE id=$1`, taskID, progress); err != nil {
+			return out, 503, err
+		}
 	}
 	out.Granted = true
 	out.ValidUntil = out.ServerTime.Add(httpPermitLifetime)

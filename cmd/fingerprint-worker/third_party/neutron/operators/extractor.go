@@ -1,0 +1,260 @@
+package operators
+
+import (
+	"fmt"
+	"github.com/Knetic/govaluate"
+	"github.com/chainreactors/neutron/common"
+	"strings"
+)
+
+// Extractor is used to extract part of response using a regex.
+type Extractor struct {
+	// description: |
+	//   Name of the extractor. Name should be lowercase and must not contain
+	//   spaces or underscores (_).
+	// examples:
+	//   - value: "\"cookie-extractor\""
+	Name string `json:"name,omitempty" yaml:"name,omitempty"`
+	// description: |
+	//   Type is the type of the extractor.
+	Type string `json:"type" yaml:"type"`
+	// extractorType is the internal type of the extractor
+	extractorType ExtractorType
+
+	// description: |
+	//   Regex contains the regular expression patterns to extract from a part.
+	//
+	//   Go regex engine does not support lookaheads or lookbehinds, so as a result
+	//   they are also not supported in nuclei.
+	// examples:
+	//   - name: Braintree Access Token Regex
+	//     value: >
+	//       []string{"access_token\\$production\\$[0-9a-z]{16}\\$[0-9a-f]{32}"}
+	//   - name: Wordpress Author Extraction regex
+	//     value: >
+	//       []string{"Author:(?:[A-Za-z0-9 -\\_=\"]+)?<span(?:[A-Za-z0-9 -\\_=\"]+)?>([A-Za-z0-9]+)<\\/span>"}
+	Regex []string `json:"regex,omitempty" yaml:"regex,omitempty"`
+	// description: |
+	//   Group specifies a numbered group to extract from the regex.
+	// examples:
+	//   - name: Example Regex Group
+	//     value: "1"
+	RegexGroup int `json:"group,omitempty" yaml:"group,omitempty"`
+	// regexCompiled is the compiled variant
+	regexCompiled []compiledRegex
+
+	// description: |
+	//   kval contains the key-value pairs present in the HTTP response header.
+	//   kval extractor can be used to extract HTTP response header and cookie key-value pairs.
+	//   kval extractor inputs are case-insensitive, and does not support dash (-) in input which can replaced with underscores (_)
+	// 	 For example, Content-Type should be replaced with content_type
+	//
+	//   A list of supported parts is available in docs for request types.
+	// examples:
+	//   - name: Extract Server Header From HTTP Response
+	//     value: >
+	//       []string{"server"}
+	//   - name: Extracting value of PHPSESSID Cookie
+	//     value: >
+	//       []string{"phpsessid"}
+	//   - name: Extracting value of Content-Type Cookie
+	//     value: >
+	//       []string{"content_type"}
+	KVal []string `json:"kval,omitempty" yaml:"kval,omitempty"`
+
+	// description: |
+	//   JSON allows using jq-style syntax to extract items from json response
+	//
+	// examples:
+	//   - value: >
+	//       []string{".[] | .id"}
+	//   - value: >
+	//       []string{".batters | .batter | .[] | .id"}
+	JSON []string `yaml:"json,omitempty" jsonschema:"title=json jq expressions to extract data,description=JSON JQ expressions to evaluate from response part"`
+
+	compiledData interface{}
+
+	// description: |
+	//   XPath allows using xpath expressions to extract items from html response
+	//
+	// examples:
+	//   - value: >
+	//       []string{"/html/body/div/p[2]/a"}
+	XPath []string `json:"xpath,omitempty" yaml:"xpath,omitempty"`
+	// description: |
+	//   Attribute is an optional attribute to extract from response XPath.
+	//
+	// examples:
+	//   - value: "\"href\""
+	Attribute string `json:"attribute,omitempty" yaml:"attribute,omitempty" jsonschema:"title=optional attribute to extract from xpath,description=Optional attribute to extract from response XPath"`
+
+	DSL         []string `yaml:"dsl,omitempty" json:"dsl,omitempty" `
+	dslCompiled []*govaluate.EvaluableExpression
+	// description: |
+	//   Part is the part of the request response to extract data from.
+	//
+	//   Each protocol exposes a lot of different parts which are well
+	//   documented in docs for each request type.
+	// examples:
+	//   - value: "\"body\""
+	//   - value: "\"raw\""
+	Part string `json:"part,omitempty" yaml:"part,omitempty"`
+	// description: |
+	//   Internal, when set to true will allow using the value extracted
+	//   in the next request for some protocols (like HTTP).
+	Internal bool `json:"internal,omitempty" yaml:"internal,omitempty"`
+
+	// description: |
+	//   CaseInsensitive enables case-insensitive extractions. Default is false.
+	// values:
+	//   - false
+	//   - true
+	CaseInsensitive bool `json:"case-insensitive,omitempty" yaml:"case-insensitive,omitempty"`
+}
+
+// CompileExtractors performs the initial setup operation on an extractor
+func (e *Extractor) CompileExtractors() error {
+	// Set up the extractor type
+	computedType, ok := extractorMappings[e.Type]
+	if !ok {
+		return fmt.Errorf("unknown extractor type specified: %s", e.Type)
+	}
+	e.extractorType = computedType
+
+	// Compile the regexes
+	for _, regex := range e.Regex {
+		compiled, err := compileRegex(regex)
+		if err != nil {
+			return fmt.Errorf("could not compile regex: %s", regex)
+		}
+		e.regexCompiled = append(e.regexCompiled, compiled)
+	}
+	for i, kval := range e.KVal {
+		e.KVal[i] = strings.ToLower(kval)
+	}
+
+	if handler, ok := registeredExtractCompilers[e.extractorType]; ok {
+		if err := handler(e); err != nil {
+			return err
+		}
+	}
+
+	for _, dslExp := range e.DSL {
+		compiled, err := govaluate.NewEvaluableExpressionWithFunctions(dslExp, common.GetHelperFunctions())
+		if err != nil {
+			return fmt.Errorf("could not compile dsl expression: %s", dslExp)
+		}
+		e.dslCompiled = append(e.dslCompiled, compiled)
+	}
+
+	if e.CaseInsensitive {
+		if e.GetType() != KValExtractor {
+			return fmt.Errorf("case-insensitive flag is supported only for 'kval' extractors (not '%s')", e.Type)
+		}
+		for i := range e.KVal {
+			e.KVal[i] = strings.ToLower(e.KVal[i])
+		}
+	}
+
+	return nil
+}
+
+// ExtractRegex extracts text from a corpus and returns it
+func (e *Extractor) ExtractRegex(corpus string) map[string]struct{} {
+	results := make(map[string]struct{})
+
+	groupPlusOne := e.RegexGroup + 1
+	for _, regex := range e.regexCompiled {
+		matches := regex.FindAllStringSubmatch(corpus, -1)
+
+		for _, match := range matches {
+			if len(match) < groupPlusOne {
+				continue
+			}
+			matchString := match[e.RegexGroup]
+
+			if _, ok := results[matchString]; !ok {
+				results[matchString] = struct{}{}
+			}
+		}
+	}
+	return results
+}
+
+// ExtractKval extracts key value pairs from a data map
+func (e *Extractor) ExtractKval(data map[string]interface{}) map[string]struct{} {
+	if e.CaseInsensitive {
+		inputData := data
+		data = make(map[string]interface{}, len(inputData))
+		for k, v := range inputData {
+			if s, ok := v.(string); ok {
+				v = strings.ToLower(s)
+			}
+			data[strings.ToLower(k)] = v
+		}
+	}
+
+	results := make(map[string]struct{})
+	for _, k := range e.KVal {
+		item, ok := data[k]
+		if !ok {
+			continue
+		}
+		itemString := common.ToString(item)
+		if _, ok := results[itemString]; !ok {
+			results[itemString] = struct{}{}
+		}
+	}
+	return results
+}
+
+func (e *Extractor) SetCompiledData(data interface{}) { e.compiledData = data }
+
+func (e *Extractor) GetCompiledData() interface{} { return e.compiledData }
+
+// ExtractWithHandler dispatches extraction to a registered handler.
+func (e *Extractor) ExtractWithHandler(corpus string, data map[string]interface{}) map[string]struct{} {
+	if handler, ok := registeredExtractHandlers[e.extractorType]; ok {
+		return handler(e, corpus, data)
+	}
+	return nil
+}
+
+// ExtractDSL execute the expression and returns the results
+func (e *Extractor) ExtractDSL(data map[string]interface{}) map[string]struct{} {
+	results := make(map[string]struct{})
+
+	for _, compiledExpression := range e.dslCompiled {
+		result, err := compiledExpression.Evaluate(data)
+		// ignore errors that are related to missing parameters
+		// eg: dns dsl can have all the parameters that are not present
+		if err != nil && !strings.HasPrefix(err.Error(), "No parameter") {
+			return results
+		}
+
+		if result != nil {
+			resultString := fmt.Sprint(result)
+			if resultString != "" {
+				results[resultString] = struct{}{}
+			}
+		}
+	}
+	return results
+}
+
+// ExtractDSLTyped evaluates DSL expressions and returns results with their
+// original types preserved (float64, bool, string, etc.) instead of converting
+// everything to strings.
+func (e *Extractor) ExtractDSLTyped(data map[string]interface{}) []interface{} {
+	var results []interface{}
+	for _, compiledExpression := range e.dslCompiled {
+		result, err := compiledExpression.Evaluate(data)
+		if err != nil && !strings.HasPrefix(err.Error(), "No parameter") {
+			return results
+		}
+		if result != nil {
+			results = append(results, result)
+		}
+	}
+	return results
+}

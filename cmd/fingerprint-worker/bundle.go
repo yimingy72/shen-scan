@@ -20,14 +20,14 @@ import (
 	fb "scanplatform/internal/fingerprintbundle"
 )
 
-func prepareBundle(input fb.RawInput) (fb.Package, error) {
-	p := fb.Package{Schema: fb.Schema, EngineRevision: fb.EngineRevision, SelectionProfile: fb.SelectionProfile, Source: fb.Source{Repository: fb.Repository, Revision: input.SourceRevision}, Files: map[string]fb.File{}, Validation: map[string]fb.Stats{}}
+func prepareLegacyBundle(input fb.RawInput) (fb.Package, error) {
+	p := fb.Package{Schema: fb.LegacySchema, EngineRevision: fb.EngineRevision, SelectionProfile: fb.LegacySelectionProfile, Source: fb.Source{Repository: fb.Repository, Revision: input.SourceRevision}, Files: map[string]fb.File{}, Validation: map[string]fb.Stats{}}
 	if len(input.Files) != 4 {
 		return p, fmt.Errorf("exactly four allowed resources are required")
 	}
 	decoded := map[string][]byte{}
 	total := 0
-	for _, path := range fb.Paths() {
+	for _, path := range fb.LegacyPaths() {
 		data, err := fb.DecodeRaw(path, input.Files[path])
 		if err != nil {
 			return p, err
@@ -38,7 +38,7 @@ func prepareBundle(input fb.RawInput) (fb.Package, error) {
 		}
 		decoded[path] = data
 	}
-	for _, path := range fb.Paths() {
+	for _, path := range fb.LegacyPaths() {
 		key := ""
 		var data []byte
 		var stats fb.Stats
@@ -350,7 +350,11 @@ func readBundle(path string) (fb.Package, []byte, error) {
 	for k, v := range p.Files {
 		files[k] = v.Raw
 	}
-	regenerated, err := prepareBundle(fb.RawInput{SourceRevision: p.Source.Revision, Files: files})
+	prepare := prepareBundle
+	if p.Legacy() {
+		prepare = prepareLegacyBundle
+	}
+	regenerated, err := prepare(fb.RawInput{SourceRevision: p.Source.Revision, Files: files})
 	if err != nil {
 		return p, nil, err
 	}
@@ -369,6 +373,9 @@ func installResources(p fb.Package) {
 	resources.FingerprinthubWebData = p.Files["resources/fingerprinthub_web.json.gz"].Effective
 	resources.EholeData = p.Files["resources/ehole.json.gz"].Effective
 	resources.AliasesData = p.Files["resources/aliases.yaml"].Effective
+	if !p.Legacy() {
+		resources.GobyData = p.Files["resources/goby.json.gz"].Effective
+	}
 	resources.FingersSocketData = []byte("[]")
 	resources.FingerprinthubServiceData = []byte("[]")
 	resources.PortData = []byte("[]")
@@ -376,12 +383,19 @@ func installResources(p fb.Package) {
 
 func loadSnapshotEngine(p fb.Package) (*fingers.Engine, error) {
 	installResources(p)
-	engine, err := fingers.NewEngine(engines...)
+	names := engines
+	if p.Legacy() {
+		names = legacyEngines
+	}
+	engine, err := fingers.NewEngine(names...)
 	if err != nil {
 		return nil, err
 	}
 	if len(engine.Fingers().HTTPFingers) != p.Validation["fingers"].Loaded || engine.FingerPrintHub().Len() != p.Validation["fingerprinthub"].Loaded || engine.EHole().Len() != p.Validation["ehole"].Loaded {
 		return nil, fmt.Errorf("SDK loaded counts differ from package validation")
+	}
+	if !p.Legacy() && engine.Goby().Len() != p.Validation["goby"].Loaded {
+		return nil, fmt.Errorf("Goby loaded count differs from package validation")
 	}
 	engine.EnableMatchDetail()
 	return engine, nil

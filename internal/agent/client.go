@@ -29,6 +29,7 @@ type Client struct {
 	nmapBinary              string
 	serviceProfile          string
 	webCapabilityOnce       sync.Once
+	webExecutionProfile     string
 	webEnrichmentProfile    string
 	webEvidenceProfile      string
 	fingerprintBundle       string
@@ -107,6 +108,7 @@ func (c *Client) Claim(ctx context.Context, workerID, sessionID, requestID strin
 	})
 	c.webCapabilityOnce.Do(func() {
 		c.webEvidenceProfile, c.fingerprintBundle, c.fingerprintBundleSchema, c.webEnrichmentProfile = discoverWebCapabilitiesFull()
+		c.webExecutionProfile = discoverFullExecutionProfile()
 	})
 	claim := map[string]any{
 		"worker_id": workerID, "session_id": sessionID, "request_id": requestID,
@@ -117,7 +119,8 @@ func (c *Client) Claim(ctx context.Context, workerID, sessionID, requestID strin
 		"supports_http_request_budget":  true,
 		"service_profile":               c.serviceProfile,
 		"supports_port_ranges":          true, "port_start_reserved": reserved,
-		"web_evidence_profile": c.webEvidenceProfile, "fingerprint_bundle": c.fingerprintBundle,
+		"web_execution_profile": c.webExecutionProfile,
+		"web_evidence_profile":  c.webEvidenceProfile, "fingerprint_bundle": c.fingerprintBundle,
 		"fingerprint_bundle_schema": c.fingerprintBundleSchema,
 	}
 	if c.webEnrichmentProfile != "" {

@@ -25,6 +25,7 @@ export interface Run {
 }
 
 export interface Technology {
+  candidate?: boolean; candidate_reason?: string
   name: string
   version?: string
   evidence?: string
@@ -199,11 +200,14 @@ export interface NucleiMetadata {
   default_disabled_reason?: string; runtime_reason?: string; info?: unknown; classification?: unknown
 }
 export interface LibraryRule {
+  source_managed?: boolean; bundle?: string; capabilities?: string[]
+  record?: { engine: string; source: string; source_revision: string; original_id: string; path: string; index: number; content_hash: string; capabilities: string[]; load_status: string; original_reference: string }
+  original?: unknown
 	collection?: { path: string; products: string[]; source_rule_id?: string; source_rule_revision?: number }
   purpose?: string; verification?: Verification
   nuclei?: NucleiMetadata; execution_profile?: string; template_id?: string; content_sha256?: string
   fingerprint?: Record<string, unknown>; execution_available?: boolean; runtime_reason?: string
-  id: string; kind: RuleKind; name: string; description?: string; engine: 'native' | 'nuclei' | 'httpx-cff'
+  id: string; kind: RuleKind; name: string; description?: string; engine: 'native' | 'nuclei' | 'httpx-cff' | 'fingers' | 'fingerprinthub' | 'ehole' | 'goby'
   severity: string; enabled: boolean; builtin: boolean; revision: number; tags?: string[]; source?: string
   definition?: Record<string, unknown>; template?: string; match_summary?: string; applies_to?: string[]; source_id?: string
 }

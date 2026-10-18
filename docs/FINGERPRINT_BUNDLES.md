@@ -1,38 +1,35 @@
-# Web 被动指纹库更新
+# 完整 HTTP 指纹规则包
 
-在「指纹库 → 被动库」中更新 fingers 数据。平台读取 chainreactors/fingers 的最新提交，并从该提交下载 Fingers、FingerprintHub、EHole 和 aliases 四个固定文件。下载、解压、解析和实际引擎检查全部成功后，才原子替换新任务的默认包；失败保留旧包。SDK 不随数据更新，当前固定为 `e870395e898422e43e271ec08f47ff2ccb4003ee`，必须使用 `passive_only` 构建。
+当前新任务使用 `web-full-v2` 和 `shen-fingerprint-bundle-v2 / full-http-v1`。在「指纹库 → 来源与更新」执行一键更新，或导入此前导出的完整 v2 执行包。更新下载上游原文后使用实际引擎编译，成功后原子发布；不能编译的记录使更新失败，不再静默过滤。
 
-## 识别范围与统计
+| 原始资源 | 已装载记录 |
+|---|---:|
+| Fingers HTTP | 8,727 |
+| FingerprintHub Web | 3,139 |
+| EHole | 958 |
+| Goby | 7,085 |
+| 产品别名（不计指纹） | 39 |
 
-这是对已采集 HTTP 响应的被动匹配，不额外运行通用主动模板。FingerprintHub 当前只接纳能够正确表达的单个根路径 GET 正向规则，且只用于真实根路径、无 query 的响应；路径探测、主动规则和不支持的表达式分别计数。界面按引擎显示加载/总数，aliases 单列，不将别名计入规则数量，也不承诺上游所有规则均可执行。
+固定资源提交：`e870395e898422e43e271ec08f47ff2ccb4003ee`。HTTP 目录共 **19,909** 条原始记录；同名、同内容的上游记录保留其原始 JSON pointer，不能用产品名覆盖。favicon 来自原 Fingers/EHole/FPHub 条件，不伪造额外资源文件。数量是装载记录数，不是独立产品数、实际请求数或识别准确率。
 
-2026-10-18 对上述提交的实际加载结果：
+统一 HTTP 目录同时列出 Wappalyzer 规则和此合集，支持来源、引擎、主动/响应/图标/标题筛选及原文查看。来源管理的 fingers 条目以完整包更新、导入和导出；单条原文可以导出，但不在页面上改写为平台 native。Wappalyzer/自定义执行规则保留原有编辑、启停、删除、导入导出。历史任务继续使用各自的不可变快照。
 
-| 数据 | 总条目 | 加载 | 主动排除 | 不支持 | 编译失败 |
-|---|---:|---:|---:|---:|---:|
-| Fingers | 8,727 | 7,884 | 51 | 792 | 0 |
-| FingerprintHub | 3,139 | 2,875 | 7 | 257 | 0 |
-| EHole | 958 | 911 | 0 | 47 | 0 |
-| aliases | 39 | 39 | 0 | 0 | 0 |
+## 执行语义
 
-共11,670条可加载规则、39条别名。数量随源版本变化。来源混合，保留上游原文及声明，不给所有规则统一标注MIT许可。
+- httpx 使用官方完整 Runner 做采集；WappalyzerGo 对响应进行匹配。浏览器 JS/DOM 条件不在当前采集范围，存在这类条件时记录能力缺口；不能把全量同步解释为全量执行支持。
+- fingers 保留原生被动和主动 matcher。未知页面同样进入主动发现，已知产品只提高优先级。
+- title 使用真实标题；favicon 与页面头/正文分别取证，保留组合条件，同 hash 的多个产品均参与匹配。
+- 安全 GET/HEAD 缓存键包含方法、完整 URL/query、连接 IP、Host、SNI、headers 和入口身份。有 body/Cookie/Auth、状态链或 Set-Cookie/private/no-store 响应不共享缓存。
+- Goby 已证明的 `rdp` 单词内部子串误报保留为候选，需独立证据才进入产品 PoC 路由。
+- 以完整 finger/template 作为完成单元，绑定原始路径/pointer、ID、内容摘要和冻结 manifest。中断的状态链有界重跑，已接受进度不因换 attempt 丢失。
+- 每段最多 1,024 个请求许可、约 45 秒主动执行；入口总上限 16,384、绝对 20 分钟、最多 32 段。失联未知消耗不退还，达到限制明确 partial，不冒充完整未命中。
 
-## 任务、Worker 与包
+当前公开 HTTP 资源需要页面、headers、TLS 和关联 icon，不含依赖 JS/DOM 执行的 matcher。后续源若新增不支持语义，实际编译/能力检查必须拒绝不完整更新。
 
-- 创建任务时固定包SHA-256和schema，派生HTTP任务继承；更新不改变已创建任务。历史内置包任务仍使用原来的嵌入数据。
-- 包包含原始数据、有效子集、逐文件摘要及拒绝原因。已发布包不可修改/删除；可下载原库ZIP和执行包。
-- Agent声明 `fingerprint_bundle_schema` 能力；旧Agent不认领外部包任务。包下载校验task、worker、session、attempt及有效租约，按任务读取固定包，不接受任意下载地址。
-- Agent校验摘要及大小后缓存一个包，切换时停止旧matcher并使用新包启动常驻helper。损坏或不匹配会报错，不静默换成当前默认库。
-- HTTP响应和匹配结果携带实际包身份。PoC仍默认关闭、任务中显式开启并按识别产品选择；此次不扩展Nuclei执行范围。
+## 发布与兼容
 
-## 部署
+构建命令 `deploy/build-web-helpers.sh` 不使用 `passive_only`。本地依赖 override 保留源码、原始资源和说明，可重复构建；不要改 Go 模块缓存。Control 只将新 profile 派给对应 Agent/helper 能力；原 v1 包和旧 embedded 路径保留旧执行范围。Manifest 在发布时计算一次，领取只读取摘要，不在每个入口重复解包全库。
 
-`deploy/build-release.sh` 同时输出Agent包及 `tools/fingerprint-worker`。控制服务器须安装该checker到 `scan-server` 同级的 `tools/fingerprint-worker`，或设置绝对路径 `FINGERPRINT_CHECKER_BINARY`。只装Agent端helper无法让控制面完成更新检查。每次checker调用最长120秒；stdout上限96MiB，stderr仅保留最后16KiB，不因正常日志量终止有效更新。
+HTTP 原始包下载：`GET /api/library/fingerprint-bundles/{digest}`；完整导入：`POST /api/library/fingerprint-bundles/import`。统一目录为 `GET /api/library/http-fingerprints`，原文详情为 `GET /api/library/http-fingerprints/{unit_key}`，均需要管理员权限。
 
-先部署Control与checker，再在Worker维护模式下等已有任务排空后分批升级Agent。使用当前session解除维护。全部可用Worker具备新能力后更新被动库；否则新包HTTP任务等待兼容节点，不降级执行。
-
-发布包自动迁移 `fingerprint_bundles` 和默认引用表。升级前备份数据库、运行配置和云凭据加密密钥。恢复旧控制面时保留新表数据，新包任务仍需兼容Agent。
-
-## 必要验证
-
-已覆盖实际helper生成/检查、固定来源下载边界、错误包保留默认值、历史包不可变、A/B任务快照、过期执行和错误session下载拒绝、旧Agent兼容性、真实helper切换缓存包，以及完整上游库的一键更新。页面截图和完整HTTP请求响应保存在私有验证目录，避免将部署凭据或业务目标推送到公有仓库。
+原始资源和各来源声明保留，不把执行引擎许可证当作所有数据集统一许可证。补丁说明见 `third_party/httpx/SHEN_PATCHES.md` 和 `cmd/fingerprint-worker/third_party/`。

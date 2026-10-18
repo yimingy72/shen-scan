@@ -1,0 +1,68 @@
+{
+  "full_run": {
+    "local_only": true,
+    "target_url": "http://fixture-http-full.test:55981/",
+    "bundle_sha256": "04cf719d67b3e6e77fe93f1ac58e1a0efbe83258c03ad78d2ae85cad472639e9",
+    "schema": "shen-fingerprint-bundle-v2",
+    "selection_profile": "full-http-v1",
+    "source_counts": {
+      "aliases": 39,
+      "ehole": 958,
+      "fingerprinthub": 3139,
+      "fingers": 8727,
+      "goby": 7085
+    },
+    "wappalyzer_technologies": 7607,
+    "identity": {
+      "task_id": "local-chain-task",
+      "attempt_no": 1,
+      "entry_id": "local-chain-entry",
+      "segment": 1,
+      "entry_url": "http://fixture-http-full.test:55981/",
+      "rules_ref": "04cf719d67b3e6e77fe93f1ac58e1a0efbe83258c03ad78d2ae85cad472639e9",
+      "selection_profile_hash": "ca1f28a66f74d351e389a6fd0fea2fded37583aa8bb5efced5c8321e9328db74",
+      "manifest_hash": "04cf719d67b3e6e77fe93f1ac58e1a0efbe83258c03ad78d2ae85cad472639e9"
+    },
+    "prepare_seconds": 1.2272852910100482,
+    "probe_seconds": 1.015096374991117,
+    "probe_requests": 2,
+    "probe_technologies": [],
+    "probe_capability_gaps": [
+      "wappalyzer-browser-js-dom",
+      "http2-probe",
+      "unsafe",
+      "ztls",
+      "headless"
+    ],
+    "match_seconds_including_worker_start_and_full_bundle_validation": 2.7869558749953285,
+    "active_requests": 43,
+    "completed_units": 3188,
+    "remaining_units": 0,
+    "statuses": {
+      "not_matched": 3188
+    },
+    "cache_only_units": 3154,
+    "complete": true,
+    "partial_reason": "",
+    "errors": [],
+    "match_names": [],
+    "target_http_exchanges": 45,
+    "admission_http_exchanges": 45
+  },
+  "short_segment_deadline": {
+    "elapsed_seconds": 0.859941583010368,
+    "active_requests": 0,
+    "completed_units": 0,
+    "remaining_units": 3188,
+    "stop_reason": "segment_deadline"
+  },
+  "validation": {
+    "probe_and_match_identity_unchanged": true,
+    "complete_v2_package_and_7607_item_wapp_snapshot": true,
+    "actual_active_target_requests_equal_active_result_count": true,
+    "all_http_exchange_count": 90,
+    "complete_request_response_dir": "/Users/yym1ng/Documents/Codex/2026-10-16/shen/work/http-fingerprint-implementation/worker-chain-local/http",
+    "screenshot_owner": "root"
+  },
+  "implementation_bug_fixed": "fingerprint-worker now uses min(Deadline, SegmentDeadline) and reports segment_deadline on partial"
+}

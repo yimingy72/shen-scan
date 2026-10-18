@@ -20,13 +20,13 @@ const (
 	maxFingersAPIResponse = 12 << 20
 )
 
-var fingersSource = Source{ID: FingersID, Name: "fingers passive fingerprints", Repository: fingerprintbundle.Repository, Owner: "chainreactors", Repo: "fingers"}
+var fingersSource = Source{ID: FingersID, Name: "fingers HTTP fingerprints", Repository: fingerprintbundle.Repository, Owner: "chainreactors", Repo: "fingers"}
 
 // FingersNotice retains attribution without applying the repository code license
 // to independently sourced fingerprint databases.
-const FingersNotice = `The four resources are committed data distributed by chainreactors/fingers. Native fingers and aliases: https://github.com/chainreactors/fingers . FingerprintHub-derived data: https://github.com/0x727/FingerprintHub . EHole-derived data: https://github.com/EdgeSecurityTeam/EHole . Each file retains its exact upstream bytes and commit URL. These databases have distinct upstream provenance; no blanket MIT license or independent relicensing is asserted. Consult the corresponding upstream project and original notices before redistribution.`
+const FingersNotice = `The HTTP resources are committed data distributed by chainreactors/fingers. Native fingers and aliases: https://github.com/chainreactors/fingers . FingerprintHub-derived data: https://github.com/0x727/FingerprintHub . Goby-derived data: https://github.com/gobysec/Goby . Favicon hashes remain in the native fingers and EHole data. EHole-derived data: https://github.com/EdgeSecurityTeam/EHole . Each file retains its exact upstream bytes and commit URL. These databases have distinct upstream provenance; no blanket MIT license or independent relicensing is asserted. Consult the corresponding upstream project and original notices before redistribution.`
 
-// FetchFingersRevision downloads only the four fixed data resources from one
+// FetchFingersRevision downloads only the fixed data resources from one
 // immutable Git commit. It never downloads or executes upstream source code.
 func FetchFingersRevision(ctx context.Context, revision string) (fingerprintbundle.RawInput, error) {
 	return fetchFingersRevision(ctx, revision, sourceHTTPClient("api.github.com"))

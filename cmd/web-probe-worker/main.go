@@ -1,6 +1,5 @@
-// web-probe-worker uses httpx's request/title SDK and WappalyzerGo over a bounded
-// transport. httpx.Do is intentionally not used: v1.12 does not expose a transport
-// hook and its decoding cannot enforce our independent encoded/decoded limits.
+// web-probe-worker preserves legacy bounded profiles and runs the official
+// httpx enumeration workflow for web-full-v2 through a per-request admission gate.
 package main
 
 import (
@@ -32,7 +31,7 @@ import (
 
 func main() {
 	if len(os.Args) == 2 && os.Args[1] == "--capabilities" {
-		json.NewEncoder(os.Stdout).Encode(map[string]string{"protocol": webevidence.Protocol, "profile": webevidence.Profile, "engine": "httpx-sdk-v1.12.0/bounded-transport+wappalyzergo-v0.2.96", "request_admission": "loopback-v2", "stream_protocol": "jsonl-item-v1", "enrichment_profile": webevidence.EnrichmentProfile})
+		json.NewEncoder(os.Stdout).Encode(map[string]string{"protocol": webevidence.Protocol, "profile": webevidence.Profile, "engine": "httpx-sdk-v1.12.0/bounded-transport+wappalyzergo-v0.2.96", "request_admission": "loopback-v2", "stream_protocol": "jsonl-item-v1", "enrichment_profile": webevidence.EnrichmentProfile, "full_profile": webevidence.FullProfile, "full_engine": fullEngine, "full_capabilities": "runner,title,headers,tls,redirects,hashes,wappalyzer,favicon", "full_capability_gaps": "wappalyzer-browser-js-dom (when selected CFF requires it)"})
 		return
 	}
 	if err := serve(os.Stdin, os.Stdout); err != nil {
@@ -67,6 +66,9 @@ func fatal(err error) { fmt.Fprintln(os.Stderr, err); os.Exit(1) }
 const maxRedirectLocation = 4096
 
 func probe(ctx context.Context, input webevidence.ProbeRequest) (webevidence.ProbeResult, error) {
+	if input.ExecutionProfile == webevidence.FullProfile || input.Profile == webevidence.FullProfile || input.EnrichmentProfile == webevidence.FullProfile {
+		return probeFull(ctx, input)
+	}
 	result := webevidence.ProbeResult{ID: input.ID, Protocol: webevidence.Protocol, Profile: webevidence.Profile, EnrichmentProfile: input.EnrichmentProfile, InputURL: input.URL, Engine: "httpx-sdk-v1.12.0/bounded-transport+wappalyzergo-v0.2.96"}
 	target, err := url.Parse(input.URL)
 	if err != nil || target.Hostname() == "" || target.User != nil || target.Fragment != "" || (target.Scheme != "http" && target.Scheme != "https") || net.ParseIP(input.ConnectIP) == nil {
@@ -503,7 +505,7 @@ func localHTTPPermit(ctx context.Context, input webevidence.ProbeRequest, target
 		return time.Time{}, errors.New("invalid local admission endpoint")
 	}
 	body := map[string]any{"id": input.ID, "url": target.String(), "wait": wait}
-	if input.EnrichmentProfile == webevidence.EnrichmentProfile && len(requestSeq) > 0 {
+	if (input.EnrichmentProfile == webevidence.EnrichmentProfile || input.ExecutionProfile == webevidence.FullProfile || input.Profile == webevidence.FullProfile || input.EnrichmentProfile == webevidence.FullProfile) && len(requestSeq) > 0 {
 		body["request_seq"] = requestSeq[0]
 	}
 	payload, _ := json.Marshal(body)

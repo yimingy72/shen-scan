@@ -99,7 +99,7 @@ func TestRuleExportIncludesSourceLicensesAndBuiltinNotice(t *testing.T) {
 		Counts map[string]int64 `json:"counts"`
 	}
 	callAPI(t, handler, http.MethodGet, "/api/library?source_id=wappalyzer", "admin-policy", nil, http.StatusOK, &filtered)
-	if filtered.Total != 1 || filtered.Counts["http"] <= filtered.Total || filtered.Counts["port"] == 0 || filtered.Counts["poc"] == 0 {
+	if filtered.Total != 1 || filtered.Counts["http"] != filtered.Total || filtered.Counts["port"] == 0 || filtered.Counts["poc"] == 0 {
 		t.Fatalf("source filter changed global tab counts: %+v", filtered)
 	}
 	encoded, _ := json.Marshal(automated)
@@ -108,7 +108,12 @@ func TestRuleExportIncludesSourceLicensesAndBuiltinNotice(t *testing.T) {
 	}
 
 	var bootstrap ruleExportPackage
-	callAPI(t, handler, http.MethodGet, "/api/library/export?ids=http-adobe-aem", "admin-policy", nil, http.StatusOK, &bootstrap)
+	reviewed := rulelib.ReviewedVerifications()[0]
+	reviewedJSON, _ := json.Marshal(reviewed)
+	if _, err := server.db.Exec(context.Background(), `INSERT INTO rule_library(id,rule) VALUES($1,$2)`, reviewed.ID, reviewedJSON); err != nil {
+		t.Fatal(err)
+	}
+	callAPI(t, handler, http.MethodGet, "/api/library/export?ids="+reviewed.ID, "admin-policy", nil, http.StatusOK, &bootstrap)
 	if len(bootstrap.Items) != 1 || len(bootstrap.Licenses) != 0 || len(bootstrap.Notices) != 1 {
 		t.Fatalf("bootstrap export metadata=%+v", bootstrap)
 	}

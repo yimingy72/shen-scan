@@ -37,6 +37,8 @@ func fingerprintStorageFixture(t *testing.T, revision string) (fingerprintbundle
 		case "resources/ehole.json.gz":
 			key = "ehole"
 			decoded = []byte(`{"fingerprint":[]}`)
+		case "resources/goby.json.gz":
+			key = "goby"
 		}
 		raw := decoded
 		if strings.HasSuffix(path, ".gz") {
@@ -151,6 +153,22 @@ func TestFingerprintBundlePublicationIsAtomicAndImmutable(t *testing.T) {
 	}
 	if err = server.applyFingerprintBundle(ctx, inputA, dataA); err != nil {
 		t.Fatalf("idempotent publication failed: %v", err)
+	}
+	listed := httptest.NewRecorder()
+	server.listHTTPFingerprints(listed, httptest.NewRequest(http.MethodGet, "/api/library/http-fingerprints?engine=fingers", nil))
+	var catalog struct {
+		Items []httpCatalogItem `json:"items"`
+		Total int               `json:"total"`
+	}
+	if listed.Code != 200 || json.Unmarshal(listed.Body.Bytes(), &catalog) != nil || catalog.Total != 1 || len(catalog.Items) != 1 || !catalog.Items[0].Managed {
+		t.Fatalf("unified HTTP catalog omitted or duplicated original: %d %s", listed.Code, listed.Body.String())
+	}
+	detailRequest := httptest.NewRequest(http.MethodGet, "/api/library/http-fingerprints/record", nil)
+	detailRequest.SetPathValue("id", catalog.Items[0].ID)
+	detail := httptest.NewRecorder()
+	server.getHTTPFingerprint(detail, detailRequest)
+	if detail.Code != 200 || !strings.Contains(detail.Body.String(), "snapshot-token") {
+		t.Fatalf("original rule detail unavailable: %d %s", detail.Code, detail.Body.String())
 	}
 	if _, err = db.Exec(ctx, `INSERT INTO runs(id,name,targets,modes,status,rules_snapshot) VALUES('old-run','old','[]','{}','pending',$1)`, map[string]string{"fingerprint_bundle": digestA}); err != nil {
 		t.Fatal(err)

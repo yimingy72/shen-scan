@@ -1,0 +1,47 @@
+{
+  "run_id": "93186ccd-bcb0-4ce2-be67-49780a2e04ca",
+  "local_only": true,
+  "wall_seconds": 9.636065,
+  "task_done": 1,
+  "task_failed": 0,
+  "http_results": 1,
+  "run_status": "partial",
+  "fingers_complete": true,
+  "completed_active_units": 3188,
+  "authorized_requests": 45,
+  "capability_gaps": [
+    "wappalyzer-browser-js-dom"
+  ],
+  "technologies": [
+    {
+      "name": "MySQL",
+      "version": null,
+      "candidate": false,
+      "candidate_reason": null
+    },
+    {
+      "name": "PHP",
+      "version": null,
+      "candidate": false,
+      "candidate_reason": null
+    },
+    {
+      "name": "WordPress",
+      "version": "6.4",
+      "candidate": false,
+      "candidate_reason": null
+    },
+    {
+      "name": "microsoft-windows远程连接",
+      "version": null,
+      "candidate": true,
+      "candidate_reason": "goby_rdp_inside_word_required"
+    },
+    {
+      "name": "windows",
+      "version": null,
+      "candidate": true,
+      "candidate_reason": "goby_rdp_inside_word_required"
+    }
+  ]
+}

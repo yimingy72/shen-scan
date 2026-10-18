@@ -32,6 +32,7 @@ const (
 )
 
 type queuedObservation struct {
+	committed    chan struct{}
 	observation  Observation
 	encodedBytes int
 }
@@ -470,18 +471,23 @@ func (a *Agent) runTask(ctx context.Context, cancel context.CancelCauseFunc, tas
 
 func taskExecutionTimeout(payload json.RawMessage) (time.Duration, error) {
 	var limits struct {
-		ExecutionTimeoutSeconds int `json:"execution_timeout_seconds"`
+		ExecutionTimeoutSeconds int    `json:"execution_timeout_seconds"`
+		WebExecutionProfile     string `json:"web_execution_profile"`
 	}
 	if err := json.Unmarshal(payload, &limits); err != nil {
 		return 0, &TaskError{Reason: "invalid task payload: " + err.Error(), Retryable: false}
 	}
+	maximum := maxTaskExecution
+	if limits.WebExecutionProfile == "web-full-v2" {
+		maximum = 21 * time.Minute
+	}
 	if limits.ExecutionTimeoutSeconds <= 0 {
-		return maxTaskExecution, nil
+		return maximum, nil
 	}
-	if limits.ExecutionTimeoutSeconds >= int(maxTaskExecution/time.Second) {
-		return maxTaskExecution, nil
+	if limits.ExecutionTimeoutSeconds >= int(maximum/time.Second) {
+		return maximum, nil
 	}
-	return minDuration(time.Duration(limits.ExecutionTimeoutSeconds)*time.Second, maxTaskExecution), nil
+	return minDuration(time.Duration(limits.ExecutionTimeoutSeconds)*time.Second, maximum), nil
 }
 
 func (a *Agent) releaseTask(task Task, err error) {
@@ -602,8 +608,19 @@ func (a *Agent) executeAndReport(ctx context.Context, task Task) error {
 				return context.Cause(ctx)
 			}
 			a.uploadQueuedBytes.Add(int64(len(encoded)))
+			var committed chan struct{}
+			if obs.HTTPProgress != nil {
+				committed = make(chan struct{})
+			}
 			select {
-			case results <- queuedObservation{observation: obs, encodedBytes: len(encoded)}:
+			case results <- queuedObservation{observation: obs, encodedBytes: len(encoded), committed: committed}:
+				if committed != nil {
+					select {
+					case <-committed:
+					case <-ctx.Done():
+						return context.Cause(ctx)
+					}
+				}
 				return nil
 			case <-ctx.Done():
 				a.uploadQueuedBytes.Add(-int64(len(encoded)))
@@ -679,9 +696,12 @@ func (a *Agent) executeAndReport(ctx context.Context, task Task) error {
 			}
 			batch = append(batch, queued.observation)
 			batchBytes += delimiterBytes + queued.encodedBytes
-			if len(batch) >= maxBatchItems || task.Type == "poc" {
+			if len(batch) >= maxBatchItems || task.Type == "poc" || queued.committed != nil {
 				if err := flush(); err != nil {
 					return err
+				}
+				if queued.committed != nil {
+					close(queued.committed)
 				}
 			}
 		case <-ticker.C:

@@ -23,7 +23,7 @@ func TestResourceBoundsAndCanonicalSnapshot(t *testing.T) {
 		}
 		p.Files[path] = File{Raw: raw, RawSHA256: Digest(raw), DecodedSHA256: Digest(decoded), DecodedBytes: len(decoded), Effective: []byte("[]"), EffectiveSHA256: Digest([]byte("[]"))}
 	}
-	for _, key := range []string{"fingers", "fingerprinthub", "ehole", "aliases"} {
+	for _, key := range []string{"fingers", "fingerprinthub", "ehole", "aliases", "goby"} {
 		p.Validation[key] = Stats{Reasons: map[string]int{}, Rejections: []Rejection{}}
 	}
 	data, err := Encode(p)

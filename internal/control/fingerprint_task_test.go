@@ -132,6 +132,7 @@ func TestFingerprintTaskSnapshotAndLeaseDownload(t *testing.T) {
 		body := map[string]any{"worker_id": w.ID, "session_id": session, "request_id": requestID, "types": []string{"http"}, "service_profile": "nmap-light-v1", "web_evidence_profile": webevidence.Profile, "web_enrichment_profile": webevidence.EnrichmentProfile, "fingerprint_bundle": webevidence.FingerprintBundle, "supports_confirmed_stop": true, "supports_http_request_budget": true, "use_rule_sets": true, "supports_httpx_cff": true}
 		if schema != "" {
 			body["fingerprint_bundle_schema"] = schema
+			body["web_execution_profile"] = webevidence.FullProfile
 		}
 		return body
 	}
@@ -220,8 +221,8 @@ func TestFingerprintTaskSnapshotAndLeaseDownload(t *testing.T) {
 		}
 		seen[file.Name] = true
 	}
-	if len(seen) != 4 || len(archive.File) != 5 {
+	if len(seen) != len(fingerprintbundle.Paths()) || len(archive.File) != len(fingerprintbundle.Paths())+1 {
 		t.Fatalf("export contained %d data files, %d entries", len(seen), len(archive.File))
 	}
-	t.Logf("PASS: runA=%s bundleA=%s; runB=%s bundleB=%s; embedded claim blocked; schema claims+downloads exact; downgraded replay/session/attempt/other worker/expired lease rejected; export=4 exact raw resources+manifest", runA.ID, fingerprintbundle.Digest(dataA), runB.ID, fingerprintbundle.Digest(dataB))
+	t.Logf("PASS: runA=%s bundleA=%s; runB=%s bundleB=%s; embedded claim blocked; schema claims+downloads exact; downgraded replay/session/attempt/other worker/expired lease rejected; all exact raw resources+manifest exported", runA.ID, fingerprintbundle.Digest(dataA), runB.ID, fingerprintbundle.Digest(dataB))
 }

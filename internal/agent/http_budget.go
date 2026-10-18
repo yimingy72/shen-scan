@@ -19,6 +19,7 @@ import (
 )
 
 type httpBudgetKey struct{}
+type httpFullSegmentKey struct{}
 type httpTaskBudget struct {
 	agent *Agent
 	task  Task
@@ -62,6 +63,9 @@ func admitHTTPPermitMode(ctx context.Context, ip, host, port string, wait bool) 
 		"worker_id": budget.agent.workerID, "session_id": budget.agent.cfg.SessionID,
 		"attempt_no": budget.task.AttemptNo, "request_id": strconv.FormatInt(budget.seq, 10),
 		"connect_ip": ip, "host": host, "port": number,
+	}
+	if segment, ok := ctx.Value(httpFullSegmentKey{}).(int); ok {
+		request["segment"] = segment
 	}
 	for {
 		var response struct {
@@ -117,6 +121,7 @@ type webEntryBudget struct {
 	mu         sync.Mutex
 	used       int
 	operations map[string]string
+	maximum    int
 }
 
 func (b *webEntryBudget) consumeAtLeast(n int) {
@@ -179,7 +184,11 @@ func startWebAdmissionLimited(ctx context.Context, inputID, fixedIP string, base
 			}
 			limit.entry.mu.Lock()
 			defer limit.entry.mu.Unlock()
-			if item.RequestSeq < 1 || item.RequestSeq > 8 {
+			maximum := limit.entry.maximum
+			if maximum <= 0 {
+				maximum = 8
+			}
+			if item.RequestSeq < 1 || item.RequestSeq > maximum {
 				http.Error(w, "invalid logical request sequence", 400)
 				return
 			}
@@ -201,7 +210,7 @@ func startWebAdmissionLimited(ctx context.Context, inputID, fixedIP string, base
 					return
 				}
 			} else {
-				if limit.entry.used >= 8 || limit.maxRequests > 0 && len(localOperations) >= limit.maxRequests {
+				if limit.entry.used >= maximum || limit.maxRequests > 0 && len(localOperations) >= limit.maxRequests {
 					http.Error(w, "entry request budget exhausted", 429)
 					return
 				}

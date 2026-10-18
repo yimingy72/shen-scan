@@ -28,8 +28,10 @@ CREATE TABLE IF NOT EXISTS fingerprint_bundles (
  package bytea NOT NULL,
  stats jsonb NOT NULL,
  source_notice text NOT NULL,
+ manifest_hash text NOT NULL DEFAULT '',
  created_at timestamptz NOT NULL DEFAULT now()
 );
+ALTER TABLE fingerprint_bundles ADD COLUMN IF NOT EXISTS manifest_hash text NOT NULL DEFAULT '';
 CREATE TABLE IF NOT EXISTS fingerprint_bundle_default (
  singleton boolean PRIMARY KEY DEFAULT true CHECK(singleton),
  digest text NOT NULL REFERENCES fingerprint_bundles(digest)
@@ -40,7 +42,7 @@ DROP TRIGGER IF EXISTS fingerprint_bundle_immutable ON fingerprint_bundles;
 CREATE TRIGGER fingerprint_bundle_immutable BEFORE UPDATE OR DELETE ON fingerprint_bundles
  FOR EACH ROW EXECUTE FUNCTION protect_fingerprint_bundle();
 INSERT INTO rule_sources(id,name,repository,license,license_text)
- VALUES('fingers','fingers passive fingerprints','https://github.com/chainreactors/fingers',
+ VALUES('fingers','fingers HTTP fingerprints','https://github.com/chainreactors/fingers',
  'Mixed upstream provenance; see notices','')
 ON CONFLICT(id) DO UPDATE SET name=EXCLUDED.name,repository=EXCLUDED.repository;
 `
@@ -56,9 +58,17 @@ func initializeFingerprintBundles(ctx context.Context, db *pgxpool.Pool) error {
 // defaultFingerprintBundle must run inside the run-creation transaction so each
 // run stores one stable digest, regardless of later source updates.
 func defaultFingerprintBundle(ctx context.Context, tx pgx.Tx) (string, error) {
-	var digest string
-	err := tx.QueryRow(ctx, `SELECT digest FROM fingerprint_bundle_default WHERE singleton`).Scan(&digest)
+	var digest, profile string
+	err := tx.QueryRow(ctx, `SELECT d.digest,s.converter_version FROM fingerprint_bundle_default d
+	 JOIN fingerprint_bundles b ON b.digest=d.digest
+	 JOIN rule_sources s ON s.id='fingers' AND s.revision=b.source_revision WHERE d.singleton`).Scan(&digest, &profile)
 	if errors.Is(err, pgx.ErrNoRows) {
+		return fingerprintbundle.EmbeddedBundle, nil
+	}
+	// A previous installation may still point at a v1 filtered package. New full
+	// runs use the shipped complete bundle until the first complete source update;
+	// historical runs retain their original digest and legacy execution profile.
+	if err == nil && profile != fingerprintbundle.SelectionProfile {
 		return fingerprintbundle.EmbeddedBundle, nil
 	}
 	return digest, err
@@ -220,6 +230,10 @@ func (s *Server) applyFingerprintBundle(ctx context.Context, input fingerprintbu
 		return err
 	}
 	digest := fingerprintbundle.Digest(data)
+	manifestHash, err := pkg.ManifestHash()
+	if err != nil {
+		return err
+	}
 	stats := ruleSourceStats{Bundle: digest, EngineRevision: pkg.EngineRevision, Validation: pkg.Validation, Reasons: map[string]int{}}
 	samples := make([]rulesource.Rejection, 0)
 	for key, sourceStats := range pkg.Validation {
@@ -255,8 +269,8 @@ func (s *Server) applyFingerprintBundle(ctx context.Context, input fingerprintbu
 	if err = persistCatalogSourceFiles(ctx, tx, rulesource.FingersID, pkg.Source.Revision, files); err != nil {
 		return err
 	}
-	if _, err = tx.Exec(ctx, `INSERT INTO fingerprint_bundles(digest,source_revision,engine_revision,package,stats,source_notice)
-		VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(digest) DO NOTHING`, digest, pkg.Source.Revision, pkg.EngineRevision, data, validationRaw, rulesource.FingersNotice); err != nil {
+	if _, err = tx.Exec(ctx, `INSERT INTO fingerprint_bundles(digest,source_revision,engine_revision,package,stats,source_notice,manifest_hash)
+		VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(digest) DO NOTHING`, digest, pkg.Source.Revision, pkg.EngineRevision, data, validationRaw, rulesource.FingersNotice, manifestHash); err != nil {
 		return err
 	}
 	var stored []byte
@@ -266,12 +280,15 @@ func (s *Server) applyFingerprintBundle(ctx context.Context, input fingerprintbu
 	if !bytes.Equal(stored, data) {
 		return errors.New("immutable fingerprint digest already has different package bytes")
 	}
+	if err = indexHTTPBundle(ctx, tx, pkg, digest); err != nil {
+		return fmt.Errorf("index HTTP fingerprint catalog: %w", err)
+	}
 	if _, err = tx.Exec(ctx, `INSERT INTO fingerprint_bundle_default(singleton,digest) VALUES(true,$1)
 		ON CONFLICT(singleton) DO UPDATE SET digest=EXCLUDED.digest`, digest); err != nil {
 		return err
 	}
 	if _, err = tx.Exec(ctx, `UPDATE rule_sources SET status='ready',revision=$1,converter_version=$2,digest=$3,
-		stats=$4,samples=$5,error='',updated_at=now() WHERE id='fingers'`, pkg.Source.Revision, fingerprintbundle.SelectionProfile, digest, statsRaw, samplesRaw); err != nil {
+		stats=$4,samples=$5,error='',updated_at=now() WHERE id='fingers'`, pkg.Source.Revision, pkg.SelectionProfile, digest, statsRaw, samplesRaw); err != nil {
 		return err
 	}
 	return tx.Commit(ctx)

@@ -32,13 +32,15 @@ const (
 var titlePattern = regexp.MustCompile(`(?is)<title[^>]*>(.*?)</title>`)
 
 type httpPayload struct {
-	WebEnrichmentProfile    string         `json:"web_enrichment_profile,omitempty"`
-	Endpoints               []Endpoint     `json:"endpoints"`
-	TimeoutSeconds          int            `json:"timeout_seconds"`
-	Rules                   []rulelib.Rule `json:"rules"`
-	RulesRef                string         `json:"rules_ref,omitempty"`
-	FingerprintBundle       string         `json:"fingerprint_bundle,omitempty"`
-	FingerprintBundleSchema string         `json:"fingerprint_bundle_schema,omitempty"`
+	WebExecutionProfile     string                     `json:"web_execution_profile,omitempty"`
+	HTTPProgress            *webevidence.EntryProgress `json:"http_progress,omitempty"`
+	WebEnrichmentProfile    string                     `json:"web_enrichment_profile,omitempty"`
+	Endpoints               []Endpoint                 `json:"endpoints"`
+	TimeoutSeconds          int                        `json:"timeout_seconds"`
+	Rules                   []rulelib.Rule             `json:"rules"`
+	RulesRef                string                     `json:"rules_ref,omitempty"`
+	FingerprintBundle       string                     `json:"fingerprint_bundle,omitempty"`
+	FingerprintBundleSchema string                     `json:"fingerprint_bundle_schema,omitempty"`
 }
 
 type targetSlots struct {
@@ -61,6 +63,9 @@ func (a *Agent) runHTTP(ctx context.Context, task Task, emit func(Observation) e
 	}
 	payload.Rules = rules
 	binary, helper := webProbeBinary()
+	if payload.WebExecutionProfile != "" && (payload.WebExecutionProfile != webevidence.FullProfile || !helper) {
+		return &TaskError{Reason: "unsupported full web execution profile/helper", Retryable: false}
+	}
 	if payload.WebEnrichmentProfile != "" && (payload.WebEnrichmentProfile != webevidence.EnrichmentProfile || !helper) {
 		return &TaskError{Reason: "unsupported web enrichment profile/helper", Retryable: false}
 	}
@@ -217,7 +222,13 @@ func (a *Agent) fetchHTTP(ctx context.Context, ep Endpoint, timeout time.Duratio
 		scheme = "http"
 	}
 	alternate.URL, _ = endpointURLWithScheme(ep, scheme)
-	alt := a.fetchHTTPOnce(endpointCtx, alternate, timeout)
+	// Protocol fallback consumes the other half of the endpoint's network budget;
+	// shared-admission wait remains outside each transport's network timeout.
+	remaining := timeout - firstTimeout
+	if remaining <= 0 {
+		return obs
+	}
+	alt := a.fetchHTTPOnce(endpointCtx, alternate, remaining)
 	if alt.Error == "" || alt.StatusCode != 0 {
 		return alt
 	}

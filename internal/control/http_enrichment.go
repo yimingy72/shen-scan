@@ -35,6 +35,9 @@ func sameHTTPEntry(a, b string) bool {
 // The primary observation owns the assigned work. Redirect/collection responses
 // remain nested evidence and cannot create another HTTP or PoC observation.
 func validateHTTPEnrichmentEvidence(endpoint taskEndpoint, item *Observation, profile string) error {
+	if profile == webevidence.FullProfile {
+		return validateFullHTTPEvidence(endpoint, item)
+	}
 	if profile == "" {
 		return nil
 	}

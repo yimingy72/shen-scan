@@ -79,6 +79,7 @@ type ruleExportPackage struct {
 }
 
 type ruleSnapshot struct {
+	WebExecutionProfile     string         `json:"web_execution_profile,omitempty"`
 	FingerprintBundleSchema string         `json:"fingerprint_bundle_schema,omitempty"`
 	ServiceProfile          string         `json:"service_profile,omitempty"`
 	FingerprintBundle       string         `json:"fingerprint_bundle,omitempty"`
@@ -313,6 +314,14 @@ func seedRuleLibrary(ctx context.Context, db *pgxpool.Pool) error {
 		return err
 	}
 	defer tx.Rollback(ctx)
+	retiredIDs, retiredSources := rulelib.RetiredHTTPSeeds()
+	if _, err = tx.Exec(ctx, `UPDATE rule_library AS rules SET deleted_at=now(),updated_at=now()
+	 FROM unnest($1::text[],$2::text[]) AS retired(id,source)
+	 WHERE rules.id=retired.id AND rules.deleted_at IS NULL
+	 AND rules.rule->>'kind'='http' AND rules.rule->>'engine'='native'
+	 AND rules.rule->>'builtin'='true' AND COALESCE(rules.rule->>'source','')=retired.source`, retiredIDs, retiredSources); err != nil {
+		return fmt.Errorf("retire built-in HTTP rules: %w", err)
+	}
 	for _, rule := range rulelib.Builtins() {
 		if err := rulelib.Validate(rule); err != nil {
 			return fmt.Errorf("builtin %s: %w", rule.ID, err)

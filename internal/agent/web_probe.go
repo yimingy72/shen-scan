@@ -38,6 +38,9 @@ func webProbeBinary() (string, bool) {
 }
 
 func (a *Agent) runWebProbe(ctx context.Context, task Task, payload httpPayload, binary string, emit func(Observation) error) error {
+	if payload.WebExecutionProfile == webevidence.FullProfile {
+		return a.runWebFull(ctx, task, payload, binary, emit)
+	}
 	if payload.WebEnrichmentProfile != "" && payload.WebEnrichmentProfile != webevidence.EnrichmentProfile {
 		return &TaskError{Reason: "unsupported web enrichment profile", Retryable: false}
 	}
@@ -47,10 +50,10 @@ func (a *Agent) runWebProbe(ctx context.Context, task Task, payload httpPayload,
 		}
 		payload.FingerprintBundle = webevidence.FingerprintBundle
 	}
-	if payload.FingerprintBundleSchema != "" && payload.FingerprintBundleSchema != fb.Schema {
+	if payload.FingerprintBundleSchema != "" && !supportedFingerprintSchema(payload.FingerprintBundleSchema) {
 		return &TaskError{Reason: "unsupported fingerprint bundle schema", Retryable: false}
 	}
-	if payload.FingerprintBundleSchema == "" && payload.FingerprintBundle != fb.EmbeddedBundle {
+	if payload.FingerprintBundleSchema == "" && payload.FingerprintBundle != fb.EmbeddedBundle && payload.FingerprintBundle != fb.LegacyEmbeddedBundle {
 		return &TaskError{Reason: "external fingerprint bundle requires schema capability", Retryable: false}
 	}
 	cff, cached := a.ruleSets.cff(payload.RulesRef)
@@ -135,7 +138,7 @@ func (a *Agent) runWebProbe(ctx context.Context, task Task, payload httpPayload,
 		var actualMatch webevidence.MatchResult
 		if result.Response.StatusCode > 0 && result.Response.Completeness == "full" {
 			var resolve func(context.Context) (string, error)
-			if payload.FingerprintBundleSchema == fb.Schema {
+			if supportedFingerprintSchema(payload.FingerprintBundleSchema) {
 				resolve = func(ctx context.Context) (string, error) {
 					return a.fingerprints.cache.get(ctx, a.client, a.workerID, a.cfg.SessionID, task, payload.FingerprintBundle)
 				}
@@ -148,7 +151,7 @@ func (a *Agent) runWebProbe(ctx context.Context, task Task, payload httpPayload,
 			} else {
 				var additional []Technology
 				for _, m := range match.Matches {
-					additional = append(additional, Technology{Name: m.Name, Version: m.Version, RuleID: "fingers:" + m.Engine + ":" + m.Name, Evidence: string(m.Evidence)})
+					additional = append(additional, Technology{Candidate: m.Candidate, CandidateReason: m.CandidateReason, Name: m.Name, Version: m.Version, RuleID: "fingers:" + m.Engine + ":" + m.Name, Evidence: string(m.Evidence)})
 				}
 				obs.Technologies = mergeTechnologies(obs.Technologies, additional)
 			}
@@ -492,10 +495,10 @@ func (p *fingerprintProcess) matchBundle(ctx context.Context, input webevidence.
 	if binary == "" {
 		binary = "fingerprint-worker"
 	}
-	if schema != "" && (schema != fb.Schema || resolve == nil || !fingerprintDigestPattern.MatchString(input.ExpectedBundle)) {
+	if schema != "" && (!supportedFingerprintSchema(schema) || resolve == nil || !fingerprintDigestPattern.MatchString(input.ExpectedBundle)) {
 		return webevidence.MatchResult{}, fmt.Errorf("invalid external fingerprint matcher assignment")
 	}
-	if schema == "" && input.ExpectedBundle != "" && input.ExpectedBundle != fb.EmbeddedBundle {
+	if schema == "" && input.ExpectedBundle != "" && input.ExpectedBundle != fb.EmbeddedBundle && input.ExpectedBundle != fb.LegacyEmbeddedBundle {
 		return webevidence.MatchResult{}, fmt.Errorf("unrecognized embedded fingerprint bundle")
 	}
 	expected := input.ExpectedBundle
@@ -507,6 +510,9 @@ func (p *fingerprintProcess) matchBundle(ctx context.Context, input webevidence.
 	}
 	if p.cmd == nil {
 		var args []string
+		if schema == "" && expected == fb.LegacyEmbeddedBundle {
+			args = []string{"--legacy-embedded"}
+		}
 		if schema != "" {
 			file, err := resolve(ctx)
 			if err != nil {
@@ -663,4 +669,40 @@ func discoverWebCapabilitiesFull() (string, string, string, string) {
 		return profile.Profile, embedded, capabilities.Schema, enrichment
 	}
 	return profile.Profile, embedded, "", enrichment
+}
+
+func supportedFingerprintSchema(schema string) bool {
+	return schema == fb.Schema || schema == fb.LegacySchema
+}
+
+// Advertise v2 only when both installed helpers explicitly attest it. Legacy
+// profile/schema advertisement remains independent and continues to claim v1.
+func discoverFullExecutionProfile() string {
+	probe, ok := webProbeBinary()
+	if !ok {
+		return ""
+	}
+	matcher := os.Getenv("FINGERPRINT_WORKER_BINARY")
+	if matcher == "" {
+		matcher = "fingerprint-worker"
+	}
+	for _, binary := range []string{probe, matcher} {
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		cmd := exec.CommandContext(ctx, binary, "--capabilities")
+		cmd.Env = []string{"NO_COLOR=1"}
+		setProcessGroup(cmd)
+		var output cappedWebBuffer
+		cmd.Stdout = &output
+		cmd.Stderr = &stderrTail{limit: 4096}
+		err := cmd.Run()
+		cancel()
+		var cap struct {
+			ExecutionProfile string `json:"execution_profile"`
+			FullProfile      string `json:"full_profile"`
+		}
+		if err != nil || output.overflow || json.Unmarshal(output.Bytes(), &cap) != nil || (cap.ExecutionProfile != webevidence.FullProfile && cap.FullProfile != webevidence.FullProfile) {
+			return ""
+		}
+	}
+	return webevidence.FullProfile
 }

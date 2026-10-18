@@ -53,7 +53,7 @@ func TestSnapshotIsolationAndRejectedEvidence(t *testing.T) {
 	input := webevidence.MatchRequest{Response: webevidence.Response{URL: "http://fixture.invalid/", StatusCode: 200, Proto: "HTTP/1.1", Completeness: "full", Headers: http.Header{"Content-Type": []string{"text/html"}}, Body: []byte("snapshot-token")}}
 	var digests []string
 	for _, name := range []string{"snapshot-a", "snapshot-b"} {
-		p, err := prepareBundle(snapshotFixture(t, name))
+		p, err := prepareLegacyBundle(snapshotFixture(t, name))
 		if err != nil {
 			t.Fatal(err)
 		}

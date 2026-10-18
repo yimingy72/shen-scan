@@ -25,7 +25,7 @@ func TestFingerprintBundleDownloadCacheAndMatcherSwitch(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 	binary := filepath.Join(t.TempDir(), "fingerprint-worker")
-	build := exec.CommandContext(ctx, "go", "build", "-mod=readonly", "-tags", "passive_only", "-o", binary, ".")
+	build := exec.CommandContext(ctx, "go", "build", "-mod=readonly", "-o", binary, ".")
 	build.Dir = "../../cmd/fingerprint-worker"
 	build.Env = append(os.Environ(), "GOPROXY=off", "GOSUMDB=off")
 	if output, err := build.CombinedOutput(); err != nil {
@@ -45,6 +45,7 @@ func TestFingerprintBundleDownloadCacheAndMatcherSwitch(t *testing.T) {
 			"resources/fingers_http.json.gz":       zipped(`[{"name":"fixture-native","rule":[{"regexps":{"body":["snapshot-token"]}}]}]`),
 			"resources/fingerprinthub_web.json.gz": zipped(`[]`),
 			"resources/ehole.json.gz":              zipped(`{"fingerprint":[]}`),
+			"resources/goby.json.gz":               zipped(`[]`),
 			"resources/aliases.yaml":               []byte(`[{"name":"` + name + `","alias":{"fingers":["fixture-native"]}}]`),
 		}}
 		data, _ := json.Marshal(input)

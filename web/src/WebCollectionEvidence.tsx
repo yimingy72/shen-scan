@@ -4,7 +4,8 @@ type Response = { url?: string; status_code?: number; request_raw?: string; head
 type Redirect = { from_url: string; to_url?: string; status_code: number; outcome: string; attempt_index: number }
 type Supplement = { url: string; outcome: string; reused?: boolean; error?: string; response?: Response; rule_results?: { rule_id: string; rule_revision: number; outcome: string }[]; storage?: { request_truncated?: boolean; headers_truncated?: boolean } }
 type Envelope = {
-  probe: { enrichment_profile?: string; input_url?: string; requests: number; attempts?: Response[]; redirects?: Redirect[] }
+  probe: { execution_profile?: string; capability_gaps?: string[]; sdk_result?: unknown; enrichment_profile?: string; input_url?: string; requests: number; attempts?: Response[]; redirects?: Redirect[] }
+  fingerprint?: { matches?: { name: string; engine: string; candidate?: boolean; candidate_reason?: string }[]; active?: { complete: boolean; requests: number; completed_rule_ids?: string[]; remaining_rule_ids?: string[]; stop_reason?: string; rules?: { rule_id: string; status: string; requests: number; error?: string }[]; responses?: Response[] } }
   requests_budget_used?: number; supplements?: Supplement[]
   supplement_plan?: { omitted_rules_count?: number }
   storage?: { headers_omitted?: boolean; omitted_supplements?: number; omitted_technologies?: number }
@@ -37,6 +38,18 @@ function ResponseDetails({ response, requestTruncated, headersTruncated }: { res
 export function WebCollectionEvidence({ raw, finalURL }: { raw?: string; finalURL?: string }) {
   let value: Envelope
   try { value = JSON.parse(raw || '') as Envelope } catch { return null }
+  if (value?.probe?.execution_profile === 'web-full-v2') {
+    const active = value.fingerprint?.active
+    const gaps = (value.probe.capability_gaps || []).filter(gap => !['http2-probe', 'unsafe', 'ztls', 'headless'].includes(gap))
+    return <section><div className="filter-bar"><strong>HTTP 执行记录</strong><Space size={4} wrap><Tag>httpx 完整 Runner</Tag><Tag>已授权请求 {value.requests_budget_used ?? value.probe.requests}</Tag><Tag color={active?.complete ? 'success' : 'warning'}>fingers {active?.complete ? '执行完成' : '未完成'}</Tag></Space></div>
+      <div className="compact-note">主动执行单元：已完成 {active?.completed_rule_ids?.length || 0} · 剩余 {active?.remaining_rule_ids?.length || 0} · 本段网络请求 {active?.requests || 0}{active?.stop_reason ? ` · ${active.stop_reason}` : ''}</div>
+      {!!gaps.length && <div className="compact-note amber">{gaps.map(gap => gap === 'wappalyzer-browser-js-dom' ? 'Wappalyzer 的浏览器 JS / DOM 条件未执行；已取得的响应指纹仍然有效。' : gap).join(' · ')}</div>}
+      {!!value.fingerprint?.matches?.some(match => match.candidate) && <div className="compact-note amber">候选指纹不触发 PoC：{value.fingerprint.matches.filter(match => match.candidate).map(match => `${match.name}（${match.candidate_reason === 'goby_rdp_inside_word_required' ? '仅命中单词内部 rdp 子串' : match.candidate_reason || '需独立证据确认'}）`).join(' · ')}</div>}
+      <details className="verification-check"><summary>httpx 元信息</summary><pre className="evidence-block">{JSON.stringify(value.probe.sdk_result, null, 2)}</pre></details>
+      <details className="verification-check"><summary>主动规则执行结局</summary><pre className="evidence-block">{JSON.stringify(active?.rules || [], null, 2)}</pre></details>
+      <details className="verification-check"><summary>逐请求报文 · {(value.probe.attempts?.length || 0) + (active?.responses?.length || 0)} 条</summary>{[...(value.probe.attempts || []), ...(active?.responses || [])].map((response, index) => <details className="verification-check" key={index}><summary><Tag>{response.status_code || '异常'}</Tag><span className="mono break-text">{response.url}</span></summary><ResponseDetails response={response} /></details>)}</details>
+    </section>
+  }
   if (value?.probe?.enrichment_profile !== 'bounded-enrichment-v1') return null
   const redirects = Array.isArray(value.probe.redirects) ? value.probe.redirects : []
   const supplements = Array.isArray(value.supplements) ? value.supplements : []
