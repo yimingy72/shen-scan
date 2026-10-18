@@ -1,0 +1,16 @@
+[
+  {
+    "method": "GET",
+    "url": "https://101.201.116.63:8443/api/health",
+    "request_body": "",
+    "request": "GET /api/health HTTP/1.1\r\nHost: 101.201.116.63:8443\r\nAccept: application/json\r\nAccept-Encoding: identity\r\nConnection: close\r\nContent-Length: 0\r\n\r\n",
+    "response": "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nDate: Sun, 18 Oct 2026 11:57:05 GMT\r\nContent-Length: 32\r\nConnection: close\r\n\r\n{\"database\":\"ok\",\"status\":\"ok\"}\n"
+  },
+  {
+    "method": "GET",
+    "url": "https://101.201.116.63:8443/api/observations/absent/screenshot",
+    "request_body": "",
+    "request": "GET /api/observations/absent/screenshot HTTP/1.1\r\nHost: 101.201.116.63:8443\r\nAccept: application/json\r\nAccept-Encoding: identity\r\nConnection: close\r\nContent-Length: 0\r\n\r\n",
+    "response": "HTTP/1.1 401 Unauthorized\r\nContent-Type: application/json\r\nDate: Sun, 18 Oct 2026 11:57:05 GMT\r\nContent-Length: 40\r\nConnection: close\r\n\r\n{\"error\":\"invalid administrator token\"}\n"
+  }
+]

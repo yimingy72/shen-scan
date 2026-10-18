@@ -1,0 +1,25 @@
+{
+  "source_commit": "a815810ba7c0f911944575641dc75bac76c51009",
+  "agent_version": "bundle-dfd159aeb653",
+  "package_sha256": "dfd159aeb6538ba6a1a9fe6b9c96764b655b2087e5d47ef524359c5b409d7972",
+  "server_sha256": "49cfd7f31b000c3c205c47771b3940081b76f00700185e794ec52b36b01e41f5",
+  "verified_component_hashes": true,
+  "browser_script_bytes": 16016,
+  "chrome_binary_in_package": false,
+  "package_bytes": 94941131,
+  "state": {
+    "pool": {
+      "enabled": false,
+      "desired_workers": 10,
+      "generation": 40
+    },
+    "leased": 0,
+    "online_workers": 0,
+    "screenshot_table": true,
+    "original_pending_run_preserved": true
+  },
+  "health_ok": true,
+  "https_ca_verified": true,
+  "screenshot_unauthenticated_status": 401,
+  "web_index_hash_verified": true
+}

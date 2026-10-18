@@ -60,4 +60,12 @@ HTTP 列表按需加载缩略图，点击展示原图：
 | `GET /api/observations/{id}/screenshot` | 原图与缩略图鉴权读取 | 未利用；内容与鉴权验证通过 |
 | 浏览器子任务 claim | 固定父记录与规则引用 | 调度字段丢失已修复 |
 
-本记录不涉及漏洞利用。生产发布清单与校验结果在发布完成后补充。
+本记录不涉及漏洞利用。
+
+## 生产发布
+
+源码提交 `a815810ba7c0f911944575641dc75bac76c51009`，Agent 包 `bundle-dfd159aeb653` 已部署，完整发布包 90.54 MiB。包内浏览器部分仅 16,016 字节的小脚本/配置，没有 Chrome 二进制或 `.deb`。本地云配置的包地址与 SHA-256 已同步。
+
+Control、Worker 发布包、指纹校验工具和 Web 首页的校验值符合 [发布清单](validation/browser-options/release.json)。HTTPS CA 校验、健康接口、截图未认证访问 401 与新数据表均通过，见 [线上核验](validation/browser-options/production-verification.json) 及 [完整 HTTP 报文](validation/browser-options/deployment-http-replay.json)。
+
+发布时 Worker 池关闭，期望数 10、在线数 0、leased 任务 0；本轮没有在役节点需要滚动升级。新启动 Worker 使用此包及独立 Chrome 安装脚本。原待执行任务保留，TCP 执行器二进制校验值不变。

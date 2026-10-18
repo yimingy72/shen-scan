@@ -1,0 +1,27 @@
+{
+  "commit": "a815810ba7c0f911944575641dc75bac76c51009",
+  "package": "scan-agent-linux-amd64-browser-options-dfd159aeb653.tar.gz",
+  "package_sha256": "dfd159aeb6538ba6a1a9fe6b9c96764b655b2087e5d47ef524359c5b409d7972",
+  "version": "bundle-dfd159aeb653",
+  "server_sha256": "49cfd7f31b000c3c205c47771b3940081b76f00700185e794ec52b36b01e41f5",
+  "server_download": "scan-server-browser-options-49cfd7f31b00",
+  "checker_sha256": "2c52267d65e68719a9c520daaef168ee02aa3efbec4d3be4f022e6bf8a5ef46c",
+  "web_sha256": "2d22d29933ea5ea9305d203e94e95933d3c5e331e47c5e342e870818135b6fc4",
+  "ca_sha256": "66ca56b4066d979e6c07abe9251c1212868ff462a22040388c2189b1aa803f77",
+  "masscan_sha256": "2ee12f51003d127996b49c98771d118d713a9fc5d16ff623de864e1ac9bb0c3d",
+  "masscan_source_sha256": "88fd72494c8b98488b9984e902bf26758de413e4e2f75c7e85a6bd19193d1c73",
+  "component_sha256": {
+    "scan-agent": "f3cba286a2c282899372fc275137232fb29bad62d782893134cd302494c4d96c",
+    "web-probe-worker": "0e15e129abb39cc409eaef9473f3675fa818142c9808a53319e48fcf5987515a",
+    "fingerprint-worker": "2c52267d65e68719a9c520daaef168ee02aa3efbec4d3be4f022e6bf8a5ef46c",
+    "httpx": "6d78b83b4da452a7e0bd3613c4fae04cbf523209f083904b563f4d4406a680b0",
+    "nuclei": "c49588140f357cbdddd5436dec11201953a4c5390faeec90777f9ee2cfd70251",
+    "masscan": "2ee12f51003d127996b49c98771d118d713a9fc5d16ff623de864e1ac9bb0c3d",
+    "ca.crt": "66ca56b4066d979e6c07abe9251c1212868ff462a22040388c2189b1aa803f77"
+  },
+  "agent_go_build_commit": "a815810ba7c0f911944575641dc75bac76c51009",
+  "server_source_commit": "a815810ba7c0f911944575641dc75bac76c51009",
+  "web_helper_source_commit": "a815810ba7c0f911944575641dc75bac76c51009",
+  "validation": "isolated Linux system Chrome plus Control/Agent HTTP option matrix; no public target or scale claim",
+  "browser_distribution": "official-system-apt-not-bundled"
+}
