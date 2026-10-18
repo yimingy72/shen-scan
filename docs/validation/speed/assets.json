@@ -1,0 +1,70 @@
+{
+  "status": "All assets self-built synthetic validation assets; no discovered third-party asset",
+  "assets": [
+    {
+      "asset": "172.28.1.1–172.28.1.100",
+      "roles": [
+        "R3/R4 owned fixture aliases"
+      ],
+      "ports": [
+        80,
+        8088,
+        9443
+      ],
+      "HTTP_API_validation": "functional validation passed in archived runs",
+      "verification_status": "未利用"
+    },
+    {
+      "asset": "127.0.0.1:18084",
+      "roles": [
+        "local SSH tunnel to owned disposable Control"
+      ],
+      "interfaces": [
+        "POST /api/runs",
+        "GET /api/runs/{id}",
+        "GET /api/runs/{id}/results",
+        "GET /api/runs/{id}/http",
+        "GET /api/scheduler/status"
+      ],
+      "verification_status": "未利用"
+    },
+    {
+      "asset": "198.18.0.1–198.18.0.3",
+      "roles": [
+        "local isolated raw-TCP microtest veth fixture"
+      ],
+      "verification_status": "未利用"
+    },
+    {
+      "asset": "172.28.1.1–172.28.4.232",
+      "roles": [
+        "R5/R6 owned capacity fixture manifest; R5 mainnotstarted; R6 main1000validated"
+      ],
+      "expected_target_count": 1000,
+      "verification_status": "未利用",
+      "lifecycle": "R5 andR6 ownedresourcesreleased; unexploited"
+    },
+    {
+      "asset": "192.0.2.1/30 and192.0.2.2/30",
+      "roles": [
+        "new localsend-error privateVXLAN underlay"
+      ],
+      "verification_status": "未利用"
+    },
+    {
+      "asset": "local isolated Agent/Control/Postgres failure-chain fixture",
+      "interfaces": [
+        "POST /api/workers/register",
+        "POST /api/workers/heartbeat",
+        "POST /api/tasks/claim",
+        "POST /api/tasks/{id}/release",
+        "GET /api/runs/{id}/results"
+      ],
+      "verification_status": "未利用",
+      "lifecycle": "container and isolated DB removed; no cloud operations"
+    }
+  ],
+  "HTTP_credentials": "All exported request credentials replaced by placeholders; no runtime token/key/env files included",
+  "R5_current_data": "Archived100IPbusiness completed; independentSYN gate failed,1000IPnotstarted; allresourcesreleased. Cause unknown.",
+  "R6_current_data": "100IPprecheck and1000IPmain accepted;65,535,000SYN/allbitmaps/3000ports3000HTTP; allownedresourcesdeleted"
+}

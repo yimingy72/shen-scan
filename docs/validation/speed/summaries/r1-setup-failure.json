@@ -1,0 +1,18 @@
+{
+  "outcome": "HARNESS_SETUP_FAILURE_NO_SCANS_CREATED",
+  "failure": "Worker readiness predicate used status==healthy, but both old/current Worker enums are ready/running/draining/offline; ready could never match.",
+  "exact_error": "\nSTDERR:\nTraceback (most recent call last):\n  File \"<stdin>\", line 16, in <module>\nRuntimeError: all5samecohortWorkers must be healthy before timedrun\n",
+  "scans_created": 0,
+  "benchmark_result": "NONE;no product correctness/performance conclusion",
+  "remote_evidence_loss": "Failed readiness rawAPI responses were only on the disposable target; activationfailed before normal case checkpoint and cleanup releasedit. They were NOT preserved. Localactivation logs+error/cloudHTTP retained.",
+  "cleanup": {
+    "at": "2026-10-18T01:16:14.770854+00:00",
+    "remaining": [],
+    "delete_errors": [],
+    "security_group_deleted": true,
+    "regional_instance_count": 0
+  },
+  "no_replacement_cohort_started": true,
+  "first_create_to_cleanup_seconds": 269.936924,
+  "local_real_registration_verified": "local-registration/summary.json"
+}

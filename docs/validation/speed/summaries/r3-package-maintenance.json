@@ -1,0 +1,63 @@
+{
+  "new_tests_run": false,
+  "cloud_actions": false,
+  "aggregation_window_finding": "Both host CPU and RSS in machine-summary filter metrics rows by run.created_at <= at_ns <= run.updated_at. RSS is per-process maximum within the same timed rows; it is not prep-wide or process-tree RSS.",
+  "arms": {
+    "baseline": {
+      "timed_window_seconds": 500.2294898033142,
+      "observed_package_maintenance": [
+        {
+          "name": "python3-urllib3",
+          "command": "/bin/sh /var/lib/dpkg/info/python3-urllib3.postinst configure 1.26.5-1~exp1ubuntu0.7 ",
+          "samples": 1,
+          "first_seen_relative_seconds": 323.67376375198364,
+          "last_seen_relative_seconds": 323.67376375198364,
+          "max_rss_mib": 0.9453125,
+          "observed_cpu_ticks_delta": null
+        },
+        {
+          "name": "python3-jwt.pos",
+          "command": "/bin/sh /var/lib/dpkg/info/python3-jwt.postinst configure 2.3.0-1ubuntu0.3 ",
+          "samples": 1,
+          "first_seen_relative_seconds": 245.28731203079224,
+          "last_seen_relative_seconds": 245.28731203079224,
+          "max_rss_mib": 0.96484375,
+          "observed_cpu_ticks_delta": null
+        },
+        {
+          "name": "python3-request",
+          "command": "/bin/sh /var/lib/dpkg/info/python3-requests.prerm upgrade 2.25.1+dfsg-2ubuntu0.4 ",
+          "samples": 1,
+          "first_seen_relative_seconds": 305.5545711517334,
+          "last_seen_relative_seconds": 305.5545711517334,
+          "max_rss_mib": 0.96484375,
+          "observed_cpu_ticks_delta": null
+        },
+        {
+          "name": "python3-urllib3",
+          "command": "/bin/sh /var/lib/dpkg/info/python3-urllib3.prerm upgrade 1.26.5-1~exp1ubuntu0.8 ",
+          "samples": 1,
+          "first_seen_relative_seconds": 309.5705704689026,
+          "last_seen_relative_seconds": 309.5705704689026,
+          "max_rss_mib": 0.96484375,
+          "observed_cpu_ticks_delta": null
+        },
+        {
+          "name": "python3-jwt.pos",
+          "command": "/bin/sh /var/lib/dpkg/info/python3-jwt.postinst configure 2.3.0-1ubuntu0.3 ",
+          "samples": 1,
+          "first_seen_relative_seconds": 143.0877766609192,
+          "last_seen_relative_seconds": 143.0877766609192,
+          "max_rss_mib": 0.91796875,
+          "observed_cpu_ticks_delta": null
+        }
+      ],
+      "scope": "2s sampled observations, not a full process-tree CPU attribution; absence at sampled points does not prove continuous absence."
+    },
+    "candidate": {
+      "timed_window_seconds": 499.0733618736267,
+      "observed_package_maintenance": [],
+      "scope": "2s sampled observations, not a full process-tree CPU attribution; absence at sampled points does not prove continuous absence."
+    }
+  }
+}

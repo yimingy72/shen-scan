@@ -1,0 +1,25 @@
+{
+  "passed": true,
+  "scope": "Offlineparseronly;actual5digitPGtimestamp,1digitZ,7digittruncate,noFraction,None;originalR3scriptandfailurelogsunchanged",
+  "R3_fixed_copy": "analyze_pair_offline.py",
+  "R4_parser_updated": "work/speed-regression-r4/analyze_pair.py",
+  "R4_sha256": "0d3f32bd1ab164af7ae8c3ed2220b1cfac1c7c2edf0f86669565b5b81bd32af8",
+  "examples": [
+    [
+      "2026-10-18T09:53:27.34486+08:00",
+      "2026-10-18T01:53:27.344860+00:00"
+    ],
+    [
+      "2026-10-18T01:53:27.1Z",
+      "2026-10-18T01:53:27.100000+00:00"
+    ],
+    [
+      "2026-10-18T01:53:27.1234567Z",
+      "2026-10-18T01:53:27.123456+00:00"
+    ],
+    [
+      "2026-10-18T01:53:27Z",
+      "2026-10-18T01:53:27+00:00"
+    ]
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "at": "2026-10-18T01:35:28.033549+00:00",
+  "url": "http://127.0.0.1:18084/api/runs/be5df6bf-697d-46a3-a655-96153d6055ea/results?&limit=200&offset=0",
+  "elapsed_seconds": 0.002920667000000002,
+  "status": 200,
+  "request": "GET /api/runs/be5df6bf-697d-46a3-a655-96153d6055ea/results?&limit=200&offset=0 HTTP/1.1\r\nHost: 127.0.0.1:18084\r\nAccept: application/json\r\nAccept-Encoding: identity\r\nConnection: close\r\nAuthorization: Bearer ${REDACTED_ADMIN_TOKEN}\r\n\r\n",
+  "response": "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nDate: Sun, 18 Oct 2026 01:35:28 GMT\r\nContent-Length: 615\r\nConnection: close\r\n\r\n{\"items\":[{\"ips\":[\"172.28.1.1\"],\"ports\":[80,8088,9443],\"state\":\"completed\",\"target\":\"172.28.1.1\",\"titles\":[\"P1 synthetic fixture\"],\"products\":[\"P1SyntheticFixture/1.0 Python/3.10.12\",\"TLS\"],\"services\":[\"http\",\"https\",\"tls\"],\"task_done\":3,\"http_count\":3,\"open_flood\":false,\"port_state\":\"completed\",\"task_total\":3,\"updated_at\":\"2026-10-18T01:35:26.087697+00:00\",\"error_count\":0,\"task_failed\":0,\"technologies\":[],\"failure_reason\":\"\",\"open_port_count\":3,\"fingerprint_count\":3,\"fingerprint_limited\":false}],\"summary\":{\"http_endpoints\":3,\"limited_targets\":0,\"open_ports\":3,\"targets\":1,\"targets_with_errors\":0},\"total\":1}\n"
+}

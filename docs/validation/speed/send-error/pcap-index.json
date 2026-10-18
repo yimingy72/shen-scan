@@ -1,0 +1,66 @@
+[
+  {
+    "file": "pcap/persistent-original-source.pcap.gz",
+    "uncompressed_filename": "persistent-original-source.pcap",
+    "uncompressed_bytes": 1036,
+    "uncompressed_sha256": "d6696893aeb53cb3386c7747f8ceaaff97eba90b8d387ec187a4709711483ff6",
+    "gzip_sha256": "029fd19860b3c1bbb72ca3ba651037bb60ead93b4e0920a8258a70503c8d2058",
+    "scope": "complete original PCAP, compressed without truncation"
+  },
+  {
+    "file": "pcap/persistent-original-target.pcap.gz",
+    "uncompressed_filename": "persistent-original-target.pcap",
+    "uncompressed_bytes": 1036,
+    "uncompressed_sha256": "ae63da74efcad730d37fb101af5c25a18860ac742558ab9f27ed880071db4754",
+    "gzip_sha256": "78d072608539803e7d3646916746dd94c56dc7ca6fb1c4a2141ff4616b5ee0d9",
+    "scope": "complete original PCAP, compressed without truncation"
+  },
+  {
+    "file": "pcap/persistent-fixed-source.pcap.gz",
+    "uncompressed_filename": "persistent-fixed-source.pcap",
+    "uncompressed_bytes": 632,
+    "uncompressed_sha256": "7fe7298603037b07d22fcc127207724a3caacef1824a0435383bb23565fce616",
+    "gzip_sha256": "28880b2b77411cfdf4b30ae606005a93012025cbbfd976690b3d9c3ced6b91db",
+    "scope": "complete original PCAP, compressed without truncation"
+  },
+  {
+    "file": "pcap/persistent-fixed-target.pcap.gz",
+    "uncompressed_filename": "persistent-fixed-target.pcap",
+    "uncompressed_bytes": 632,
+    "uncompressed_sha256": "321eaf2078c5777b2bad2a62d700c892f9b015d879a36982d6cc76202998a5ba",
+    "gzip_sha256": "83907f4064949d6c3b8a832cfe5a59b6efed989f6903dad452f066437c79692c",
+    "scope": "complete original PCAP, compressed without truncation"
+  },
+  {
+    "file": "pcap/transient-fixed-source.pcap.gz",
+    "uncompressed_filename": "transient-fixed-source.pcap",
+    "uncompressed_bytes": 37420,
+    "uncompressed_sha256": "bc7ec8c4509dd2a6f59db946b0b34deb20113ba37c3227a45277e9aabd874a0f",
+    "gzip_sha256": "6a5c8503bb648fad9e78fa0764bcc2690176547cc9e262ed0307cb711e267a78",
+    "scope": "complete original PCAP, compressed without truncation"
+  },
+  {
+    "file": "pcap/transient-fixed-target.pcap.gz",
+    "uncompressed_filename": "transient-fixed-target.pcap",
+    "uncompressed_bytes": 37420,
+    "uncompressed_sha256": "db7e49605a2fec35c51b24c0e72c230d4499d8fedd933aaa638bfcb3f3ecefe5",
+    "gzip_sha256": "a4f54562d3e598a087bcffca7a0e49e0f63143b4d602a345dbb7571848da4946",
+    "scope": "complete original PCAP, compressed without truncation"
+  },
+  {
+    "file": "pcap/normal-cold-source.pcap.gz",
+    "uncompressed_filename": "normal-cold-source.pcap",
+    "uncompressed_bytes": 9177842,
+    "uncompressed_sha256": "8e8351f60488f1254bcc9072f34d4ac6d985f7ff4b203f0ffdd620e7e0d915a7",
+    "gzip_sha256": "db5a5939b5efd354bcfe8b8dbc2112aae26c6966b316d05770ee0151abc75e06",
+    "scope": "complete original PCAP, compressed without truncation"
+  },
+  {
+    "file": "pcap/normal-cold-target.pcap.gz",
+    "uncompressed_filename": "normal-cold-target.pcap",
+    "uncompressed_bytes": 9177842,
+    "uncompressed_sha256": "9e614cbfe7c76687b85ce2052eeb7376dbb394112ce2c90eb4817f96acc8ba40",
+    "gzip_sha256": "70ffc5b6dd9708adcfd113eed6962d9f4d1af506a8b7f89ebde597bec86bb272",
+    "scope": "complete original PCAP, compressed without truncation"
+  }
+]

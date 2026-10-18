@@ -1,0 +1,51 @@
++ out=/shen/work/masscan-send-diagnostic
++ cc -O2 -Wall -Wextra /shen/work/masscan-send-diagnostic/micro-fixture.c -o /shen/work/masscan-send-diagnostic/micro-fixture
++ cc -O2 -Wall -Wextra -shared -fPIC /shen/work/masscan-send-diagnostic/inject-send.c -o /shen/work/masscan-send-diagnostic/inject-send.so -ldl
++ case=normal-cold
++ binary=/shen/work/masscan-send-diagnostic/bin/masscan
++ mode=
++ ports=1-65535
++ rate=10000
++ trap cleanup EXIT INT TERM
++ ip netns add send-src
++ ip netns add send-dst
++ ip link add underS netns send-src type veth peer name underT netns send-dst
++ ip -n send-src addr add 192.0.2.1/30 dev underS
++ ip -n send-dst addr add 192.0.2.2/30 dev underT
++ ip -n send-src link set lo up
++ ip -n send-dst link set lo up
++ ip -n send-src link set underS up
++ ip -n send-dst link set underT up
++ ip -n send-src link add vxlan42 type vxlan id 42 local 192.0.2.1 remote 192.0.2.2 dstport 4789
++ ip -n send-dst link add vxlan42 type vxlan id 42 local 192.0.2.2 remote 192.0.2.1 dstport 4789
++ ip -n send-src link set vxlan42 addrgenmode none address 02:00:00:00:00:11 mtu 1400 up
++ ip -n send-dst link set vxlan42 addrgenmode none address 02:00:00:00:00:12 mtu 1400 up
++ ip -n send-src addr add 198.18.0.1/24 dev vxlan42
++ ip -n send-dst addr add 198.18.0.2/24 dev vxlan42
++ server=32
++ sourcecap=33
++ ip netns exec send-dst /shen/work/masscan-send-diagnostic/micro-fixture serve
++ targetcap=34
++ sleep 1
++ ip netns exec send-src /shen/work/masscan-send-diagnostic/micro-fixture capture vxlan42 /shen/work/masscan-send-diagnostic/normal-cold-source.pcap
++ ip netns exec send-dst /shen/work/masscan-send-diagnostic/micro-fixture capture vxlan42 /shen/work/masscan-send-diagnostic/normal-cold-target.pcap
++ status=0
++ [ -n  ]
++ ip netns exec send-src /usr/bin/time -f elapsed=%e user=%U sys=%S exit=%x -o /shen/work/masscan-send-diagnostic/normal-cold.time timeout -k 1 20 /shen/work/masscan-send-diagnostic/bin/masscan --adapter vxlan42 --adapter-ip 198.18.0.3 --adapter-mac 02:00:00:00:00:11 --router-mac 02:00:00:00:00:12 --rate 10000 --wait 1 --seed 42 -p1-65535 -oL /shen/work/masscan-send-diagnostic/normal-cold.list 198.18.0.2
++ printf %s\n 0
++ kill 33 34 32
++ wait 33
++ wait 34
++ wait 32
++ printf case=%s exit=%s\n normal-cold 0
++ cat /shen/work/masscan-send-diagnostic/normal-cold.time /shen/work/masscan-send-diagnostic/normal-cold-source-capture.log /shen/work/masscan-send-diagnostic/normal-cold-target-capture.log
+case=normal-cold exit=0
+elapsed=9.20 user=0.34 sys=1.59 exit=0
+captured=131105 kernel_packets=131105 kernel_drops=0
+captured=131105 kernel_packets=131105 kernel_drops=0
++ grep -E scan_send:|send_inject:|scan_capture: /shen/work/masscan-send-diagnostic/normal-cold.stderr
+rate:  9.95-kpps,  1.52% done,5898:06:13 remaining, found=0       rate:  9.96-kpps, 13.02% done,   0:00:45 remaining, found=1       rate:  9.97-kpps, 24.47% done,   0:00:19 remaining, found=1       rate:  9.95-kpps, 36.02% done,   0:00:11 remaining, found=1       rate:  9.92-kpps, 47.57% done,   0:00:06 remaining, found=1       rate:  9.92-kpps, 59.12% done,   0:00:04 remaining, found=1       rate:  9.90-kpps, 70.69% done,   0:00:02 remaining, found=1       rate:  9.91-kpps, 82.38% done,   0:00:01 remaining, found=1       rate:  9.90-kpps, 94.11% done,   0:00:00 remaining, found=1       rate:  0.00-kpps, 100.00% done, waiting 0-secs, found=1       rate:  0.00-kpps, 100.00% done, waiting 1-secs, found=1       rate:  0.00-kpps, 100.00% done, waiting 1-secs, found=1       rate:  0.00-kpps, 100.00% done, waiting 1-secs, found=1       rate:  0.00-kpps, 100.00% done, waiting 1-secs, found=1       rate:  0.00-kpps, 100.00% done, waiting 0-secs, found=1       scan_send: stats failed_calls=0 retries=0 phase=rx_shutdown
+scan_capture: received=65564 dropped=0 if_dropped=0
++ cleanup
++ ip netns del send-src
++ ip netns del send-dst

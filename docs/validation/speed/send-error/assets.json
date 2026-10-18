@@ -1,0 +1,17 @@
+{
+  "assets": [
+    {
+      "asset": "192.0.2.1/30 and192.0.2.2/30",
+      "role": "local privateDocker underlay namespaces",
+      "verification_status": "未利用"
+    },
+    {
+      "asset": "198.18.0.1–198.18.0.3",
+      "role": "local privatekernelVXLAN rawTCP fixture; knownTCP8080",
+      "verification_status": "未利用"
+    }
+  ],
+  "no_external_network": true,
+  "screenshot_status": "No image generated or substituted. Root final real-validation screenshot pending.",
+  "HTTP_applicability": "None for rawTCP; R5 realHTTP lives in sibling http/r5/ evidence."
+}

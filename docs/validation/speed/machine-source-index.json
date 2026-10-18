@@ -1,0 +1,230 @@
+[
+  {
+    "published": "summaries/r3-machine-summary.json",
+    "source": "work/speed-regression-r3/machine-summary.json",
+    "source_sha256": "75833d6a5ffdcf89a65cde5e8a28160449ec382e870cc3786a751bc5f6c60c84",
+    "kind": "selected machine summary; not an unedited HTTP packet"
+  },
+  {
+    "published": "summaries/r3-artifacts.json",
+    "source": "work/speed-regression-r3/publication.json",
+    "source_sha256": "3f327e108b13688bd1d67a6d30f56f616690bda4ad8f461a999284f59cf44e34",
+    "kind": "selected machine summary; not an unedited HTTP packet"
+  },
+  {
+    "published": "summaries/r3-baseline-quality.json",
+    "source": "work/speed-regression-r3/evidence/baseline/bulk100/quality.json",
+    "source_sha256": "07ec8490eca719c407e073d31fb465f75c58bb68df959ac4f368b96c68e7cf25",
+    "kind": "selected machine summary; not an unedited HTTP packet"
+  },
+  {
+    "published": "summaries/r3-baseline-collection.json",
+    "source": "work/speed-regression-r3/evidence/baseline/snapshot-bulk100/collection.json",
+    "source_sha256": "b876bad371a3a81eaf22f2c136dcc9b5d08ef5f8a9e9d89a71861c97bcf84774",
+    "kind": "selected machine summary; not an unedited HTTP packet"
+  },
+  {
+    "published": "summaries/r3-candidate-quality.json",
+    "source": "work/speed-regression-r3/evidence/candidate/bulk100/quality.json",
+    "source_sha256": "bcfaa2cc388b81976907e96f098dc55aac18ab764db26f87422e196983c4f7bf",
+    "kind": "selected machine summary; not an unedited HTTP packet"
+  },
+  {
+    "published": "summaries/r3-candidate-collection.json",
+    "source": "work/speed-regression-r3/evidence/candidate/snapshot-bulk100/collection.json",
+    "source_sha256": "da45e623227b689a211ab2741b4ece7b4189446348dac583db28df20543c28d6",
+    "kind": "selected machine summary; not an unedited HTTP packet"
+  },
+  {
+    "published": "summaries/r4-machine-summary.json",
+    "source": "work/speed-regression-r4/machine-summary.json",
+    "source_sha256": "3b77af20da05e60407da45fef5cb8e8a391f8b849b829e244c3e219aa9cc1f3e",
+    "kind": "selected machine summary; not an unedited HTTP packet"
+  },
+  {
+    "published": "summaries/r4-artifacts.json",
+    "source": "work/speed-regression-r4/publication.json",
+    "source_sha256": "93925caf1650694ea5853904e8ab6568eadfa294fb666049f8ef33d0b6aea147",
+    "kind": "selected machine summary; not an unedited HTTP packet"
+  },
+  {
+    "published": "summaries/r4-baseline-quality.json",
+    "source": "work/speed-regression-r4/evidence/baseline/bulk100/quality.json",
+    "source_sha256": "c8ec6936dd5871462d09411c80cef0b24e0ba8a2104ba2dce8c26c57c369a453",
+    "kind": "selected machine summary; not an unedited HTTP packet"
+  },
+  {
+    "published": "summaries/r4-baseline-collection.json",
+    "source": "work/speed-regression-r4/evidence/baseline/snapshot-bulk100/collection.json",
+    "source_sha256": "5e9300e88dfe5acffe327ba3112f1c50b68fd9be58025a0332383932cbf292eb",
+    "kind": "selected machine summary; not an unedited HTTP packet"
+  },
+  {
+    "published": "summaries/r4-candidate-quality.json",
+    "source": "work/speed-regression-r4/evidence/candidate/bulk100/quality.json",
+    "source_sha256": "ea2410d97af8bbe1c4989d80c7f3a0853d91791f30980f62a20f5d656d0f9b2a",
+    "kind": "selected machine summary; not an unedited HTTP packet"
+  },
+  {
+    "published": "summaries/r4-candidate-collection.json",
+    "source": "work/speed-regression-r4/evidence/candidate/snapshot-bulk100/collection.json",
+    "source_sha256": "481e6204b1e63c0e57bfefed0874a9cfce288f5a3b31a17fbe06876a2ec9bbe6",
+    "kind": "selected machine summary; not an unedited HTTP packet"
+  },
+  {
+    "published": "summaries/r1-setup-failure.json",
+    "source": "work/speed-regression-r1/setup-failure.json",
+    "source_sha256": "33ce49dc71b37931b01894d21d231da26bb2f2c2ea323893f4c163f51ff8738d",
+    "kind": "selected machine summary; not an unedited HTTP packet"
+  },
+  {
+    "published": "summaries/r2-schema-failure.json",
+    "source": "work/speed-regression-r2/request-schema-failure.json",
+    "source_sha256": "952ed0318d7f520ab85039a9e6ac6d548c00c69dbb35090528ec58a2d388ca50",
+    "kind": "selected machine summary; not an unedited HTTP packet"
+  },
+  {
+    "published": "summaries/historical-1000-provenance.json",
+    "source": "work/speed-regression-r3/historical-provenance.json",
+    "source_sha256": "8a5cf0843c02bd7d9635b1d941b597b0412ace58bee0160fc75ec651b31b5ea5",
+    "kind": "selected machine summary; not an unedited HTTP packet"
+  },
+  {
+    "published": "summaries/local-compatibility.json",
+    "source": "work/speed-local-compat/compatibility-verified.json",
+    "source_sha256": "f59379c1f103821dfff3685f39ba7ff401e2b56cfec201b4d99b63d5ca620b4c",
+    "kind": "selected machine summary; not an unedited HTTP packet"
+  },
+  {
+    "published": "summaries/r3-package-maintenance.json",
+    "source": "work/speed-regression-analysis/r3-resource-window-audit.json",
+    "source_sha256": "074fe645ae4c049bea394a346b1caab07adcd0d07f476e6fad29af1f90b30872",
+    "kind": "selected machine summary; not an unedited HTTP packet"
+  },
+  {
+    "published": "summaries/r3-offline-parser-repair.json",
+    "source": "work/speed-regression-r3/datetime-portability-repair.json",
+    "source_sha256": "a5bf5c02d9929acb287ee7308b8f7dd66f1490060612a63698d999bb86f6f48b",
+    "kind": "selected machine summary; not an unedited HTTP packet"
+  },
+  {
+    "published": "summaries/r4-independent-wire-check.json",
+    "source": "work/speed-regression-r4/root-wire-quality-check.json",
+    "source_sha256": "11c8d92016bae5a53aed89e554cab0eb0ac3e546869a374078b3a1433ebfc465",
+    "kind": "selected machine summary; not an unedited HTTP packet"
+  },
+  {
+    "published": "summaries/final739-release.json",
+    "source": "work/speed-regression-release/release.json",
+    "source_sha256": "b481d912bdc3f66eead2784428e7286e93ca1e4155fa77bf818f829e3c38ee6b",
+    "kind": "selected machine summary; not an unedited HTTP packet"
+  },
+  {
+    "published": "summaries/r5-failed-precheck.json",
+    "source": "work/speed-capacity-r5/capacity-failure-evidence-audit.json",
+    "source_sha256": "2ae26daae764939ba617e7484460a44a97c6fccc5d9ca8f8d5cdcf2b1ec3def1",
+    "kind": "Existing local result or selected archive/build identity; not a new test"
+  },
+  {
+    "published": "summaries/r5-cleanup.json",
+    "source": "work/speed-capacity-r5/cleanup-summary.json",
+    "source_sha256": "8403b23c846df2246afcbc1b05653344fa6ad7ad499d153e9fb3068e86a6ede0",
+    "kind": "Existing local result or selected archive/build identity; not a new test"
+  },
+  {
+    "published": "summaries/r5-collection.json",
+    "source": "work/speed-capacity-r5/evidence/candidate/snapshot-bulk100/collection.json",
+    "source_sha256": "bec3dcd44ba29f267000f3e4b383087ef3e74163a1a40a56bef120b99480a4c9",
+    "kind": "Existing local result or selected archive/build identity; not a new test"
+  },
+  {
+    "published": "send-error/summaries/summary.json",
+    "source": "work/masscan-send-diagnostic/summary.json",
+    "source_sha256": "e327aba70d4ccab724772aa8de966a0efbbf5295496ab39ed6e69fbc545ef039",
+    "kind": "Existing local result or selected archive/build identity; not a new test"
+  },
+  {
+    "published": "send-error/summaries/source-provenance.json",
+    "source": "work/speed-send-release/masscan-source-provenance.json",
+    "source_sha256": "46f2438eed2a84f50eb54f3de77bc14300dfa642e5c3b8658e512e33381ebc75",
+    "kind": "Existing local result or selected archive/build identity; not a new test"
+  },
+  {
+    "published": "send-error/summaries/release269.json",
+    "source": "work/speed-send-release/release.json",
+    "source_sha256": "d20c805bb724b6a4902e597d4d532d688c0a4a30f95b4987240a6f5bfd2e70ce",
+    "kind": "Existing local result or selected archive/build identity; not a new test"
+  },
+  {
+    "published": "summaries/send-chain.json",
+    "source": "work/speed-send-chain/summary.json",
+    "source_sha256": "25ce8c0f16e1fa229a887eed3b8fd0341616791c66be85b3cb67e16d1d910bb0",
+    "kind": "existing evidence offline import; see report limitations"
+  },
+  {
+    "published": "summaries/r6-precheck.json",
+    "source": "work/speed-capacity-r6/evidence/candidate/bulk100/summary.json",
+    "source_sha256": "312528ea9c1bd1e0b2345ec702eeb1f40611e62380a4e887617f86b06c1b916b",
+    "kind": "existing evidence offline import; see report limitations"
+  },
+  {
+    "published": "summaries/r6-precheck-quality.json",
+    "source": "work/speed-capacity-r6/evidence/candidate/bulk100/capacity-quality.json",
+    "source_sha256": "f3fd33ffa4f2d27a489b2370a8780fc45392787cb32aee18a57f01199062b672",
+    "kind": "existing evidence offline import; see report limitations"
+  },
+  {
+    "published": "summaries/r6-precheck-collection.json",
+    "source": "work/speed-capacity-r6/evidence/candidate/snapshot-bulk100/collection.json",
+    "source_sha256": "27531d7606b8a04087d9735b9b7bf7483b95d79f9023169ca744d44eb417ea46",
+    "kind": "existing evidence offline import; see report limitations"
+  },
+  {
+    "published": "summaries/r6-precheck-send.json",
+    "source": "work/speed-capacity-r6/precheck-stage-send-summary.json",
+    "source_sha256": "7a4b0146019a241dd5932ef6a73d0ab378c1621f5090bab1bd6a463c128026e7",
+    "kind": "existing evidence offline import; see report limitations"
+  },
+  {
+    "published": "summaries/r6-main.json",
+    "source": "work/speed-capacity-r6/evidence/candidate/bulk1000/summary.json",
+    "source_sha256": "479becbbe0cd602fb5872a53f89e5826a1265bf28660e3d36304e4d94e6027f3",
+    "kind": "existing accepted R6 evidence; offline selected import"
+  },
+  {
+    "published": "summaries/r6-main-quality.json",
+    "source": "work/speed-capacity-r6/evidence/candidate/bulk1000/capacity-quality.json",
+    "source_sha256": "4f4c0ec792333786d6b0cf614cc4359af62772f0b6e5d4778e342405d52371b7",
+    "kind": "existing accepted R6 evidence; offline selected import"
+  },
+  {
+    "published": "summaries/r6-main-collection.json",
+    "source": "work/speed-capacity-r6/evidence/candidate/snapshot-bulk1000/collection.json",
+    "source_sha256": "b9608210bf3ba948012a4e9a4e96ceb953854910262cb85234897fe1701a6db2",
+    "kind": "existing accepted R6 evidence; offline selected import"
+  },
+  {
+    "published": "summaries/r6-independent-wire-check.json",
+    "source": "work/speed-capacity-r6/root-wire-quality-check.json",
+    "source_sha256": "4ad1f2af2c5d7ebf763bbf5900a88d23100f83374075db4d32078b89101e8eba",
+    "kind": "existing accepted R6 evidence; offline selected import"
+  },
+  {
+    "published": "summaries/r6-root-acceptance.json",
+    "source": "work/speed-capacity-r6/root-acceptance.json",
+    "source_sha256": "3e8034cd02edc8bfe66e14ebe0d03e0bf02f890ba65abef95f547ac9351c0fbd",
+    "kind": "existing accepted R6 evidence; offline selected import"
+  },
+  {
+    "published": "summaries/r6-cleanup.json",
+    "source": "work/speed-capacity-r6/cleanup-summary.json",
+    "source_sha256": "d0df2bfa7ce580d00bab2e9fc5ac90b3ffa2b7def348b7af15b6c45468146344",
+    "kind": "existing accepted R6 evidence; offline selected import"
+  },
+  {
+    "published": "summaries/r6-main-stage-send.json",
+    "source": "work/speed-capacity-r6/main-stage-send-summary.json",
+    "source_sha256": "368cccfb54822351e4c9c9d25c7403a7ac30fa21b18fbb4786883851f9e70ccf",
+    "kind": "existing accepted R6 evidence; offline selected import"
+  }
+]

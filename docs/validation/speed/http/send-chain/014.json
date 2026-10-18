@@ -1,0 +1,6 @@
+{
+  "request": "POST /api/tasks/034204b3-48b0-4232-9e13-cb718a59077b/release HTTP/1.1\r\nHost: 127.0.0.1:8091\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 204\r\nAccept: application/json\r\nAuthorization: ${REDACTED_CREDENTIAL}\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n\r\n{\"attempt_no\":2,\"failure_class\":\"\",\"reason\":\"terminated signal received\",\"retryable\":true,\"session_id\":\"89e991e9376deed53efb452ba618f66d\",\"stopped\":true,\"worker_id\":\"06df23bb-65fa-4a69-9867-783377c41bea\"}",
+  "response": "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nDate: Sun, 18 Oct 2026 03:25:43 GMT\r\nContent-Length: 18\r\n\r\n{\"released\":true}\n",
+  "url": "http://127.0.0.1:8091/api/tasks/034204b3-48b0-4232-9e13-cb718a59077b/release",
+  "status": 200
+}

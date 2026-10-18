@@ -1,0 +1,774 @@
+{
+  "measurement_passed": true,
+  "same_cohort": "5identical2CPU2GiBworkers+1self-built2CPU4GiBfixture/control,100sameIPs,TCP1-65535,rate5000,wait15,bothICMP1pps/source40000instrumentation",
+  "elapsed_change_percent": -29.384393207628033,
+  "first_result_change_percent": -43.95356306725955,
+  "cleanup": {
+    "at": "2026-10-18T02:33:12.128052+00:00",
+    "remaining": [],
+    "delete_errors": [],
+    "security_group_deleted": true,
+    "regional_instance_count": 0
+  },
+  "original_driver_result": "completed;portablefractionparserappliedandfrozenscriptmanifestverifiedbeforepaidstart",
+  "date_and_manifest_fields": "Bothcurrent7e0bfbb/optimized73970c7havefirst_started_atandfullmanifest;portabletimestampnormalizationused",
+  "limitations": "Onepairedsyntheticrun,noconfidenceinterval;not1000IP/publichostcapacityproof;botharmssamePPS5000/scope/fixture.",
+  "arm_identity": {
+    "baseline": "7e0bfbb2f9ac65e75bc1365f8e8ba9c89307d2fe;packaged4b7bdb7d922",
+    "candidate": "73970c79db0ed845ebc14729527d11683f628270;packageb86f28aaddbb"
+  },
+  "background_stability_snapshots": {
+    "before-baseline": true,
+    "baseline-midrun": true,
+    "before-candidate": true,
+    "candidate-midrun": true
+  },
+  "background_semantics": "All6nodesstableateachrecordedsnapshot;idlewait-for-signalshutdownwatcherzeroCPUexcluded;no services/softwarestoppedorchangedinmeasuredcases;notaclaimcontinuousprocesssamplingeverymillisecond.",
+  "actual_rate_parameters_verified": true,
+  "variants": {
+    "baseline": {
+      "run_id": "ee203277-a476-4734-8871-02c65be12c04",
+      "completed": true,
+      "monitor_elapsed_seconds": 502.720990208,
+      "control_created_to_completed_seconds": 499.96950507164,
+      "first_result_poll_seconds": 6.760027708,
+      "quality": {
+        "run_completed": true,
+        "no_failed_tasks": true,
+        "all_targets_present": true,
+        "http_pages_complete": true,
+        "exact_target_ip_set": true,
+        "expected_port_set_each_ip": true,
+        "all_three_http_tls_endpoints_each_ip": true,
+        "no_http_errors": true
+      },
+      "task_total": 613,
+      "stages": {
+        "port": {
+          "tasks": 25,
+          "attempts": {
+            "1": 25
+          },
+          "created_to_claim_seconds": {
+            "count": 25,
+            "sum": 5416.085859537125,
+            "p50": 240.9256830215454,
+            "p95": 403.9339179992676,
+            "max": 430.9735391139984
+          },
+          "claim_to_complete_seconds": {
+            "count": 25,
+            "sum": 2360.2232422828674,
+            "p50": 93.99434494972229,
+            "p95": 120.06892800331116,
+            "max": 120.26804995536804
+          },
+          "db_first_started_to_completed_seconds": {
+            "count": 25,
+            "sum": 2360.2232422828674,
+            "p50": 93.99434494972229,
+            "p95": 120.06892800331116,
+            "max": 120.26804995536804
+          },
+          "semantics": "claim-to-complete includes queue/reservation/transport, not pureCPU/execution; absent oldfirst_started staysunknown"
+        },
+        "service": {
+          "tasks": 288,
+          "attempts": {
+            "1": 288
+          },
+          "created_to_claim_seconds": {
+            "count": 288,
+            "sum": 732.9856324195862,
+            "p50": 0.9929280281066895,
+            "p95": 9.732537031173706,
+            "max": 25.52565884590149
+          },
+          "claim_to_complete_seconds": {
+            "count": 288,
+            "sum": 1868.0226924419403,
+            "p50": 6.458469986915588,
+            "p95": 6.73049783706665,
+            "max": 7.382771015167236
+          },
+          "db_first_started_to_completed_seconds": {
+            "count": 288,
+            "sum": 1868.0226924419403,
+            "p50": 6.458469986915588,
+            "p95": 6.73049783706665,
+            "max": 7.382771015167236
+          },
+          "semantics": "claim-to-complete includes queue/reservation/transport, not pureCPU/execution; absent oldfirst_started staysunknown"
+        },
+        "http": {
+          "tasks": 300,
+          "attempts": {
+            "1": 300
+          },
+          "created_to_claim_seconds": {
+            "count": 300,
+            "sum": 6.999324798583984,
+            "p50": 0.014220476150512695,
+            "p95": 0.06424307823181152,
+            "max": 0.3592870235443115
+          },
+          "claim_to_complete_seconds": {
+            "count": 300,
+            "sum": 52.292500019073486,
+            "p50": 0.13866901397705078,
+            "p95": 0.3287699222564697,
+            "max": 1.566890001296997
+          },
+          "db_first_started_to_completed_seconds": {
+            "count": 300,
+            "sum": 52.292500019073486,
+            "p50": 0.13866901397705078,
+            "p95": 0.3287699222564697,
+            "max": 1.566890001296997
+          },
+          "semantics": "claim-to-complete includes queue/reservation/transport, not pureCPU/execution; absent oldfirst_started staysunknown"
+        }
+      },
+      "actual_fullTCP_processes": 25,
+      "per_response_mode_process_timings": {
+        "RST": {
+          "actual_scan_processes": 12,
+          "wall_seconds": {
+            "count": 12,
+            "sum": 1438.7289569579998,
+            "p50": 119.95193703300001,
+            "p95": 120.21014569,
+            "max": 120.211214567
+          },
+          "start_to_first_send100_report_seconds": {
+            "count": 12,
+            "sum": 1249.987757269,
+            "p50": 104.411611131,
+            "p95": 104.417630786,
+            "max": 104.421403854
+          },
+          "first_send100_to_exit_seconds": {
+            "count": 12,
+            "sum": 188.74119968899998,
+            "p50": 15.539735953,
+            "p95": 16.288186324,
+            "max": 16.30616716
+          }
+        },
+        "DROP": {
+          "actual_scan_processes": 12,
+          "wall_seconds": {
+            "count": 12,
+            "sum": 826.1963689520001,
+            "p50": 68.948112811,
+            "p95": 68.958203306,
+            "max": 68.960694788
+          },
+          "start_to_first_send100_report_seconds": {
+            "count": 12,
+            "sum": 631.9315183130001,
+            "p50": 52.657771669,
+            "p95": 52.664764799,
+            "max": 52.695823318
+          },
+          "first_send100_to_exit_seconds": {
+            "count": 12,
+            "sum": 194.26485063899997,
+            "p50": 16.2908378335,
+            "p95": 16.29920657,
+            "max": 16.301427762
+          }
+        },
+        "MIXED": {
+          "actual_scan_processes": 1,
+          "wall_seconds": {
+            "count": 1,
+            "sum": 93.947997501,
+            "p50": 93.947997501,
+            "p95": 93.947997501,
+            "max": 93.947997501
+          },
+          "start_to_first_send100_report_seconds": {
+            "count": 1,
+            "sum": 78.159263905,
+            "p50": 78.159263905,
+            "p95": 78.159263905,
+            "max": 78.159263905
+          },
+          "first_send100_to_exit_seconds": {
+            "count": 1,
+            "sum": 15.788733596,
+            "p50": 15.788733596,
+            "p95": 15.788733596,
+            "max": 15.788733596
+          }
+        }
+      },
+      "inter_scan_idle_seconds_all_workers": {
+        "count": 20,
+        "sum": 2.470520425,
+        "p50": 0.058088647,
+        "p95": 0.145620581,
+        "max": 1.123819288
+      },
+      "wire": {
+        "observer_nodes": 5,
+        "observer_socket_drops": 0,
+        "everyIP_exact65535_distinctSYN": true,
+        "totals": {
+          "tx_tcp_selected": 9833161,
+          "tx_ip_bytes": 393390320,
+          "tx_syn": 6556694,
+          "tx_masscan_syn": 6553500,
+          "rst_targets_tx_masscan_syn": 3276750,
+          "rx_tcp_selected": 3280761,
+          "rx_ip_bytes": 131295520,
+          "rx_rst": 3277267,
+          "rx_masscan_rst": 3276167,
+          "rst_targets_rx_masscan_rst": 3276167,
+          "tx_rst": 3276467,
+          "tx_masscan_rst": 3276467,
+          "rst_targets_tx_masscan_rst": 3276317,
+          "rx_synack": 3494,
+          "rx_masscan_synack": 300,
+          "rst_targets_rx_masscan_synack": 150,
+          "drop_targets_tx_masscan_syn": 3276750,
+          "drop_targets_rx_masscan_synack": 150,
+          "drop_targets_tx_masscan_rst": 150
+        }
+      },
+      "new_manifest_exact": true,
+      "active_target_quotas": 0,
+      "resource_semantics": "HostCPU includes same packet observer/metrics overhead; endDBstats include startup and are not isolatedscanDBlatency.",
+      "resources_selected": [
+        {
+          "type": "fixture/control",
+          "hostCPU_busy_percent": {
+            "count": 247,
+            "sum": 8006.856902667497,
+            "p50": 15.5,
+            "p95": 66.41604010025063,
+            "max": 79.70297029702971
+          },
+          "hostCPU_steal_percent": {
+            "count": 247,
+            "sum": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "max": 0.0
+          },
+          "minimum_available_memory_MiB": 2701.85546875,
+          "maximum_process_RSS_MiB": {
+            "postgres": 47.1796875,
+            "python3": 20.64453125,
+            "scan-server": 32.85546875,
+            "python3-urllib3": 1.03515625,
+            "python3.10": 12.55078125
+          }
+        },
+        {
+          "type": "worker",
+          "hostCPU_busy_percent": {
+            "count": 249,
+            "sum": 3266.557539491447,
+            "p50": 10.025706940874036,
+            "p95": 25.376884422110553,
+            "max": 96.02977667493796
+          },
+          "hostCPU_steal_percent": {
+            "count": 249,
+            "sum": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "max": 0.0
+          },
+          "minimum_available_memory_MiB": 736.890625,
+          "maximum_process_RSS_MiB": {
+            "python3": 13.5703125,
+            "scan-agent": 37.74609375,
+            "masscan": 101.6875,
+            "nmap": 55.8203125,
+            "web-probe-worke": 34.63671875,
+            "fingerprint-wor": 361.4765625
+          }
+        },
+        {
+          "type": "worker",
+          "hostCPU_busy_percent": {
+            "count": 248,
+            "sum": 2435.116090330011,
+            "p50": 9.261591478696742,
+            "p95": 20.85427135678392,
+            "max": 49.746192893401016
+          },
+          "hostCPU_steal_percent": {
+            "count": 248,
+            "sum": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "max": 0.0
+          },
+          "minimum_available_memory_MiB": 787.83203125,
+          "maximum_process_RSS_MiB": {
+            "python3": 13.72265625,
+            "scan-agent": 34.8203125,
+            "masscan": 101.7109375,
+            "nmap": 55.78515625,
+            "web-probe-worke": 34.16796875,
+            "fingerprint-wor": 361.9765625
+          }
+        },
+        {
+          "type": "worker",
+          "hostCPU_busy_percent": {
+            "count": 248,
+            "sum": 2265.5956601518774,
+            "p50": 8.919157801698287,
+            "p95": 19.949494949494948,
+            "max": 47.3551637279597
+          },
+          "hostCPU_steal_percent": {
+            "count": 248,
+            "sum": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "max": 0.0
+          },
+          "minimum_available_memory_MiB": 786.91015625,
+          "maximum_process_RSS_MiB": {
+            "python3": 13.58984375,
+            "scan-agent": 35.0546875,
+            "masscan": 101.7734375,
+            "nmap": 55.80078125,
+            "web-probe-worke": 33.9609375,
+            "fingerprint-wor": 375.3125
+          }
+        },
+        {
+          "type": "worker",
+          "hostCPU_busy_percent": {
+            "count": 248,
+            "sum": 8706.07884754835,
+            "p50": 23.39721276407225,
+            "p95": 73.80352644836272,
+            "max": 99.25373134328358
+          },
+          "hostCPU_steal_percent": {
+            "count": 248,
+            "sum": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "max": 0.0
+          },
+          "minimum_available_memory_MiB": 568.0625,
+          "maximum_process_RSS_MiB": {
+            "python3": 30.5390625,
+            "scan-agent": 34.7578125,
+            "masscan": 101.65625,
+            "nmap": 56.65234375,
+            "web-probe-worke": 34.58984375,
+            "fingerprint-wor": 374.58984375,
+            "python3.10": 7.15234375
+          }
+        },
+        {
+          "type": "worker",
+          "hostCPU_busy_percent": {
+            "count": 248,
+            "sum": 2672.0647873854323,
+            "p50": 9.58884987157375,
+            "p95": 21.15869017632242,
+            "max": 62.814070351758794
+          },
+          "hostCPU_steal_percent": {
+            "count": 248,
+            "sum": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "max": 0.0
+          },
+          "minimum_available_memory_MiB": 650.63671875,
+          "maximum_process_RSS_MiB": {
+            "python3": 13.57421875,
+            "scan-agent": 34.7578125,
+            "masscan": 101.6953125,
+            "nmap": 55.7109375,
+            "web-probe-worke": 34.4375,
+            "fingerprint-wor": 361.4140625
+          }
+        }
+      ]
+    },
+    "candidate": {
+      "run_id": "08c2b6e1-80e8-4fa5-9a9a-9e707629b004",
+      "completed": true,
+      "monitor_elapsed_seconds": 354.99947770800003,
+      "control_created_to_completed_seconds": 349.30547285079956,
+      "first_result_poll_seconds": 3.788754666,
+      "quality": {
+        "run_completed": true,
+        "no_failed_tasks": true,
+        "all_targets_present": true,
+        "http_pages_complete": true,
+        "exact_target_ip_set": true,
+        "expected_port_set_each_ip": true,
+        "all_three_http_tls_endpoints_each_ip": true,
+        "no_http_errors": true
+      },
+      "task_total": 576,
+      "stages": {
+        "port": {
+          "tasks": 25,
+          "attempts": {
+            "1": 25
+          },
+          "created_to_claim_seconds": {
+            "count": 25,
+            "sum": 3461.408266067505,
+            "p50": 139.10559606552124,
+            "p95": 276.1746380329132,
+            "max": 277.1866009235382
+          },
+          "claim_to_complete_seconds": {
+            "count": 25,
+            "sum": 1720.4010155200958,
+            "p50": 68.99139404296875,
+            "p95": 69.00148797035217,
+            "max": 69.01802396774292
+          },
+          "db_first_started_to_completed_seconds": {
+            "count": 25,
+            "sum": 1720.4010155200958,
+            "p50": 68.99139404296875,
+            "p95": 69.00148797035217,
+            "max": 69.01802396774292
+          },
+          "semantics": "claim-to-complete includes queue/reservation/transport, not pureCPU/execution; absent oldfirst_started staysunknown"
+        },
+        "service": {
+          "tasks": 251,
+          "attempts": {
+            "1": 251
+          },
+          "created_to_claim_seconds": {
+            "count": 251,
+            "sum": 1845.489095211029,
+            "p50": 4.575167894363403,
+            "p95": 20.81335186958313,
+            "max": 29.456678867340088
+          },
+          "claim_to_complete_seconds": {
+            "count": 251,
+            "sum": 1620.8587775230408,
+            "p50": 6.451361894607544,
+            "p95": 6.4979588985443115,
+            "max": 6.666901111602783
+          },
+          "db_first_started_to_completed_seconds": {
+            "count": 251,
+            "sum": 1620.8587775230408,
+            "p50": 6.451361894607544,
+            "p95": 6.4979588985443115,
+            "max": 6.666901111602783
+          },
+          "semantics": "claim-to-complete includes queue/reservation/transport, not pureCPU/execution; absent oldfirst_started staysunknown"
+        },
+        "http": {
+          "tasks": 300,
+          "attempts": {
+            "1": 300
+          },
+          "created_to_claim_seconds": {
+            "count": 300,
+            "sum": 9.528120994567871,
+            "p50": 0.015773534774780273,
+            "p95": 0.1562211513519287,
+            "max": 0.5668199062347412
+          },
+          "claim_to_complete_seconds": {
+            "count": 300,
+            "sum": 58.45123267173767,
+            "p50": 0.1351180076599121,
+            "p95": 0.34902501106262207,
+            "max": 1.511786937713623
+          },
+          "db_first_started_to_completed_seconds": {
+            "count": 300,
+            "sum": 58.45123267173767,
+            "p50": 0.1351180076599121,
+            "p95": 0.34902501106262207,
+            "max": 1.511786937713623
+          },
+          "semantics": "claim-to-complete includes queue/reservation/transport, not pureCPU/execution; absent oldfirst_started staysunknown"
+        }
+      },
+      "actual_fullTCP_processes": 25,
+      "per_response_mode_process_timings": {
+        "RST": {
+          "actual_scan_processes": 12,
+          "wall_seconds": {
+            "count": 12,
+            "sum": 825.1104022689998,
+            "p50": 68.941431568,
+            "p95": 68.948323883,
+            "max": 68.951637806
+          },
+          "start_to_first_send100_report_seconds": {
+            "count": 12,
+            "sum": 631.124863892,
+            "p50": 52.6568604785,
+            "p95": 52.660181069,
+            "max": 52.660938083
+          },
+          "first_send100_to_exit_seconds": {
+            "count": 12,
+            "sum": 193.985538377,
+            "p50": 16.2881798545,
+            "p95": 16.291212063,
+            "max": 16.293602129
+          }
+        },
+        "DROP": {
+          "actual_scan_processes": 12,
+          "wall_seconds": {
+            "count": 12,
+            "sum": 825.142261664,
+            "p50": 68.94438181000001,
+            "p95": 68.955533393,
+            "max": 68.958314423
+          },
+          "start_to_first_send100_report_seconds": {
+            "count": 12,
+            "sum": 630.3835813430001,
+            "p50": 52.654701048999996,
+            "p95": 52.657231351,
+            "max": 52.668499461
+          },
+          "first_send100_to_exit_seconds": {
+            "count": 12,
+            "sum": 194.75868032099999,
+            "p50": 16.2883510975,
+            "p95": 16.295222518,
+            "max": 16.299265011
+          }
+        },
+        "MIXED": {
+          "actual_scan_processes": 1,
+          "wall_seconds": {
+            "count": 1,
+            "sum": 68.950502191,
+            "p50": 68.950502191,
+            "p95": 68.950502191,
+            "max": 68.950502191
+          },
+          "start_to_first_send100_report_seconds": {
+            "count": 1,
+            "sum": 52.656167411,
+            "p50": 52.656167411,
+            "p95": 52.656167411,
+            "max": 52.656167411
+          },
+          "first_send100_to_exit_seconds": {
+            "count": 1,
+            "sum": 16.29433478,
+            "p50": 16.29433478,
+            "p95": 16.29433478,
+            "max": 16.29433478
+          }
+        }
+      },
+      "inter_scan_idle_seconds_all_workers": {
+        "count": 20,
+        "sum": 3.1839293209999995,
+        "p50": 0.055246997500000006,
+        "p95": 1.07145262,
+        "max": 1.073498422
+      },
+      "wire": {
+        "observer_nodes": 5,
+        "observer_socket_drops": 0,
+        "everyIP_exact65535_distinctSYN": true,
+        "totals": {
+          "tx_tcp_selected": 6557000,
+          "tx_ip_bytes": 262344000,
+          "tx_syn": 6556700,
+          "tx_masscan_syn": 6553500,
+          "rst_targets_tx_masscan_syn": 3276750,
+          "rx_tcp_selected": 3281200,
+          "rx_ip_bytes": 131313224,
+          "rx_rst": 3277700,
+          "rx_masscan_rst": 3276600,
+          "rst_targets_rx_masscan_rst": 3276600,
+          "rx_synack": 3500,
+          "rx_masscan_synack": 300,
+          "rst_targets_rx_masscan_synack": 150,
+          "tx_rst": 300,
+          "tx_masscan_rst": 300,
+          "rst_targets_tx_masscan_rst": 150,
+          "drop_targets_tx_masscan_syn": 3276750,
+          "drop_targets_rx_masscan_synack": 150,
+          "drop_targets_tx_masscan_rst": 150
+        }
+      },
+      "new_manifest_exact": true,
+      "active_target_quotas": 0,
+      "resource_semantics": "HostCPU includes same packet observer/metrics overhead; endDBstats include startup and are not isolatedscanDBlatency.",
+      "resources_selected": [
+        {
+          "type": "fixture/control",
+          "hostCPU_busy_percent": {
+            "count": 173,
+            "sum": 2267.8353158825184,
+            "p50": 13.636363636363637,
+            "p95": 20.24390243902439,
+            "max": 28.82205513784461
+          },
+          "hostCPU_steal_percent": {
+            "count": 173,
+            "sum": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "max": 0.0
+          },
+          "minimum_available_memory_MiB": 2802.04296875,
+          "maximum_process_RSS_MiB": {
+            "postgres": 47.1171875,
+            "python3": 21.23046875,
+            "scan-server": 31.5546875
+          }
+        },
+        {
+          "type": "worker",
+          "hostCPU_busy_percent": {
+            "count": 173,
+            "sum": 1980.4659302636587,
+            "p50": 11.6751269035533,
+            "p95": 24.556962025316455,
+            "max": 48.883374689826304
+          },
+          "hostCPU_steal_percent": {
+            "count": 173,
+            "sum": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "max": 0.0
+          },
+          "minimum_available_memory_MiB": 644.515625,
+          "maximum_process_RSS_MiB": {
+            "python3": 14.0546875,
+            "scan-agent": 36.359375,
+            "masscan": 101.68359375,
+            "nmap": 55.53515625,
+            "web-probe-worke": 36.39453125,
+            "fingerprint-wor": 368.4765625
+          }
+        },
+        {
+          "type": "worker",
+          "hostCPU_busy_percent": {
+            "count": 173,
+            "sum": 1831.9085165796455,
+            "p50": 9.718670076726342,
+            "p95": 23.80952380952381,
+            "max": 56.09137055837564
+          },
+          "hostCPU_steal_percent": {
+            "count": 173,
+            "sum": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "max": 0.0
+          },
+          "minimum_available_memory_MiB": 776.54296875,
+          "maximum_process_RSS_MiB": {
+            "python3": 13.8125,
+            "scan-agent": 39.859375,
+            "masscan": 101.68359375,
+            "nmap": 56.1015625,
+            "web-probe-worke": 35.42578125,
+            "fingerprint-wor": 376.03125
+          }
+        },
+        {
+          "type": "worker",
+          "hostCPU_busy_percent": {
+            "count": 173,
+            "sum": 2006.9386236175533,
+            "p50": 11.89873417721519,
+            "p95": 25.12562814070352,
+            "max": 54.91183879093199
+          },
+          "hostCPU_steal_percent": {
+            "count": 173,
+            "sum": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "max": 0.0
+          },
+          "minimum_available_memory_MiB": 639.5078125,
+          "maximum_process_RSS_MiB": {
+            "python3": 13.73828125,
+            "scan-agent": 39.9140625,
+            "masscan": 101.73046875,
+            "nmap": 56.234375,
+            "web-probe-worke": 35.99609375,
+            "fingerprint-wor": 375.41796875
+          }
+        },
+        {
+          "type": "worker",
+          "hostCPU_busy_percent": {
+            "count": 173,
+            "sum": 1934.8692654030358,
+            "p50": 10.741687979539641,
+            "p95": 25.063291139240505,
+            "max": 62.72040302267003
+          },
+          "hostCPU_steal_percent": {
+            "count": 173,
+            "sum": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "max": 0.0
+          },
+          "minimum_available_memory_MiB": 634.15234375,
+          "maximum_process_RSS_MiB": {
+            "python3": 13.93359375,
+            "scan-agent": 36.0234375,
+            "masscan": 101.7265625,
+            "nmap": 55.46875,
+            "web-probe-worke": 34.609375,
+            "fingerprint-wor": 360.203125
+          }
+        },
+        {
+          "type": "worker",
+          "hostCPU_busy_percent": {
+            "count": 173,
+            "sum": 1863.8757708114485,
+            "p50": 10.5,
+            "p95": 24.242424242424242,
+            "max": 49.23857868020305
+          },
+          "hostCPU_steal_percent": {
+            "count": 173,
+            "sum": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "max": 0.0
+          },
+          "minimum_available_memory_MiB": 650.73046875,
+          "maximum_process_RSS_MiB": {
+            "python3": 13.953125,
+            "scan-agent": 33.390625,
+            "masscan": 101.65625,
+            "nmap": 55.88671875,
+            "web-probe-worke": 35.140625,
+            "fingerprint-wor": 361.25
+          }
+        }
+      ]
+    }
+  },
+  "selection_note": "Selected exact fields from the existing machine summary. Resource node IDs and unrelated database counters omitted; unknown values remain null. No new test."
+}

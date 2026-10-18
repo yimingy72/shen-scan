@@ -1,0 +1,23 @@
+{
+  "upstream_commit": "06902c40d1494881c17b7968ef530e1d6bbd320c",
+  "platform": "Linux amd64; local run under Docker emulation on arm64 host",
+  "original_binary_sha256": "6882bfaafb68e98974aba5159056867563652dfd0188be82f06bf2e380830ab9",
+  "original_source_archive_sha256": "dfeeeae6d0abeebaa1224c1c38cc776e4bba7a819cbb41fe060f8e366bcf23c7",
+  "measured_final_statusOpen_binary_sha256": "afc20e66f99e13f4c65a7a7acc52b51d9f51b3798c3f7ac296abc6121ba39f7d",
+  "source_archive_at_microtest_sha256": "36362eb485e77e9489cfded88599c3f9d26fa9d2f8a428436635d4956ae976b8",
+  "later_documentation_updated_source_archive_sha256": "162ae4a3f5c933d74048864fbe37492ce48c485fdd443cbaa5cc1d077f45a349",
+  "later_archive_changed_members": [
+    "README.md",
+    "SOURCE.md"
+  ],
+  "unchanged_core_members_sha256": {
+    "AGPL-3.0.txt": "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0",
+    "LICENSE.masscan": "cc333e4f7702104fea033d28d16427ba55805a2300eadbd2bab9794676eed7f9",
+    "build.sh": "90e192eced9dfc4609ded34caeb0bbd030918307a0900f825105fe6227859b69",
+    "masscan-06902c40d1494881c17b7968ef530e1d6bbd320c.tar.gz": "00bb562686bc765b76b7c02d161d311ff60bc845fa0dfde0ad5b602b6ebcbf3d",
+    "masscan-1.3.2-recv-buffer.patch": "cec73f9531390ec3e8804f6add30d31e3456ee719b566c78011a500a29df27d2"
+  },
+  "microtest_history_note": "The later documentation package was not the source archive present during the microtest. Only README.md and SOURCE.md differ; scanner patch, upstream source, build script and licenses are byte-identical. No scanner binary was rebuilt for these later documentation edits.",
+  "candidate_guard": "tcpcon == NULL && !masscan->is_noreset && status == PortStatus_Open",
+  "scanner_binary_or_bulk_source_included": false
+}

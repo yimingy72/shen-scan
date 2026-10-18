@@ -1,0 +1,31 @@
+{
+  "case": "persistent ENOBUFS single-IP TCP1-65535",
+  "release_commit": "2691677",
+  "masscan_sha256": "2ee12f51003d127996b49c98771d118d713a9fc5d16ff623de864e1ac9bb0c3d",
+  "run_id": "25c3ca50-c557-4a8c-8509-aaed26b04836",
+  "agent_first_attempt_reason": "masscan failed; scan_send fatal after8 ENOBUFS calls/7 retries; zero forwarded_successes",
+  "release_HTTP_status": 200,
+  "release_accepted": true,
+  "complete_requests": 0,
+  "run_status": "running",
+  "task_done": 0,
+  "target_done": 0,
+  "port_coverage": "unconfirmed",
+  "positive_observations": 0,
+  "retry_note": "attempt2 was immediately claimed after attempt1 release; Agent stopped and released attempt2 with terminated signal, no retry loop awaited",
+  "evidence_gap": "Final direct SQL snapshot failed because the generic observations table does not exist; private DB was still cleaned. API evidence independently records unconfirmed coverage and0done; no direct port_range_manifest dump retained.",
+  "http_packets": 15,
+  "http_archive_sha256": "9f70392e7289bd983221784e7197d6428a215a8ba0a2bdbd05993e3f9ae37dcc",
+  "preparation_notes": [
+    "Initial local proxy gzip handling failed before usable Agent session; setup evidence retained.",
+    "An initial startup PATH adaptation was corrected before final injected run."
+  ],
+  "cleanup": {
+    "container_removed": true,
+    "isolated_database_removed": true,
+    "database_name": "send_chain_1792293939",
+    "cloud_operations": 0
+  },
+  "no_cloud": true,
+  "claim_limit": "API confirms no complete and unconfirmed coverage; no direct port_range_manifest SQL dump retained. Attempt2 was stopped, not tested to exhaustion."
+}

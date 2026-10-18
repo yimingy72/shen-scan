@@ -1,0 +1,74 @@
+{
+  "scope": "Evidence packaging QA only; no cloud/API/scanner/browser execution",
+  "markdown_relative_links_exist": true,
+  "all_JSON_parse": true,
+  "selected_HTTP_business_bodies_unchanged": "Original full business fields preserved. 15failure-chain captures redact actual credentials, including registration worker_token; perpacket before/afterbodySHA and original lengthmetadata retained.",
+  "R4_full_HTTP_pages": {
+    "baseline": {
+      "HTTP_pages": [
+        200,
+        100
+      ],
+      "total": 300,
+      "business_body_preserved": true
+    },
+    "candidate": {
+      "HTTP_pages": [
+        200,
+        100
+      ],
+      "total": 300,
+      "business_body_preserved": true
+    }
+  },
+  "no_screenshot_claim": false,
+  "micro_files_modified": false,
+  "R5_root_preliminary_notification_recorded": true,
+  "R5_integrity_pass_claimed": false,
+  "HTTP_records": 88,
+  "R5_complete_raw_HTTP_imported": true,
+  "R5_cleanup_evidence_imported": true,
+  "R6_pass_claimed": true,
+  "send_error_gzip_original_SHA_verified": true,
+  "v05_section_preserved": {
+    "preserved_byte_for_byte": true,
+    "sha256": "b9551de17acc927ff633aad424a68311d2a515e963851e9d10cda29ed4209fcf"
+  },
+  "new_test_execution_during_export": false,
+  "R6_precheck_independently_passed": true,
+  "R6_main1000_pass_claimed": true,
+  "R6_precheck_full_HTTP_pages": [
+    200,
+    100
+  ],
+  "actual_send_failure_chain_HTTP_records": 15,
+  "chain_SQL_gap_disclosed": true,
+  "chain_registration_token_redacted": true,
+  "actual_screenshot_scope": "R6main1000only;2actualimages",
+  "R6_main_HTTP_pages": [
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200,
+    200
+  ],
+  "R6_main_results_pages": [
+    200,
+    200,
+    200,
+    200,
+    200
+  ],
+  "R6_main_stderr_files": 125,
+  "R6_main_retry_events": 4
+}

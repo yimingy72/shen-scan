@@ -1,0 +1,83 @@
+{
+  "baseline": {
+    "IPs_per_typical_task": 4,
+    "logical_ports": 262140,
+    "observed_task_median_seconds": 120.3482195,
+    "predicted_seconds_1SYN_plus_1RST_per_closed_at_5000_PPS_plus15wait": 119.856,
+    "effective_SYN_per_second_subtracting15wait": 2488.3192259362295,
+    "target_counters": {
+      "vxlan42": {
+        "rx_bytes": 724044496,
+        "rx_packets": 16803920,
+        "rx_errors": 0,
+        "rx_drops": 0,
+        "tx_bytes": 339908710,
+        "tx_packets": 8417274,
+        "tx_errors": 0,
+        "tx_drops": 0
+      },
+      "host_tcp": {
+        "Tcp:InSegs": 31896,
+        "Tcp:OutSegs": 97149,
+        "Tcp:RetransSegs": 226,
+        "Tcp:InErrs": 0,
+        "Tcp:OutRsts": 2,
+        "Tcp:AttemptFails": 0,
+        "Tcp:EstabResets": 0
+      },
+      "fixture_tcp": {
+        "Tcp:InSegs": 16798832,
+        "Tcp:OutSegs": 8409952,
+        "Tcp:RetransSegs": 3301,
+        "Tcp:InErrs": 0,
+        "Tcp:OutRsts": 8389460,
+        "Tcp:AttemptFails": 384,
+        "Tcp:EstabResets": 0
+      }
+    }
+  },
+  "candidate": {
+    "IPs_per_typical_task": 3,
+    "logical_ports": 196605,
+    "observed_task_median_seconds": 93.961981,
+    "predicted_seconds_1SYN_plus_1RST_per_closed_at_5000_PPS_plus15wait": 93.642,
+    "effective_SYN_per_second_subtracting15wait": 2489.8691434805824,
+    "target_counters": {
+      "vxlan42": {
+        "rx_bytes": 723362460,
+        "rx_packets": 16787945,
+        "rx_errors": 0,
+        "rx_drops": 0,
+        "tx_bytes": 339607827,
+        "tx_packets": 8409398,
+        "tx_errors": 0,
+        "tx_drops": 0
+      },
+      "host_tcp": {
+        "Tcp:InSegs": 35536,
+        "Tcp:OutSegs": 87654,
+        "Tcp:RetransSegs": 539,
+        "Tcp:InErrs": 0,
+        "Tcp:OutRsts": 4,
+        "Tcp:AttemptFails": 0,
+        "Tcp:EstabResets": 1
+      },
+      "fixture_tcp": {
+        "Tcp:InSegs": 16783157,
+        "Tcp:OutSegs": 8402249,
+        "Tcp:RetransSegs": 3425,
+        "Tcp:InErrs": 0,
+        "Tcp:OutRsts": 8381516,
+        "Tcp:AttemptFails": 383,
+        "Tcp:EstabResets": 0
+      }
+    }
+  },
+  "old1000": {
+    "observed_fourIP_task_median_seconds": 68.4824815,
+    "predicted_seconds_1SYN_per_DROP_port_at_5000_PPS_plus15wait": 67.428,
+    "effective_SYN_per_second_subtracting15wait": 4901.418046580355,
+    "fixture_source": "work/load-test/optimized-agent-v3/load-fixture.sh:51-59",
+    "scope": "Existing fixture defaults to dropping initial SYN except known3ports. Historical5userspecifiedWorkers but6lifetimeIDs is membership history, not six simultaneous5000PPS workers."
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "default": [
+    "scan_capture: received=12019 dropped=0 if_dropped=0"
+  ],
+  "candidate": [
+    "scan_capture: received=12013 dropped=0 if_dropped=0"
+  ],
+  "noreset": [
+    "scan_capture: received=12011 dropped=0 if_dropped=0"
+  ],
+  "silent": [
+    "scan_capture: received=0 dropped=0 if_dropped=0"
+  ]
+}

@@ -1,0 +1,177 @@
+{
+  "case": "49f644af-d141-444a-939f-fdd2480f23cd",
+  "case_window_ns": {
+    "started_ns": 1792293529289141000,
+    "case": "bulk100",
+    "budget": {
+      "case": "bulk100",
+      "timeout_seconds": 600,
+      "collection_acceptance_cap_seconds": 240,
+      "release_cleanup_reserve_seconds": 600,
+      "tail_budget_seconds": 600,
+      "release_remaining_seconds": 3074.440945,
+      "work_remaining_seconds": 2475.286699,
+      "enough": true
+    },
+    "ended_ns": 1792293743374199000
+  },
+  "logs": [
+    {
+      "file": "r6-logs/i-bp19xetim6x4upkm2m2k-1792293532841176946-masscan-2872.stderr",
+      "source_archive": "work/speed-capacity-r6/evidence/candidate/snapshot-bulk100/i-bp19xetim6x4upkm2m2k.tar.gz",
+      "source_member": "./candidate/tools/1792293532841176946-masscan-2872.stderr",
+      "sha256": "7dc43927ae3c08c49231cfc78fcd9925204eaaca6c9c2e5cc1035dc1a87836ef",
+      "retry_events": 0,
+      "recovered_attempts": [],
+      "stats": [
+        "scan_send: stats failed_calls=0 retries=0 phase=rx_shutdown"
+      ]
+    },
+    {
+      "file": "r6-logs/i-bp19xetim6x4upkm2m2k-1792293601601235178-masscan-2938.stderr",
+      "source_archive": "work/speed-capacity-r6/evidence/candidate/snapshot-bulk100/i-bp19xetim6x4upkm2m2k.tar.gz",
+      "source_member": "./candidate/tools/1792293601601235178-masscan-2938.stderr",
+      "sha256": "721b9b36df09ecfe6503f012ee0672094eec5cbce8d2b3260a79e15ac524bea4",
+      "retry_events": 0,
+      "recovered_attempts": [],
+      "stats": [
+        "scan_send: stats failed_calls=0 retries=0 phase=rx_shutdown"
+      ]
+    },
+    {
+      "file": "r6-logs/i-bp19xetim6x4upkm2m2k-1792293663602372482-masscan-2965.stderr",
+      "source_archive": "work/speed-capacity-r6/evidence/candidate/snapshot-bulk100/i-bp19xetim6x4upkm2m2k.tar.gz",
+      "source_member": "./candidate/tools/1792293663602372482-masscan-2965.stderr",
+      "sha256": "a3f026c9225bcd2c7cf3837b8c3284c8bba37e213ad436d602f75303392dd990",
+      "retry_events": 0,
+      "recovered_attempts": [],
+      "stats": [
+        "scan_send: stats failed_calls=0 retries=0 phase=rx_shutdown"
+      ]
+    },
+    {
+      "file": "r6-logs/i-bp19xetim6x4upkm2m2l-1792293532824064790-masscan-2868.stderr",
+      "source_archive": "work/speed-capacity-r6/evidence/candidate/snapshot-bulk100/i-bp19xetim6x4upkm2m2l.tar.gz",
+      "source_member": "./candidate/tools/1792293532824064790-masscan-2868.stderr",
+      "sha256": "06b54f095fbca129a4ba95f138724f333c7d09f8aae490029ed160ac1f1100c8",
+      "retry_events": 3,
+      "recovered_attempts": [
+        "2",
+        "2",
+        "2"
+      ],
+      "stats": [
+        "scan_send: stats failed_calls=3 retries=3 phase=rx_shutdown"
+      ]
+    },
+    {
+      "file": "r6-logs/i-bp19xetim6x4upkm2m2l-1792293602006793659-masscan-2933.stderr",
+      "source_archive": "work/speed-capacity-r6/evidence/candidate/snapshot-bulk100/i-bp19xetim6x4upkm2m2l.tar.gz",
+      "source_member": "./candidate/tools/1792293602006793659-masscan-2933.stderr",
+      "sha256": "dbeccc98ff04587a4984c13d18de17eddbdd66ba851b6db7016ee19477f0746f",
+      "retry_events": 0,
+      "recovered_attempts": [],
+      "stats": [
+        "scan_send: stats failed_calls=0 retries=0 phase=rx_shutdown"
+      ]
+    },
+    {
+      "file": "r6-logs/i-bp19xetim6x4upkm2m2m-1792293663635760581-masscan-3230.stderr",
+      "source_archive": "work/speed-capacity-r6/evidence/candidate/snapshot-bulk100/i-bp19xetim6x4upkm2m2m.tar.gz",
+      "source_member": "./candidate/tools/1792293663635760581-masscan-3230.stderr",
+      "sha256": "3a97a4746b7683e32d8c87cf5061ba4b09cca5f3a8c9dba8034af495cb3ffa1e",
+      "retry_events": 0,
+      "recovered_attempts": [],
+      "stats": [
+        "scan_send: stats failed_calls=0 retries=0 phase=rx_shutdown"
+      ]
+    },
+    {
+      "file": "r6-logs/i-bp19xetim6x4upkm2m2m-1792293594623413307-masscan-2931.stderr",
+      "source_archive": "work/speed-capacity-r6/evidence/candidate/snapshot-bulk100/i-bp19xetim6x4upkm2m2m.tar.gz",
+      "source_member": "./candidate/tools/1792293594623413307-masscan-2931.stderr",
+      "sha256": "4eb97545cd2b735106fe0c46aa628eef3e5c2dfd120b992d369c7e071a3f4b36",
+      "retry_events": 0,
+      "recovered_attempts": [],
+      "stats": [
+        "scan_send: stats failed_calls=0 retries=0 phase=rx_shutdown"
+      ]
+    },
+    {
+      "file": "r6-logs/i-bp19xetim6x4upkm2m2m-1792293532874118955-masscan-2868.stderr",
+      "source_archive": "work/speed-capacity-r6/evidence/candidate/snapshot-bulk100/i-bp19xetim6x4upkm2m2m.tar.gz",
+      "source_member": "./candidate/tools/1792293532874118955-masscan-2868.stderr",
+      "sha256": "8642fdad58d8aa6b67d77bcaed9342606678c8b9e03a086f974103a40b2aafae",
+      "retry_events": 0,
+      "recovered_attempts": [],
+      "stats": [
+        "scan_send: stats failed_calls=0 retries=0 phase=rx_shutdown"
+      ]
+    },
+    {
+      "file": "r6-logs/i-bp19xetim6x4upkm2m2n-1792293593667489917-masscan-2949.stderr",
+      "source_archive": "work/speed-capacity-r6/evidence/candidate/snapshot-bulk100/i-bp19xetim6x4upkm2m2n.tar.gz",
+      "source_member": "./candidate/tools/1792293593667489917-masscan-2949.stderr",
+      "sha256": "433aaf4cf009badb95e22f167b065fc50a30693af2898a74ded8f601954a2828",
+      "retry_events": 0,
+      "recovered_attempts": [],
+      "stats": [
+        "scan_send: stats failed_calls=0 retries=0 phase=rx_shutdown"
+      ]
+    },
+    {
+      "file": "r6-logs/i-bp19xetim6x4upkm2m2n-1792293662688369873-masscan-3065.stderr",
+      "source_archive": "work/speed-capacity-r6/evidence/candidate/snapshot-bulk100/i-bp19xetim6x4upkm2m2n.tar.gz",
+      "source_member": "./candidate/tools/1792293662688369873-masscan-3065.stderr",
+      "sha256": "dd5b1367bc7d2ea7d6653b929b53577618a2496e12e22efbec5c9330348592c7",
+      "retry_events": 0,
+      "recovered_attempts": [],
+      "stats": [
+        "scan_send: stats failed_calls=0 retries=0 phase=rx_shutdown"
+      ]
+    },
+    {
+      "file": "r6-logs/i-bp19xetim6x4upkm2m2n-1792293532152110186-masscan-2887.stderr",
+      "source_archive": "work/speed-capacity-r6/evidence/candidate/snapshot-bulk100/i-bp19xetim6x4upkm2m2n.tar.gz",
+      "source_member": "./candidate/tools/1792293532152110186-masscan-2887.stderr",
+      "sha256": "33cc7504bad0ba2190fd0de1a09bcaea36cdfb29276993d2c89c79a28e5b77a7",
+      "retry_events": 2,
+      "recovered_attempts": [
+        "2",
+        "2"
+      ],
+      "stats": [
+        "scan_send: stats failed_calls=2 retries=2 phase=rx_shutdown"
+      ]
+    },
+    {
+      "file": "r6-logs/i-bp19xetim6x4upkm2m2o-1792293601842153218-masscan-2875.stderr",
+      "source_archive": "work/speed-capacity-r6/evidence/candidate/snapshot-bulk100/i-bp19xetim6x4upkm2m2o.tar.gz",
+      "source_member": "./candidate/tools/1792293601842153218-masscan-2875.stderr",
+      "sha256": "9867263fb1c38fc935a48be488e1c3f0c33cb087da8cfee0aacea8c2fee6d7e0",
+      "retry_events": 0,
+      "recovered_attempts": [],
+      "stats": [
+        "scan_send: stats failed_calls=0 retries=0 phase=rx_shutdown"
+      ]
+    },
+    {
+      "file": "r6-logs/i-bp19xetim6x4upkm2m2o-1792293532789440881-masscan-2809.stderr",
+      "source_archive": "work/speed-capacity-r6/evidence/candidate/snapshot-bulk100/i-bp19xetim6x4upkm2m2o.tar.gz",
+      "source_member": "./candidate/tools/1792293532789440881-masscan-2809.stderr",
+      "sha256": "f72fbc62e3cf29f8c74c54a0713753536708122aaf5d00cd644cbac2c199afba",
+      "retry_events": 5,
+      "recovered_attempts": [
+        "2",
+        "2",
+        "2",
+        "2",
+        "2"
+      ],
+      "stats": [
+        "scan_send: stats failed_calls=5 retries=5 phase=rx_shutdown"
+      ]
+    }
+  ],
+  "snapshot_semantics": "rx_shutdown is not final all-send-call total"
+}

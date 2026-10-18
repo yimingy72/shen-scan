@@ -1,0 +1,30 @@
+{
+  "commit": "2691677e02185a63c8494920bee0864477df4553",
+  "package": "scan-agent-linux-amd64-speed-b20474d68e6d.tar.gz",
+  "package_sha256": "b20474d68e6d14b64b66768bcf0322de53caff0f0818df46246516da41e74b7e",
+  "version": "bundle-b20474d68e6d",
+  "server_sha256": "23cf94f40cb3d4c3c16059501e29003cef17ff32b24347923f8304d60e872d62",
+  "server_download": "scan-server-speed-23cf94f40cb3",
+  "checker_sha256": "99e4d632cd630779aef58a20b37d525676530a6a463c5db837da8e88a6f49242",
+  "web_sha256": "fdc4faa82ef6d7a1cc5f3515183a3c7841c55379a1f1fd31fcc4d96f082d6efe",
+  "ca_sha256": "66ca56b4066d979e6c07abe9251c1212868ff462a22040388c2189b1aa803f77",
+  "masscan_sha256": "2ee12f51003d127996b49c98771d118d713a9fc5d16ff623de864e1ac9bb0c3d",
+  "masscan_source_sha256": "88fd72494c8b98488b9984e902bf26758de413e4e2f75c7e85a6bd19193d1c73",
+  "component_sha256": {
+    "scan-agent": "0bf6621dc98eb0943eeed00519e917ecf26320a39bb30bfc091efb1a4900ab81",
+    "web-probe-worker": "b0bdbcd026773b735c9fb33cb92ea7d2001e5e6ba7e94ff42e6bdc775390db38",
+    "fingerprint-worker": "99e4d632cd630779aef58a20b37d525676530a6a463c5db837da8e88a6f49242",
+    "httpx": "6d78b83b4da452a7e0bd3613c4fae04cbf523209f083904b563f4d4406a680b0",
+    "nuclei": "c49588140f357cbdddd5436dec11201953a4c5390faeec90777f9ee2cfd70251"
+  },
+  "agent_go_build_commit": "2691677e02185a63c8494920bee0864477df4553",
+  "server_source_commit": "2691677e02185a63c8494920bee0864477df4553",
+  "web_helper_source_commit": "2691677e02185a63c8494920bee0864477df4553",
+  "verification_scope": {
+    "source": "Masscan statusOpen reset guard plus bounded send failure handling; see the separate local send-failure and final cloud evidence",
+    "targeted_checks": "Port fixed-wait model unit, frozen statistical tool identity Agent unit and isolated Control/PG scenario; frontend build",
+    "linux_release": "Cross-built from clean source revision; hashes and Go VCS metadata verified",
+    "cloud": "Pending final candidate capacity validation; R4 paired result belongs to73970c7, not this newly built artifact"
+  },
+  "export_scope": "Build/source identity only. R4 result belongs to73970c7; no R6 cloud validation or R5 cause-resolution claim."
+}

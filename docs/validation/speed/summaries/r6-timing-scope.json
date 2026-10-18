@@ -1,0 +1,11 @@
+{
+  "run_id": "b76f662c-4f70-402b-8602-7f6192a57b6e",
+  "api_monitor_elapsed_seconds": 1762.480900875,
+  "first_result_seconds": 5.054246292,
+  "control_created_at": "2026-10-18T03:22:47.033973Z",
+  "control_updated_at": "2026-10-18T03:52:02.553152Z",
+  "control_create_to_updated_seconds": 1755.519179,
+  "screenshot_created_local": "2026/10/18 11:22:47",
+  "screenshot_updated_local": "2026/10/18 11:52:02",
+  "semantics": "API monitor elapsed and Control create-to-update are distinct clock/start/observation scopes. UI shows rounded seconds. Do not subtract one as pure processing overhead."
+}

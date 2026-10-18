@@ -1,0 +1,37 @@
+{
+  "ready": true,
+  "baseline": {
+    "commit": "3ffe0d5+dirty (historical frozen binaries;source reference29b96cb)",
+    "agent": {
+      "url": "https://101.201.116.63:8443/downloads/scan-agent-speed-historical-ebdb049795f0.tar.gz",
+      "sha256": "ebdb049795f08ff4c9f9da1b33da5537b4b792019be4d17843732fba513e63cd"
+    },
+    "server": {
+      "url": "https://101.201.116.63:8443/downloads/scan-server-speed-historical-aacee252cad6",
+      "sha256": "aacee252cad62dc3945bb37ff0f0400e557f755524a176381e3c8961ac1fd171"
+    },
+    "components": {
+      "scan-agent": "e76ef6f1f21bcdf4cf5bdb4a4144b6206e311bdd6593f5365d91686886f27733",
+      "masscan": "981db61be73fe67c3bfbec99c10bfae8e2ce0f3e9467e879721c2353fcd35770"
+    }
+  },
+  "candidate": {
+    "commit": "7e0bfbb2f9ac65e75bc1365f8e8ba9c89307d2fe",
+    "agent": {
+      "url": "https://101.201.116.63:8443/downloads/scan-agent-linux-amd64-web-d4b7bdb7d922.tar.gz",
+      "sha256": "d4b7bdb7d92287ce49473c49d36128de5c069aec535e3ad75f086c6c2a2e6322"
+    },
+    "server": {
+      "url": "https://101.201.116.63:8443/downloads/scan-server-web-f60844e19109",
+      "sha256": "f60844e19109366365768170286c6a07e97a2a2d708089f4d637e65bb4da625e"
+    },
+    "components": {
+      "scan-agent": "67b3d83be7a2239496df8c0fa5ec0035e765b635bf7d9b884aa27382180d3c2b",
+      "web-probe-worker": "157210f96baf198fcc9f0fcf8bca282cc773be6a408c8a9a7eeb5099fe18ac22",
+      "fingerprint-worker": "20a9ff203b9d8add1db218e5f23ac2bbcf88a7e7c81df869e05cbcf0f506abb3",
+      "httpx": "6d78b83b4da452a7e0bd3613c4fae04cbf523209f083904b563f4d4406a680b0",
+      "nuclei": "c49588140f357cbdddd5436dec11201953a4c5390faeec90777f9ee2cfd70251"
+    },
+    "masscan_sha256": "6882bfaafb68e98974aba5159056867563652dfd0188be82f06bf2e380830ab9"
+  }
+}

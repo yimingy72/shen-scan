@@ -1,0 +1,44 @@
+{
+  "historical_run_id": "f1ab1805-b01c-4d93-88e7-eb6da3c85dfa",
+  "created_at": "2026-10-16T18:51:22.719385Z",
+  "completed_at": "2026-10-16T19:50:55.579638Z",
+  "elapsed_seconds": 3572.860253,
+  "quality": {
+    "status": "completed",
+    "task_total": 2250,
+    "task_done": 2250,
+    "task_failed": 0,
+    "open_port_count": 3000,
+    "http_count": 2000
+  },
+  "not_an_immutable_run": true,
+  "confounders": [
+    "two forcedWorker removals/replacements;7 port retries",
+    "last5Workers had4x2GiB+1x4GiB,all2CPU",
+    "Masscan changed while run active at19:11:59..19:12:04Z",
+    "Agentv3 installed at19:17:36..19:17:53Z",
+    "Control changed while run active per PROGRESS.md; no claim of a unique whole-run exact source"
+  ],
+  "selected_old_variant": {
+    "label": "historical-postload-stable-v3",
+    "agent_package_sha256": "ebdb049795f08ff4c9f9da1b33da5537b4b792019be4d17843732fba513e63cd",
+    "agent_sha256": "e76ef6f1f21bcdf4cf5bdb4a4144b6206e311bdd6593f5365d91686886f27733",
+    "masscan_sha256": "981db61be73fe67c3bfbec99c10bfae8e2ce0f3e9467e879721c2353fcd35770",
+    "server_sha256": "aacee252cad62dc3945bb37ff0f0400e557f755524a176381e3c8961ac1fd171",
+    "source_reference": "outputs/scan-platform commit29b96cb records completed load-test changes; artifact VCS says3ffe0d5+dirty, so source/binary exact equivalence not established",
+    "source_commit": "29b96cb",
+    "build_vcs_modified": true,
+    "not_f4c3ffd": true
+  },
+  "evidence": [
+    "work/load-test/main-final.json",
+    "work/load-test/main-integrity.json",
+    "work/load-test/optimized-v3-sha.json",
+    "work/load-test/agent-v3-install-results.json",
+    "work/load-test/patched-install-results.json",
+    "work/load-test/task-duration-summary.json",
+    "work/load-test/resource-summary.json",
+    "work/load-test/PROGRESS.md",
+    "work/perf-v2/deploy.py"
+  ]
+}

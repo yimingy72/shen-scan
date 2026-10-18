@@ -1,0 +1,16 @@
+{
+  "source_reference": "work/load-test/main-final.json; task-duration-summary.json",
+  "target_count": 1000,
+  "task_total": 2250,
+  "task_done": 2250,
+  "task_failed": 0,
+  "open_port_count": 3000,
+  "http_count": 2000,
+  "elapsed_seconds": 3572.860253,
+  "port_tasks": 250,
+  "port_task_duration_p50_seconds": 68.4824815,
+  "port_task_duration_max_seconds": 69.563985,
+  "fixture_closed_port_model": "Default initial SYN DROP except known open ports; see target-model-excerpts.txt",
+  "asset_verification_status": "未利用",
+  "identifiers_removed": "Historical worker, run and instance IDs omitted; this is an explicitly selected aggregate, not the original API response."
+}

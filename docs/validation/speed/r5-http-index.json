@@ -1,0 +1,114 @@
+{
+  "scope": "Existing R5business-completed but independentSYN-gate-failed100IP precheck. Full selected applicationHTTP, including finalall300HTTP records across200+100pages. Not a capacity pass.",
+  "transfer_semantics": "Original headers retained, body fromhttp.client.read is fully transfer-decoded; fixtureTLS is decryptedHTTP. No request executed during export.",
+  "packets": [
+    {
+      "file": "http/r5/business-completed-run.json",
+      "source": "work/speed-capacity-r5/evidence/candidate/bulk100/http/1792291724038531000-GET.json",
+      "source_sha256": "f9f706915957737fb0063cce285cc278175baac9683f8cfdcbe9d6d82a8d844e",
+      "url": "http://127.0.0.1:18084/api/runs/23028f1d-84b1-4b60-aa07-e7445f3b0f25",
+      "request_sha256_after_redaction": "0980da133e84cb5ed27ff956d7e0f083c518f407679c5cae04aa9a6587403d93",
+      "response_sha256_after_redaction": "c32fa1577715a19fbeb709b608eeb13fd2b249f27cc7cde9e269cdea9e82b977",
+      "response_body_sha256": "2302f9d5d5ba468feed7b551c015752d3eb4f619564c1de5038786cd09112eb2",
+      "business_response_body_unchanged": true,
+      "request_body_unchanged": true,
+      "credential_redaction": "Authorization/Cookie values and known realtesttokens only; no business body truncation"
+    },
+    {
+      "file": "http/r5/create.json",
+      "source": "work/speed-capacity-r5/evidence/candidate/bulk100/http/1792291494305743000-POST.json",
+      "source_sha256": "6093b8d27c835cea9c2a21b479945215465d1d779e232fe64a94abd8f0a84c6c",
+      "url": "http://127.0.0.1:18084/api/runs",
+      "request_sha256_after_redaction": "11684f7d695909effb6d3ee035be264a2d51ef5d91c60c1d56f6845fba7ac2e8",
+      "response_sha256_after_redaction": "eaf73199c4e24029e4ba94e8f4c7e5e78557a730510afc03100bb8768b023b7f",
+      "response_body_sha256": "a1d29320669ef6bb291891c2a0ff4ce90ae559851654539d9849924365642771",
+      "business_response_body_unchanged": true,
+      "request_body_unchanged": true,
+      "credential_redaction": "Authorization/Cookie values and known realtesttokens only; no business body truncation"
+    },
+    {
+      "file": "http/r5/http-all-offset-0.json",
+      "source": "work/speed-capacity-r5/evidence/candidate/bulk100/http/1792291726012991000-GET.json",
+      "source_sha256": "9952193c2b9ef351cbaa63d62266ebb515e293d9cdba2ed7e4adb87a1bf2e8b4",
+      "url": "http://127.0.0.1:18084/api/runs/23028f1d-84b1-4b60-aa07-e7445f3b0f25/http?status=all&&limit=200&offset=0",
+      "request_sha256_after_redaction": "f4d2fc0314f8ffe0685be47916c6a039d0f9045643422617fd6765bb4feda1ed",
+      "response_sha256_after_redaction": "794f998b716973b1928528bcae6245e7e4600e9def10792e5d03233bb605fc90",
+      "response_body_sha256": "de3aea8275c9b2df28b1c98c78b9cd728619529ed7b2c26a21ad8b48291714a4",
+      "business_response_body_unchanged": true,
+      "request_body_unchanged": true,
+      "credential_redaction": "Authorization/Cookie values and known realtesttokens only; no business body truncation"
+    },
+    {
+      "file": "http/r5/http-all-offset-200.json",
+      "source": "work/speed-capacity-r5/evidence/candidate/bulk100/http/1792291727130461000-GET.json",
+      "source_sha256": "1744c185ffff51ff6a0d12391d4a5bae27496d256e35557b3a61b615c62b44c2",
+      "url": "http://127.0.0.1:18084/api/runs/23028f1d-84b1-4b60-aa07-e7445f3b0f25/http?status=all&&limit=200&offset=200",
+      "request_sha256_after_redaction": "feae310b98144b5b66f8c71569671688f4eff34aa9c51b28137e1703e282fcfa",
+      "response_sha256_after_redaction": "16932b080394418243234cf93ae94eeedfcbb57b35e3790072ff215713e637c8",
+      "response_body_sha256": "a91d86faea63b0607df2b48b381aa235c44fba2a6b0b4266a41f82cbeabbeada",
+      "business_response_body_unchanged": true,
+      "request_body_unchanged": true,
+      "credential_redaction": "Authorization/Cookie values and known realtesttokens only; no business body truncation"
+    },
+    {
+      "file": "http/r5/results-offset-0.json",
+      "source": "work/speed-capacity-r5/evidence/candidate/bulk100/http/1792291724417938000-GET.json",
+      "source_sha256": "c7d696b39cefeb2287f2b8c5088c44dace2740135cb467013c0a6ae888d1b86d",
+      "url": "http://127.0.0.1:18084/api/runs/23028f1d-84b1-4b60-aa07-e7445f3b0f25/results?&limit=200&offset=0",
+      "request_sha256_after_redaction": "1423b452f554bc37d02b9843ab4f50734f796b751964495caa4a9bb1035e50aa",
+      "response_sha256_after_redaction": "3ee1169bc3b1c0aad32307467a7eb95684faec779e424f4c57318ac4f9e41034",
+      "response_body_sha256": "317551b1927841f490e52092c526f0023ddaadcf04750063bc34fe501736691a",
+      "business_response_body_unchanged": true,
+      "request_body_unchanged": true,
+      "credential_redaction": "Authorization/Cookie values and known realtesttokens only; no business body truncation"
+    },
+    {
+      "file": "http/r5/scheduler.json",
+      "source": "work/speed-capacity-r5/evidence/candidate/bulk100/http/1792291727361289000-GET.json",
+      "source_sha256": "73667284413e01a3c40727e810e0a5e53325fceaca47432a7fdc61219781e63a",
+      "url": "http://127.0.0.1:18084/api/scheduler/status",
+      "request_sha256_after_redaction": "ca6db67078cae08308784f6fcb81307c4b4293861228d1f1e21c9bcb3c801154",
+      "response_sha256_after_redaction": "3bc495a5c80726a805ed8705f736b3d81e632b3c6bf7f3c86ad10cdba5eabc4a",
+      "response_body_sha256": "ef6107d861cf2948e6ab5543b7d3c336ffc0173d66588c8dbd4c51cbd6dc80c5",
+      "business_response_body_unchanged": true,
+      "request_body_unchanged": true,
+      "credential_redaction": "Authorization/Cookie values and known realtesttokens only; no business body truncation"
+    },
+    {
+      "file": "http/r5/fixture-port-80.json",
+      "source": "work/speed-capacity-r5/evidence/candidate/snapshot-bulk100/i-bp16jrdqo3nmpt5tra3n.tar.gz:fixture-http.jsonl:line54",
+      "source_sha256": "edd4fde7541afb2f21cd0c8b1d3540a686a459875dd4fcf3f8ae77c8109d4313",
+      "url": "http://172.28.1.1:80/",
+      "request_sha256_after_redaction": "26d359fa32ee31625a299c294d38ae763ccb25f32c0b49271fe651ae4dc82019",
+      "response_sha256_after_redaction": "4b8cc4fd87d9ca6c52b272c35a619084165b2b949bb74dc8a8849598a97aea81",
+      "response_body_sha256": "f239b1522aea1585ab14ff28f83b60caae4c8ae7b4eda2c18422aed8504357aa",
+      "business_response_body_unchanged": true,
+      "request_body_unchanged": true,
+      "credential_redaction": "Authorization/Cookie values and known realtesttokens only; no business body truncation"
+    },
+    {
+      "file": "http/r5/fixture-port-8088.json",
+      "source": "work/speed-capacity-r5/evidence/candidate/snapshot-bulk100/i-bp16jrdqo3nmpt5tra3n.tar.gz:fixture-http.jsonl:line74",
+      "source_sha256": "1831c6dd1bb47442a0bde3f181815110a545aa9dd6c599afb7f8e509163b8d71",
+      "url": "http://172.28.1.1:8088/",
+      "request_sha256_after_redaction": "d74f5a4ca01d53d86d6bc82b8a4ac9ac815a59831b3ee8be9352ef97fb1ca6f1",
+      "response_sha256_after_redaction": "36eea1e57dc7ba75bd75964bba7e93cd7b7e3ff65b7c20cd936933508c351216",
+      "response_body_sha256": "f239b1522aea1585ab14ff28f83b60caae4c8ae7b4eda2c18422aed8504357aa",
+      "business_response_body_unchanged": true,
+      "request_body_unchanged": true,
+      "credential_redaction": "Authorization/Cookie values and known realtesttokens only; no business body truncation"
+    },
+    {
+      "file": "http/r5/fixture-port-9443.json",
+      "source": "work/speed-capacity-r5/evidence/candidate/snapshot-bulk100/i-bp16jrdqo3nmpt5tra3n.tar.gz:fixture-http.jsonl:line648",
+      "source_sha256": "862b3bb296890c18bc8a70bb43331473ab476655cf05eb378d3083ec45441d6e",
+      "url": "https://172.28.1.1:9443/",
+      "request_sha256_after_redaction": "21fd02133e6dc8b0a7e16bbc0bf9cef82277f696b1d75fdf2f6f5e793064e25b",
+      "response_sha256_after_redaction": "a72422daea34d44f107806017185701b70352aea482f236a5e7993e15cfcff91",
+      "response_body_sha256": "f239b1522aea1585ab14ff28f83b60caae4c8ae7b4eda2c18422aed8504357aa",
+      "business_response_body_unchanged": true,
+      "request_body_unchanged": true,
+      "credential_redaction": "Authorization/Cookie values and known realtesttokens only; no business body truncation"
+    }
+  ]
+}

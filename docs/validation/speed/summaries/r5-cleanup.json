@@ -1,0 +1,19 @@
+{
+  "at": "2026-10-18T02:50:47.684809+00:00",
+  "remaining": [],
+  "delete_errors": [],
+  "security_group_deleted": true,
+  "regional_instance_count": 0,
+  "original_driver_cleanup_failure": {
+    "cause": "R5 cleanup.py missing; driver subprocess exited2",
+    "remediation": "Executed unchanged R4 cleanup with R5 cloud_ops; exact owned IDs/tag+SG deleted and direct regional count0",
+    "original_logs_preserved": true
+  },
+  "round_deadlines": {
+    "started_at": "2026-10-18T02:41:22.363144+00:00",
+    "deadline": "2026-10-18T03:36:00Z",
+    "shutdown_at": "2026-10-18 03:31:00 UTC"
+  },
+  "summary_scope": "Existing final release evidence and historical cleanup repair; no cloud API was called by this export.",
+  "source_sha256": "8403b23c846df2246afcbc1b05653344fa6ad7ad499d153e9fb3068e86a6ede0"
+}

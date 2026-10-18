@@ -1,0 +1,6 @@
+{
+  "request": "GET /api/runs/25c3ca50-c557-4a8c-8509-aaed26b04836/results?limit=200 HTTP/1.1\r\nHost: 127.0.0.1:18086\r\nAccept-Encoding: identity\r\nAuthorization: ${REDACTED_CREDENTIAL}\r\nContent-Type: application/json\r\n\r\n\r\n",
+  "response": "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nDate: Sun, 18 Oct 2026 03:25:43 GMT\r\nContent-Length: 530\r\n\r\n{\"items\":[{\"ips\":[],\"ports\":[],\"state\":\"running\",\"target\":\"198.18.0.2\",\"titles\":[],\"products\":[],\"services\":[],\"task_done\":0,\"http_count\":0,\"open_flood\":false,\"port_state\":\"running\",\"task_total\":1,\"updated_at\":\"2026-10-18T03:25:43.857944+00:00\",\"error_count\":0,\"task_failed\":0,\"technologies\":[],\"port_coverage\":\"unconfirmed\",\"failure_reason\":\"\",\"open_port_count\":0,\"fingerprint_count\":0,\"fingerprint_limited\":false}],\"summary\":{\"http_endpoints\":0,\"limited_targets\":0,\"open_ports\":0,\"targets\":1,\"targets_with_errors\":0},\"total\":1}\n",
+  "url": "http://127.0.0.1:18086/api/runs/25c3ca50-c557-4a8c-8509-aaed26b04836/results?limit=200",
+  "status": 200
+}

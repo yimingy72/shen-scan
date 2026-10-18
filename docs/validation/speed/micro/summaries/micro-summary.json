@@ -1,0 +1,70 @@
+{
+  "default": {
+    "packets_by_TCP_flags": {
+      "scanner_flags_0x2": 12000,
+      "target_flags_0x14": 11999,
+      "scanner_flags_0x4": 12000,
+      "target_flags_0x12": 1
+    },
+    "SYN_count": 12000,
+    "unique_SYN_ports": 12000,
+    "exact_1_to_12000_once": true,
+    "SYN_first_to_last_seconds": 4.7856669425964355,
+    "active_SYN_per_second": 2507.2785348263315,
+    "scanner_RST_to_closed_ports": 11999,
+    "scanner_RST_to_open_8080": 1,
+    "timing": "elapsed=8.95 user=0.29 sys=0.59 exit=0",
+    "capture": "captured=36020 kernel_packets=36020 kernel_drops=0",
+    "open_list": "#masscan\nopen tcp 8080 198.18.0.2 1792285373\n# end"
+  },
+  "noreset": {
+    "packets_by_TCP_flags": {
+      "scanner_flags_0x2": 12000,
+      "target_flags_0x14": 11999,
+      "target_flags_0x12": 3
+    },
+    "SYN_count": 12000,
+    "unique_SYN_ports": 12000,
+    "exact_1_to_12000_once": true,
+    "SYN_first_to_last_seconds": 2.3870279788970947,
+    "active_SYN_per_second": 5026.7529773756705,
+    "scanner_RST_to_closed_ports": 0,
+    "scanner_RST_to_open_8080": 0,
+    "timing": "elapsed=6.02 user=0.15 sys=0.42 exit=0",
+    "capture": "captured=24012 kernel_packets=24012 kernel_drops=0",
+    "open_list": "#masscan\nopen tcp 8080 198.18.0.2 1792285383\n# end"
+  },
+  "silent": {
+    "packets_by_TCP_flags": {
+      "scanner_flags_0x2": 12000
+    },
+    "SYN_count": 12000,
+    "unique_SYN_ports": 12000,
+    "exact_1_to_12000_once": true,
+    "SYN_first_to_last_seconds": 2.38873291015625,
+    "active_SYN_per_second": 5023.1651889516315,
+    "scanner_RST_to_closed_ports": 0,
+    "scanner_RST_to_open_8080": 0,
+    "timing": "elapsed=5.95 user=0.11 sys=0.20 exit=0",
+    "capture": "captured=12001 kernel_packets=12001 kernel_drops=0",
+    "open_list": ""
+  },
+  "candidate": {
+    "packets_by_TCP_flags": {
+      "scanner_flags_0x2": 12000,
+      "target_flags_0x14": 11999,
+      "target_flags_0x12": 1,
+      "scanner_flags_0x4": 1
+    },
+    "SYN_count": 12000,
+    "unique_SYN_ports": 12000,
+    "exact_1_to_12000_once": true,
+    "SYN_first_to_last_seconds": 2.3796279430389404,
+    "active_SYN_per_second": 5042.384896807226,
+    "scanner_RST_to_closed_ports": 0,
+    "scanner_RST_to_open_8080": 1,
+    "timing": "elapsed=5.97 user=0.12 sys=0.26 exit=0",
+    "capture": "captured=24015 kernel_packets=24015 kernel_drops=0",
+    "open_list": "#masscan\nopen tcp 8080 198.18.0.2 1792285685\n# end"
+  }
+}

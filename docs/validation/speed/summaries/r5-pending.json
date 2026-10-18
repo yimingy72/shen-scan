@@ -1,0 +1,55 @@
+{
+  "status": "ARCHIVED_PRECHECK_WIRE_GATE_FAILED_1000_NOT_STARTED",
+  "root_has_authorized_cloud_owner": true,
+  "fixed_commit": "73970c79db0ed845ebc14729527d11683f628270",
+  "configuration": {
+    "workers": 5,
+    "worker_CPU": 2,
+    "worker_GiB": 2,
+    "PPS_each_worker": 10000,
+    "per_target_discovery_PPS": 10000,
+    "cap": 8,
+    "wait_seconds": 15,
+    "hard_seconds": 180
+  },
+  "precheck_targets": 100,
+  "main_targets": 1000,
+  "expected_main_SYN": 65535000,
+  "actual_run_id": "23028f1d-84b1-4b60-aa07-e7445f3b0f25",
+  "actual_elapsed_seconds": 229.68559775,
+  "actual_quality": {
+    "business": true,
+    "independent_SYN": false
+  },
+  "actual_observer_drops": 0,
+  "actual_screenshot": null,
+  "note": "The preliminary100IP business time is not an accepted capacity result.1000IP did not start because the independent integrity gate failed. No code/config-speedup ratio or inferred1000IP time is reported.",
+  "main1000_started": false,
+  "preliminary_root_notification": {
+    "target_count": 100,
+    "business_status": "completed",
+    "elapsed_seconds": 229.6856,
+    "open_ports": 300,
+    "HTTP": 300,
+    "failed_tasks": 0,
+    "expected_SYN": 6553500,
+    "observed_raw_SYN": 6552523,
+    "difference": 977,
+    "observer_count": 5,
+    "observer_socket_drops": 0,
+    "acceptance": "NOT passed: independent rawSYN gate failed",
+    "attribution": "Cause pending. Zero reported observer socket drops does not establish why SYN count is lower; no assertion of scanner missed scope or observer drops.",
+    "source": "Parent/root status notification; complete raw artifacts/root investigation pending final report incorporation."
+  },
+  "actual_elapsed_semantics": "Business completion only; NOT an accepted capacity result",
+  "archived_evidence_update": {
+    "summary": "r5-failed-precheck.json",
+    "complete_HTTP_index": "../r5-http-index.json",
+    "cleanup": "r5-cleanup.json",
+    "resources_remaining": [],
+    "regional_instance_count": 0,
+    "original_cleanup_harness_failure_preserved": true,
+    "R5_cause_confirmed": false,
+    "R6_passed": false
+  }
+}

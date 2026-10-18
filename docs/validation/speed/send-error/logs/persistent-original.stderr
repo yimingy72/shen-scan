@@ -1,0 +1,9 @@
+Starting masscan 1.3.2 (http://bit.ly/14GZzcT) at 2026-10-18 03:00:47 GMT
+Initiating SYN Stealth Scan
+Scanning 1 hosts [256 ports/host]
+send_inject: call=1 same_as_first=1 length=54
+send_inject: call=2 same_as_first=0 length=54
+send_inject: call=3 same_as_first=0 length=54
+send_inject: call=4 same_as_first=0 length=54
+rate:  0.00-kpps, 100.00% done, waiting 0-secs, found=0       rate:  0.00-kpps, 100.00% done, waiting 1-secs, found=0       rate:  0.00-kpps, 100.00% done, waiting 1-secs, found=0       rate:  0.00-kpps, 100.00% done, waiting 1-secs, found=0       rate:  0.00-kpps, 100.00% done, waiting 0-secs, found=0       scan_capture: received=6 dropped=0 if_dropped=0
+rate:  0.00-kpps, 100.00% done, waiting 0-secs, found=0                                                                                    send_inject: summary selected_calls=256 injected_failures=256 forwarded_successes=0

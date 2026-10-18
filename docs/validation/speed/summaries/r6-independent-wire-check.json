@@ -1,0 +1,21 @@
+{
+  "at": "2026-10-18T03:55:10.990358+00:00",
+  "run_id": "b76f662c-4f70-402b-8602-7f6192a57b6e",
+  "source_commit": "2691677e02185a63c8494920bee0864477df4553",
+  "elapsed_seconds": 1762.480900875,
+  "quality_passed": true,
+  "worker_captures": 5,
+  "actual_masscan_syn": 65535000,
+  "actual_masscan_rst": 3000,
+  "full_tcp_targets": 1000,
+  "duplicate_SYN_excess_over_exact_unique_pairs": 0,
+  "capture_drops": 0,
+  "business_counts": {
+    "task_failed": 0,
+    "target_done": 1000,
+    "open_port_count": 3000,
+    "http_count": 3000
+  },
+  "capture_member_selected": "./candidate/bulk1000/packet-counts.json",
+  "verification": "Independent OR of all1000 exact65536bit maps across5current-case captures, excluding earlier100IP files; independent business quality is separately saved."
+}

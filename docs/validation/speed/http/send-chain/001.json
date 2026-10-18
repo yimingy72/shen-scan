@@ -1,0 +1,6 @@
+{
+  "request": "GET /api/worker-pool HTTP/1.1\r\nHost: 127.0.0.1:18086\r\nAccept-Encoding: identity\r\nAuthorization: ${REDACTED_CREDENTIAL}\r\nContent-Type: application/json\r\n\r\n\r\n",
+  "response": "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nDate: Sun, 18 Oct 2026 03:25:41 GMT\r\nContent-Length: 164\r\n\r\n{\"desired_workers\":0,\"enabled\":false,\"generation\":1,\"healthy_workers\":0,\"starting_workers\":0,\"draining_workers\":0,\"provider\":\"manual\",\"configured\":true,\"error\":\"\"}\n",
+  "url": "http://127.0.0.1:18086/api/worker-pool",
+  "status": 200
+}

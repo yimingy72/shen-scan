@@ -1,0 +1,14 @@
+{
+  "at": "2026-10-18T02:27:03.993383+00:00",
+  "received_ns": 1792290423993383299,
+  "finished_ns": 1792290423993464372,
+  "local_ip": "172.28.1.1",
+  "client": "172.28.0.11",
+  "port": 80,
+  "path": "/",
+  "request": "GET / HTTP/1.1\r\nHost: 172.28.1.1\r\nUser-Agent: shen-scan/2\r\nAccept: text/html,application/xhtml+xml,*/*;q=0.8\r\nAccept-Charset: utf-8\r\nAccept-Encoding: identity\r\nConnection: close\r\n\r\n",
+  "response": "HTTP/1.1 200 OK\r\nServer: P1SyntheticFixture/1.0 Python/3.10.12\r\nDate: Sun, 18 Oct 2026 02:27:03 GMT\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: 104\r\nX-P1-Synthetic-Fixture: true\r\nConnection: close\r\n\r\n<!doctype html><title>P1 synthetic fixture</title><h1>Self-built test target</h1><p>p1-cloud-fixture</p>",
+  "synthetic_fixture": true,
+  "url": "http://172.28.1.1:80/",
+  "capture_note": "Existing owned fixture application-layer request/response record; TLS9443 is decrypted HTTP at the fixture, not a rawTLS PCAP."
+}

@@ -1,0 +1,15 @@
+{
+  "run_id": "b76f662c-4f70-402b-8602-7f6192a57b6e",
+  "accepted": true,
+  "cleanup_reviewed": true,
+  "cleanup_sha256": "d0df2bfa7ce580d00bab2e9fc5ac90b3ffa2b7def348b7af15b6c45468146344",
+  "remaining_owned_instances": [],
+  "security_group_deleted": true,
+  "independent_wire_check": "root-wire-quality-check.json",
+  "at": "2026-10-18T03:56:30.525397+00:00",
+  "screenshots": [
+    "r6-bulk1000-results.png",
+    "r6-bulk1000-task-info.png"
+  ],
+  "screenshot_scope": "Actual isolated Control UI for this run, captured after API completed. Separate wire and business evidence accepted independently."
+}

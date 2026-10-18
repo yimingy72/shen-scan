@@ -1,0 +1,38 @@
+{
+  "scope": "Local isolated synthetic fixture only; no external discovered assets",
+  "assets": [
+    {
+      "asset": "198.18.0.3",
+      "role": "unassigned source address for raw scan; avoids host-kernel RST contamination",
+      "verification_status": "未利用"
+    },
+    {
+      "asset": "198.18.0.2",
+      "role": "synthetic target; TCP8080 listener in real-kernel cases, raw responder in combination-flag case",
+      "verification_status": "未利用"
+    },
+    {
+      "asset": "198.18.0.1",
+      "role": "private container veth interface address",
+      "verification_status": "未利用"
+    },
+    {
+      "asset": "02:00:00:00:00:11 / 02:00:00:00:00:12",
+      "role": "synthetic veth MAC pair",
+      "verification_status": "未利用"
+    },
+    {
+      "asset": "172.31.240.2–172.31.243.233; synthetic special fixture addresses 172.31.243.250/251",
+      "role": "historical DROP fixture source excerpt only; no new activity",
+      "verification_status": "未利用"
+    },
+    {
+      "asset": "172.28.0.0/16; synthetic target aliases 172.28.1.1–172.28.1.128",
+      "role": "historical R4 fixture source reference only; no new activity",
+      "verification_status": "未利用"
+    }
+  ],
+  "raw_TCP_not_HTTP": true,
+  "HTTP_evidence": "Not applicable to SYN/RST microtest. No fabricated HTTP. Parent report supplies separately measured Control/target HTTP exchanges.",
+  "screenshots": "Pending parent final real test-platform/interface screenshot; none generated during export."
+}

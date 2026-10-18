@@ -1,0 +1,1747 @@
+{
+  "run_id": "b76f662c-4f70-402b-8602-7f6192a57b6e",
+  "elapsed_seconds": 1762.480900875,
+  "first_result_seconds": 5.054246292,
+  "stages": {
+    "port": {
+      "tasks": 125,
+      "first_start": "2026-10-18T11:22:47.85564+08:00",
+      "last_complete": "2026-10-18T11:51:36.648657+08:00",
+      "failed": 0
+    },
+    "service": {
+      "tasks": 1331,
+      "first_start": "2026-10-18T11:22:49.150136+08:00",
+      "last_complete": "2026-10-18T11:52:02.418195+08:00",
+      "failed": 0
+    },
+    "http": {
+      "tasks": 3000,
+      "first_start": "2026-10-18T11:22:55.753285+08:00",
+      "last_complete": "2026-10-18T11:52:02.553152+08:00",
+      "failed": 0
+    }
+  },
+  "Masscan_send_stats": [
+    {
+      "node": "i-bp19xetim6x4upkm2m2l.tar",
+      "audit_file": "candidate/tools/1792295353599986747-masscan-4264.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2l.tar",
+      "audit_file": "candidate/tools/1792295215828690543-masscan-4214.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2l.tar",
+      "audit_file": "candidate/tools/1792295284843300185-masscan-4240.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2l.tar",
+      "audit_file": "candidate/tools/1792294527765842114-masscan-3934.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2l.tar",
+      "audit_file": "candidate/tools/1792294803814270117-masscan-4055.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2l.tar",
+      "audit_file": "candidate/tools/1792294320724093529-masscan-3854.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2l.tar",
+      "audit_file": "candidate/tools/1792294113708316862-masscan-3770.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2l.tar",
+      "audit_file": "candidate/tools/1792293767897457208-masscan-3635.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "1",
+          "1",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 1
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2l.tar",
+      "audit_file": "candidate/tools/1792294389727445030-masscan-3880.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2l.tar",
+      "audit_file": "candidate/tools/1792293975674274430-masscan-3718.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2l.tar",
+      "audit_file": "candidate/tools/1792294596791263882-masscan-3961.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2l.tar",
+      "audit_file": "candidate/tools/1792295078818885206-masscan-4154.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2l.tar",
+      "audit_file": "candidate/tools/1792294941813700733-masscan-4104.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2l.tar",
+      "audit_file": "candidate/tools/1792294734810381448-masscan-4028.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2l.tar",
+      "audit_file": "candidate/tools/1792293837678965554-masscan-3663.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2l.tar",
+      "audit_file": "candidate/tools/1792295422611886732-masscan-4290.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2l.tar",
+      "audit_file": "candidate/tools/1792294044685636203-masscan-3744.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2l.tar",
+      "audit_file": "candidate/tools/1792295009809289529-masscan-4130.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2l.tar",
+      "audit_file": "candidate/tools/1792295146823339757-masscan-4190.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2l.tar",
+      "audit_file": "candidate/tools/1792293907403728108-masscan-3691.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2l.tar",
+      "audit_file": "candidate/tools/1792294182705924646-masscan-3794.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2l.tar",
+      "audit_file": "candidate/tools/1792294665792444266-masscan-3986.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2l.tar",
+      "audit_file": "candidate/tools/1792294458753947595-masscan-3906.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2l.tar",
+      "audit_file": "candidate/tools/1792294872821245697-masscan-4080.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2l.tar",
+      "audit_file": "candidate/tools/1792294251722492208-masscan-3830.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2n.tar",
+      "audit_file": "candidate/tools/1792294804664272378-masscan-4496.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2n.tar",
+      "audit_file": "candidate/tools/1792294875739489843-masscan-4522.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2n.tar",
+      "audit_file": "candidate/tools/1792294044727134208-masscan-4203.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2n.tar",
+      "audit_file": "candidate/tools/1792295081777780452-masscan-4598.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2n.tar",
+      "audit_file": "candidate/tools/1792294251798072413-masscan-4289.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2n.tar",
+      "audit_file": "candidate/tools/1792295219805345534-masscan-4659.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2n.tar",
+      "audit_file": "candidate/tools/1792294596826033549-masscan-4420.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2n.tar",
+      "audit_file": "candidate/tools/1792295356821694215-masscan-4709.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2n.tar",
+      "audit_file": "candidate/tools/1792295288810739307-masscan-4685.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2n.tar",
+      "audit_file": "candidate/tools/1792294182770018589-masscan-4255.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2n.tar",
+      "audit_file": "candidate/tools/1792293768140273258-masscan-4097.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "2",
+          "2",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 2
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2n.tar",
+      "audit_file": "candidate/tools/1792294944764504314-masscan-4548.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2n.tar",
+      "audit_file": "candidate/tools/1792294113737117216-masscan-4227.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2n.tar",
+      "audit_file": "candidate/tools/1792294735636293711-masscan-4470.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2n.tar",
+      "audit_file": "candidate/tools/1792295425826356751-masscan-4735.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2n.tar",
+      "audit_file": "candidate/tools/1792293906720263014-masscan-4151.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2n.tar",
+      "audit_file": "candidate/tools/1792294389789796617-masscan-4339.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2n.tar",
+      "audit_file": "candidate/tools/1792294527812002019-masscan-4395.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2n.tar",
+      "audit_file": "candidate/tools/1792294665851126409-masscan-4446.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2n.tar",
+      "audit_file": "candidate/tools/1792295150784786485-masscan-4632.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2n.tar",
+      "audit_file": "candidate/tools/1792294320802541918-masscan-4315.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2n.tar",
+      "audit_file": "candidate/tools/1792294458800719018-masscan-4365.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2n.tar",
+      "audit_file": "candidate/tools/1792295013773125314-masscan-4572.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2n.tar",
+      "audit_file": "candidate/tools/1792293837696260560-masscan-4122.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2n.tar",
+      "audit_file": "candidate/tools/1792293975716387578-masscan-4177.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2m.tar",
+      "audit_file": "candidate/tools/1792294251677859673-masscan-4259.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2m.tar",
+      "audit_file": "candidate/tools/1792294875624355387-masscan-4493.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2m.tar",
+      "audit_file": "candidate/tools/1792295151685093716-masscan-4604.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2m.tar",
+      "audit_file": "candidate/tools/1792295358771274412-masscan-4680.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2m.tar",
+      "audit_file": "candidate/tools/1792295013647341681-masscan-4544.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2m.tar",
+      "audit_file": "candidate/tools/1792294944636069011-masscan-4520.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2m.tar",
+      "audit_file": "candidate/tools/1792294460780790461-masscan-4333.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2m.tar",
+      "audit_file": "candidate/tools/1792295427948625343-masscan-4707.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2m.tar",
+      "audit_file": "candidate/tools/1792294112639196589-masscan-4199.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2m.tar",
+      "audit_file": "candidate/tools/1792293836781300062-masscan-4096.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2m.tar",
+      "audit_file": "candidate/tools/1792293767991670868-masscan-4069.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2m.tar",
+      "audit_file": "candidate/tools/1792294182662400082-masscan-4225.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2m.tar",
+      "audit_file": "candidate/tools/1792294320682047258-masscan-4283.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2m.tar",
+      "audit_file": "candidate/tools/1792294668831435140-masscan-4416.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2m.tar",
+      "audit_file": "candidate/tools/1792295289753600051-masscan-4656.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2m.tar",
+      "audit_file": "candidate/tools/1792294737845247635-masscan-4442.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2m.tar",
+      "audit_file": "candidate/tools/1792293905798768309-masscan-4123.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2m.tar",
+      "audit_file": "candidate/tools/1792294529797889755-masscan-4363.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2m.tar",
+      "audit_file": "candidate/tools/1792294806863533432-masscan-4468.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2m.tar",
+      "audit_file": "candidate/tools/1792294389689506628-masscan-4309.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2m.tar",
+      "audit_file": "candidate/tools/1792295082664446684-masscan-4570.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2m.tar",
+      "audit_file": "candidate/tools/1792294599832597556-masscan-4390.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2m.tar",
+      "audit_file": "candidate/tools/1792293974829930450-masscan-4151.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2m.tar",
+      "audit_file": "candidate/tools/1792295220701571121-masscan-4630.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2m.tar",
+      "audit_file": "candidate/tools/1792294043610673416-masscan-4175.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2o.tar",
+      "audit_file": "candidate/tools/1792294595716890624-masscan-3626.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2o.tar",
+      "audit_file": "candidate/tools/1792294802739083825-masscan-3720.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2o.tar",
+      "audit_file": "candidate/tools/1792294940740492586-masscan-3771.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2o.tar",
+      "audit_file": "candidate/tools/1792294526711454701-masscan-3601.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2o.tar",
+      "audit_file": "candidate/tools/1792293905707218815-masscan-3362.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2o.tar",
+      "audit_file": "candidate/tools/1792294181676178721-masscan-3465.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2o.tar",
+      "audit_file": "candidate/tools/1792294664726098547-masscan-3652.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2o.tar",
+      "audit_file": "candidate/tools/1792295216817502650-masscan-3884.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2o.tar",
+      "audit_file": "candidate/tools/1792294043721294586-masscan-3415.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2o.tar",
+      "audit_file": "candidate/tools/1792293768175940459-masscan-3307.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "1",
+          "1",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 1
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2o.tar",
+      "audit_file": "candidate/tools/1792294113147315040-masscan-3440.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2o.tar",
+      "audit_file": "candidate/tools/1792294319681113890-masscan-3523.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2o.tar",
+      "audit_file": "candidate/tools/1792294457688235020-masscan-3571.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2o.tar",
+      "audit_file": "candidate/tools/1792293974708170427-masscan-3391.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2o.tar",
+      "audit_file": "candidate/tools/1792294733730744846-masscan-3693.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2o.tar",
+      "audit_file": "candidate/tools/1792295286172144006-masscan-3909.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2o.tar",
+      "audit_file": "candidate/tools/1792295355761304585-masscan-3934.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2o.tar",
+      "audit_file": "candidate/tools/1792295078744065716-masscan-3824.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2o.tar",
+      "audit_file": "candidate/tools/1792295009743030165-masscan-3798.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2o.tar",
+      "audit_file": "candidate/tools/1792294871736742746-masscan-3745.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2o.tar",
+      "audit_file": "candidate/tools/1792295147786923848-masscan-3858.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2o.tar",
+      "audit_file": "candidate/tools/1792293836700361682-masscan-3335.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2o.tar",
+      "audit_file": "candidate/tools/1792295424767506804-masscan-3960.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2o.tar",
+      "audit_file": "candidate/tools/1792294250673736772-masscan-3497.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2o.tar",
+      "audit_file": "candidate/tools/1792294388691677024-masscan-3547.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2k.tar",
+      "audit_file": "candidate/tools/1792294803729898022-masscan-3677.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2k.tar",
+      "audit_file": "candidate/tools/1792294872738801520-masscan-3702.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2k.tar",
+      "audit_file": "candidate/tools/1792294596713250448-masscan-3601.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2k.tar",
+      "audit_file": "candidate/tools/1792294458700711114-masscan-3548.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2k.tar",
+      "audit_file": "candidate/tools/1792295286661361594-masscan-3863.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2k.tar",
+      "audit_file": "candidate/tools/1792295079858749443-masscan-3779.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2k.tar",
+      "audit_file": "candidate/tools/1792293975825169067-masscan-3364.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2k.tar",
+      "audit_file": "candidate/tools/1792295356713455962-masscan-3889.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2k.tar",
+      "audit_file": "candidate/tools/1792294734720190243-masscan-3651.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2k.tar",
+      "audit_file": "candidate/tools/1792294665714531559-masscan-3627.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2k.tar",
+      "audit_file": "candidate/tools/1792295217657156077-masscan-3839.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2k.tar",
+      "audit_file": "candidate/tools/1792295425722075186-masscan-3916.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2k.tar",
+      "audit_file": "candidate/tools/1792295010788014922-masscan-3753.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2k.tar",
+      "audit_file": "candidate/tools/1792295148625434250-masscan-3813.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2k.tar",
+      "audit_file": "candidate/tools/1792294320640194815-masscan-3498.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2k.tar",
+      "audit_file": "candidate/tools/1792294113841516363-masscan-3415.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2k.tar",
+      "audit_file": "candidate/tools/1792294251636529895-masscan-3472.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2k.tar",
+      "audit_file": "candidate/tools/1792293769016873891-masscan-3281.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2k.tar",
+      "audit_file": "candidate/tools/1792294941742203514-masscan-3729.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2k.tar",
+      "audit_file": "candidate/tools/1792293906809948771-masscan-3336.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2k.tar",
+      "audit_file": "candidate/tools/1792293837787796828-masscan-3307.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2k.tar",
+      "audit_file": "candidate/tools/1792294044831680570-masscan-3388.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2k.tar",
+      "audit_file": "candidate/tools/1792294389647845518-masscan-3522.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2k.tar",
+      "audit_file": "candidate/tools/1792294182883356139-masscan-3439.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2k.tar",
+      "audit_file": "candidate/tools/1792294527715300042-masscan-3576.jsonl",
+      "returncode": 0,
+      "stats": [
+        [
+          "0",
+          "0",
+          "rx_shutdown"
+        ]
+      ],
+      "recovered_messages": 0
+    }
+  ],
+  "network_snapshots": {
+    "i-bp19xetim6x4upkm2m2l.tar/candidate/bulk1000/network-after.json": {
+      "at": "2026-10-18T03:52:49.138375+00:00",
+      "commands": 6,
+      "errors": []
+    },
+    "i-bp19xetim6x4upkm2m2l.tar/candidate/bulk1000/network-before.json": {
+      "at": "2026-10-18T03:22:42.455828+00:00",
+      "commands": 6,
+      "errors": []
+    },
+    "i-bp19xetim6x4upkm2m2n.tar/candidate/bulk1000/network-after.json": {
+      "at": "2026-10-18T03:52:49.027420+00:00",
+      "commands": 6,
+      "errors": []
+    },
+    "i-bp19xetim6x4upkm2m2n.tar/candidate/bulk1000/network-before.json": {
+      "at": "2026-10-18T03:22:42.478496+00:00",
+      "commands": 6,
+      "errors": []
+    },
+    "i-bp19xetim6x4upkm2m2m.tar/candidate/bulk1000/network-after.json": {
+      "at": "2026-10-18T03:52:49.060072+00:00",
+      "commands": 6,
+      "errors": []
+    },
+    "i-bp19xetim6x4upkm2m2m.tar/candidate/bulk1000/network-before.json": {
+      "at": "2026-10-18T03:22:42.370235+00:00",
+      "commands": 6,
+      "errors": []
+    },
+    "i-bp19xetim6x4upkm2m2o.tar/candidate/bulk1000/network-after.json": {
+      "at": "2026-10-18T03:52:49.106093+00:00",
+      "commands": 6,
+      "errors": []
+    },
+    "i-bp19xetim6x4upkm2m2o.tar/candidate/bulk1000/network-before.json": {
+      "at": "2026-10-18T03:22:42.467417+00:00",
+      "commands": 6,
+      "errors": []
+    },
+    "i-bp16jrdqo3nmq8y2nqfj.tar/candidate/bulk1000/network-after.json": {
+      "at": "2026-10-18T03:52:50.966594+00:00",
+      "commands": 9,
+      "errors": []
+    },
+    "i-bp16jrdqo3nmq8y2nqfj.tar/candidate/bulk1000/network-before.json": {
+      "at": "2026-10-18T03:22:44.082365+00:00",
+      "commands": 9,
+      "errors": []
+    },
+    "i-bp19xetim6x4upkm2m2k.tar/candidate/bulk1000/network-after.json": {
+      "at": "2026-10-18T03:52:48.990709+00:00",
+      "commands": 6,
+      "errors": []
+    },
+    "i-bp19xetim6x4upkm2m2k.tar/candidate/bulk1000/network-before.json": {
+      "at": "2026-10-18T03:22:42.482249+00:00",
+      "commands": 6,
+      "errors": []
+    }
+  },
+  "source_commit": "2691677e02185a63c8494920bee0864477df4553",
+  "configuration": {
+    "worker_pps": 10000,
+    "target_quota": 10000,
+    "port_batch_cap": 8
+  },
+  "cleanup": {
+    "at": "2026-10-18T03:54:42.824772+00:00",
+    "remaining": [],
+    "delete_errors": [],
+    "security_group_deleted": true,
+    "regional_instance_count": 0
+  },
+  "UI": {
+    "case": "bulk1000",
+    "run_id": "b76f662c-4f70-402b-8602-7f6192a57b6e",
+    "base_url": "http://127.0.0.1:18084",
+    "at": "2026-10-18T03:53:39.026533+00:00",
+    "expires_at": "2026-10-18T03:54:39.026533+00:00",
+    "maximum_seconds": 60,
+    "tail_budget_shared": true,
+    "quality_passed": true,
+    "collection_complete": true,
+    "closed_at": "2026-10-18T03:54:39.032136+00:00",
+    "actual_monotonic_seconds": 60.00519883400011
+  },
+  "interpretation": "Capacity configuration10000PPS/cap8 with bounded send-retry fix. Not a code-only comparison with R3/R4 at5000PPS/cap4; does not retrospectively prove R5 packet errno.",
+  "Masscan_task_count": 125,
+  "send_failed_calls_sum": 4,
+  "send_retry_sum": 4,
+  "all_Masscan_returned0": true,
+  "all_Masscan_send_summaries_present": true,
+  "network_snapshots_complete": true
+}

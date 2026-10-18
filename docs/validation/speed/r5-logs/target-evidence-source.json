@@ -1,0 +1,6 @@
+{
+  "iptables": {
+    "source": "work/speed-capacity-r5/evidence/candidate/snapshot-bulk100/i-bp16jrdqo3nmpt5tra3n.tar.gz:fixture-iptables.txt",
+    "sha256": "866800e07a10359e41bb827f407ce1240ea695a93360496374fee305c290153d"
+  }
+}

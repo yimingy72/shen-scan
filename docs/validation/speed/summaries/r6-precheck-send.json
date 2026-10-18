@@ -1,0 +1,145 @@
+{
+  "run_id": "49f644af-d141-444a-939f-fdd2480f23cd",
+  "elapsed_seconds": 207.295382416,
+  "stages": {
+    "port": {
+      "tasks": 13,
+      "first_started_at": "2026-10-18T11:18:52.110883+08:00",
+      "last_completed_at": "2026-10-18T11:22:12.592887+08:00"
+    },
+    "service": {
+      "tasks": 152,
+      "first_started_at": "2026-10-18T11:18:53.796752+08:00",
+      "last_completed_at": "2026-10-18T11:22:15.393949+08:00"
+    },
+    "http": {
+      "tasks": 300,
+      "first_started_at": "2026-10-18T11:19:00.292947+08:00",
+      "last_completed_at": "2026-10-18T11:22:15.533096+08:00"
+    }
+  },
+  "send_stat_lines": {
+    "i-bp19xetim6x4upkm2m2l.tar/candidate/tools/1792293532824064790-masscan-2868.stderr": [
+      "scan_send: retry failed_calls=1 retries=1 attempt=1 errno=11 pcaperr=send: Resource temporarily unavailable",
+      "scan_send: recovered attempts=2",
+      "scan_send: retry failed_calls=2 retries=2 attempt=1 errno=11 pcaperr=send: Resource temporarily unavailable",
+      "scan_send: recovered attempts=2",
+      "scan_send: retry failed_calls=3 retries=3 attempt=1 errno=11 pcaperr=send: Resource temporarily unavailable",
+      "scan_send: recovered attempts=2",
+      "scan_send: stats failed_calls=3 retries=3 phase=rx_shutdown"
+    ],
+    "i-bp19xetim6x4upkm2m2l.tar/candidate/tools/1792293602006793659-masscan-2933.stderr": [
+      "scan_send: stats failed_calls=0 retries=0 phase=rx_shutdown"
+    ],
+    "i-bp19xetim6x4upkm2m2n.tar/candidate/tools/1792293593667489917-masscan-2949.stderr": [
+      "scan_send: stats failed_calls=0 retries=0 phase=rx_shutdown"
+    ],
+    "i-bp19xetim6x4upkm2m2n.tar/candidate/tools/1792293662688369873-masscan-3065.stderr": [
+      "scan_send: stats failed_calls=0 retries=0 phase=rx_shutdown"
+    ],
+    "i-bp19xetim6x4upkm2m2n.tar/candidate/tools/1792293532152110186-masscan-2887.stderr": [
+      "scan_send: retry failed_calls=1 retries=1 attempt=1 errno=11 pcaperr=send: Resource temporarily unavailable",
+      "scan_send: recovered attempts=2",
+      "scan_send: retry failed_calls=2 retries=2 attempt=1 errno=11 pcaperr=send: Resource temporarily unavailable",
+      "scan_send: recovered attempts=2",
+      "scan_send: stats failed_calls=2 retries=2 phase=rx_shutdown"
+    ],
+    "i-bp19xetim6x4upkm2m2m.tar/candidate/tools/1792293663635760581-masscan-3230.stderr": [
+      "scan_send: stats failed_calls=0 retries=0 phase=rx_shutdown"
+    ],
+    "i-bp19xetim6x4upkm2m2m.tar/candidate/tools/1792293594623413307-masscan-2931.stderr": [
+      "scan_send: stats failed_calls=0 retries=0 phase=rx_shutdown"
+    ],
+    "i-bp19xetim6x4upkm2m2m.tar/candidate/tools/1792293532874118955-masscan-2868.stderr": [
+      "scan_send: stats failed_calls=0 retries=0 phase=rx_shutdown"
+    ],
+    "i-bp19xetim6x4upkm2m2o.tar/candidate/tools/1792293601842153218-masscan-2875.stderr": [
+      "scan_send: stats failed_calls=0 retries=0 phase=rx_shutdown"
+    ],
+    "i-bp19xetim6x4upkm2m2o.tar/candidate/tools/1792293532789440881-masscan-2809.stderr": [
+      "scan_send: retry failed_calls=1 retries=1 attempt=1 errno=11 pcaperr=send: Resource temporarily unavailable",
+      "scan_send: recovered attempts=2",
+      "scan_send: retry failed_calls=2 retries=2 attempt=1 errno=11 pcaperr=send: Resource temporarily unavailable",
+      "scan_send: recovered attempts=2",
+      "scan_send: retry failed_calls=3 retries=3 attempt=1 errno=11 pcaperr=send: Resource temporarily unavailable",
+      "scan_send: recovered attempts=2",
+      "scan_send: retry failed_calls=4 retries=4 attempt=1 errno=11 pcaperr=send: Resource temporarily unavailable",
+      "scan_send: recovered attempts=2",
+      "scan_send: retry failed_calls=5 retries=5 attempt=1 errno=11 pcaperr=send: Resource temporarily unavailable",
+      "scan_send: recovered attempts=2",
+      "scan_send: stats failed_calls=5 retries=5 phase=rx_shutdown"
+    ],
+    "i-bp19xetim6x4upkm2m2k.tar/candidate/tools/1792293532841176946-masscan-2872.stderr": [
+      "scan_send: stats failed_calls=0 retries=0 phase=rx_shutdown"
+    ],
+    "i-bp19xetim6x4upkm2m2k.tar/candidate/tools/1792293601601235178-masscan-2938.stderr": [
+      "scan_send: stats failed_calls=0 retries=0 phase=rx_shutdown"
+    ],
+    "i-bp19xetim6x4upkm2m2k.tar/candidate/tools/1792293663602372482-masscan-2965.stderr": [
+      "scan_send: stats failed_calls=0 retries=0 phase=rx_shutdown"
+    ]
+  },
+  "pre_post_network_snapshots": {
+    "i-bp19xetim6x4upkm2m2l.tar/candidate/bulk100/network-after.json": {
+      "commands": 6,
+      "errors": [],
+      "at": "2026-10-18T03:22:28.548302+00:00"
+    },
+    "i-bp19xetim6x4upkm2m2l.tar/candidate/bulk100/network-before.json": {
+      "commands": 6,
+      "errors": [],
+      "at": "2026-10-18T03:18:47.855926+00:00"
+    },
+    "i-bp19xetim6x4upkm2m2n.tar/candidate/bulk100/network-after.json": {
+      "commands": 6,
+      "errors": [],
+      "at": "2026-10-18T03:22:28.566815+00:00"
+    },
+    "i-bp19xetim6x4upkm2m2n.tar/candidate/bulk100/network-before.json": {
+      "commands": 6,
+      "errors": [],
+      "at": "2026-10-18T03:18:47.636004+00:00"
+    },
+    "i-bp19xetim6x4upkm2m2m.tar/candidate/bulk100/network-after.json": {
+      "commands": 6,
+      "errors": [],
+      "at": "2026-10-18T03:22:28.490093+00:00"
+    },
+    "i-bp19xetim6x4upkm2m2m.tar/candidate/bulk100/network-before.json": {
+      "commands": 6,
+      "errors": [],
+      "at": "2026-10-18T03:18:47.852270+00:00"
+    },
+    "i-bp19xetim6x4upkm2m2o.tar/candidate/bulk100/network-after.json": {
+      "commands": 6,
+      "errors": [],
+      "at": "2026-10-18T03:22:28.543671+00:00"
+    },
+    "i-bp19xetim6x4upkm2m2o.tar/candidate/bulk100/network-before.json": {
+      "commands": 6,
+      "errors": [],
+      "at": "2026-10-18T03:18:47.849216+00:00"
+    },
+    "i-bp16jrdqo3nmq8y2nqfj.tar/candidate/bulk100/network-after.json": {
+      "commands": 9,
+      "errors": [],
+      "at": "2026-10-18T03:22:30.377476+00:00"
+    },
+    "i-bp16jrdqo3nmq8y2nqfj.tar/candidate/bulk100/network-before.json": {
+      "commands": 9,
+      "errors": [],
+      "at": "2026-10-18T03:18:49.428138+00:00"
+    },
+    "i-bp19xetim6x4upkm2m2k.tar/candidate/bulk100/network-after.json": {
+      "commands": 6,
+      "errors": [],
+      "at": "2026-10-18T03:22:28.550452+00:00"
+    },
+    "i-bp19xetim6x4upkm2m2k.tar/candidate/bulk100/network-before.json": {
+      "commands": 6,
+      "errors": [],
+      "at": "2026-10-18T03:18:47.849805+00:00"
+    }
+  },
+  "offline_only": true
+}

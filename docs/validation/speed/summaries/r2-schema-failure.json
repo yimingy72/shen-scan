@@ -1,0 +1,21 @@
+{
+  "outcome": "HARNESS_REQUEST_SCHEMA_FAILURE_NO_SCAN",
+  "failure": "OldControl rejects unknown fieldpoc_enabled; oldAPI has noPoCfeature and requestmustomitnewfield. Currentrequest mustkeepfalse.",
+  "HTTP400_packet": "evidence/baseline/bulk100/http/1792286857394607000-POST.json",
+  "scan_runs_in_saved_DB": 0,
+  "tasks_in_saved_DB": 0,
+  "created_case_files": 0,
+  "mandatory_checkpoint": {
+    "complete": true,
+    "errors": []
+  },
+  "node_archives": 6,
+  "cleanup": {
+    "at": "2026-10-18T01:27:54.719866+00:00",
+    "remaining": [],
+    "delete_errors": [],
+    "security_group_deleted": true,
+    "regional_instance_count": 0
+  },
+  "next_paid_cohort_started": false
+}

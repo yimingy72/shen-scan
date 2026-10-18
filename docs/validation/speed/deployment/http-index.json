@@ -1,0 +1,19 @@
+{
+  "packets": [
+    {
+      "file": "health.json",
+      "sha256": "41f91370a6f58398a22edfea8fbdb2695fc3ed79786e1cc22a9b404d67d8236c",
+      "complete_application_request_response": true,
+      "auth_redaction": "health uses ${SCAN_ADMIN_TOKEN}; HEAD is unauthenticated",
+      "response_body_truncated": false
+    },
+    {
+      "file": "download-head.json",
+      "sha256": "19a854f6dded5b0e7d9a7bd337ae624bef6ff67f49c43fef3516b0d9d0c026ec",
+      "complete_application_request_response": true,
+      "auth_redaction": "health uses ${SCAN_ADMIN_TOKEN}; HEAD is unauthenticated",
+      "response_body_truncated": false
+    }
+  ],
+  "scope": "Post-deployment health and download HEAD only; production user/account/Worker bodies omitted from publication"
+}

@@ -1,0 +1,379 @@
+{
+  "kind": "public microtest evidence subset",
+  "new_tests_executed_during_export": false,
+  "new_screenshots_taken": false,
+  "new_cloud_operations": false,
+  "all_synthetic_assets_verification_status": "未利用",
+  "HTTP_applicability": "not applicable: raw TCP SYN/RST microtest; parent main report supplies separate real HTTP exchanges",
+  "screenshots_status": "pending parent real-platform/interface screenshot; see screenshots/PENDING.txt",
+  "privacy": "No personal host absolute paths, credentials, real cloud instance IDs or task IDs included. Generic original container paths and synthetic benchmark-range addresses retained.",
+  "artifact_provenance": "summaries/artifact-provenance.json",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 7294,
+      "sha256": "b3fcb6f103b70beb5e622ca4f61310eaecad36aa382c10f254027239834a8460",
+      "provenance": "existing evidence export or explicitly documented derived summary/script"
+    },
+    {
+      "path": "assets.json",
+      "bytes": 1514,
+      "sha256": "8189a6e0a3814761977a04df4da875d15b89b27f59c7f6812fe8c21343af98f8",
+      "provenance": "existing evidence export or explicitly documented derived summary/script"
+    },
+    {
+      "path": "complete-representative-frames.txt",
+      "bytes": 4909,
+      "sha256": "3c9d3cc6e0a6927a0b71816142b96e7c5f4ef0503b76eaf04fca2329b7365abb",
+      "provenance": "existing evidence export or explicitly documented derived summary/script"
+    },
+    {
+      "path": "logs/candidate-build.log",
+      "bytes": 11323,
+      "sha256": "11a8961104eca68ee6e970d75048fddb46c8723c606982b045e99fc5fea80340",
+      "provenance": "existing evidence export or explicitly documented derived summary/script"
+    },
+    {
+      "path": "logs/candidate-capture.log",
+      "bytes": 51,
+      "sha256": "3a9a10ab8fa5ff6cdd3756335db08a48b7a348c8d3cf1ea4a8c1482777642429",
+      "provenance": "existing evidence export or explicitly documented derived summary/script"
+    },
+    {
+      "path": "logs/candidate-terminal.log",
+      "bytes": 1836,
+      "sha256": "77c5525e0bdd5292548ce9c408a49adc3c47bcbed416e825ffa3a6782890973e",
+      "provenance": "existing evidence export or explicitly documented derived summary/script"
+    },
+    {
+      "path": "logs/candidate.list",
+      "bytes": 51,
+      "sha256": "f61ab6a968779f7de2b35872d433f88b7a29936aeedfb13c0c750c85b555e11a",
+      "provenance": "existing evidence export or explicitly documented derived summary/script"
+    },
+    {
+      "path": "logs/candidate.stderr",
+      "bytes": 1103,
+      "sha256": "e1284b89c1a1059e3b359d1ad4f49452f045d90546c424d7eb432d6a2656acba",
+      "provenance": "existing evidence export or explicitly documented derived summary/script"
+    },
+    {
+      "path": "logs/candidate.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "provenance": "existing evidence export or explicitly documented derived summary/script"
+    },
+    {
+      "path": "logs/candidate.time",
+      "bytes": 39,
+      "sha256": "53e1acfee23888132e4d73d6739827db44c49b3bd9684f233d8ec1243248a73c",
+      "provenance": "existing evidence export or explicitly documented derived summary/script"
+    },
+    {
+      "path": "logs/default-capture.log",
+      "bytes": 51,
+      "sha256": "425af34d2599e1b9f83dc5929b8be76fcaf7ab7ec4063f324ec48a54a056461b",
+      "provenance": "existing evidence export or explicitly documented derived summary/script"
+    },
+    {
+      "path": "logs/default.list",
+      "bytes": 51,
+      "sha256": "b125440966ec39a0749401b5671ced29a55c0ad3d0db33008fc12d6744d6f28e",
+      "provenance": "existing evidence export or explicitly documented derived summary/script"
+    },
+    {
+      "path": "logs/default.stderr",
+      "bytes": 1430,
+      "sha256": "0e628d6d95aa4cccade1398f07b268c0b7ff53aac4577995dd901ea46138235b",
+      "provenance": "existing evidence export or explicitly documented derived summary/script"
+    },
+    {
+      "path": "logs/default.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "provenance": "existing evidence export or explicitly documented derived summary/script"
+    },
+    {
+      "path": "logs/default.time",
+      "bytes": 39,
+      "sha256": "cd3edf5679d3f4162e7790aa28a6c0033c9d2d162e411e3cf52091711421f2e9",
+      "provenance": "existing evidence export or explicitly documented derived summary/script"
+    },
+    {
+      "path": "logs/micro-terminal.log",
+      "bytes": 4791,
+      "sha256": "763bd1ff761b6d15501ad15c922fead921309711a74c18ef26f1592bcaa90dcc",
+      "provenance": "existing evidence export or explicitly documented derived summary/script"
+    },
+    {
+      "path": "logs/mixed-candidate-capture.log",
+      "bytes": 43,
+      "sha256": "f21352dc3a571b406ca6b99b9d1cce7d609112b9c1a67280b401cb3cc6667ffa",
+      "provenance": "existing evidence export or explicitly documented derived summary/script"
+    },
+    {
+      "path": "logs/mixed-candidate.list",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "provenance": "existing evidence export or explicitly documented derived summary/script"
+    },
+    {
+      "path": "logs/mixed-candidate.stderr",
+      "bytes": 574,
+      "sha256": "133da52a750dc9dcf514195281b496c7b85c99a2103dc82162f4395c8af5c34a",
+      "provenance": "existing evidence export or explicitly documented derived summary/script"
+    },
+    {
+      "path": "logs/mixed-candidate.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "provenance": "existing evidence export or explicitly documented derived summary/script"
+    },
+    {
+      "path": "logs/mixed-candidate.time",
+      "bytes": 39,
+      "sha256": "d0a6b4d82793b21b9ff2f8d3a3b2068c1970bfc8fb1cc48634f0706f229a9b70",
+      "provenance": "existing evidence export or explicitly documented derived summary/script"
+    },
+    {
+      "path": "logs/mixed-default-capture.log",
+      "bytes": 43,
+      "sha256": "63f49303e365bf1df37294abf883624ec78c580a9d2e8cb8f6a4a94222840ddf",
+      "provenance": "existing evidence export or explicitly documented derived summary/script"
+    },
+    {
+      "path": "logs/mixed-default.list",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "provenance": "existing evidence export or explicitly documented derived summary/script"
+    },
+    {
+      "path": "logs/mixed-default.stderr",
+      "bytes": 700,
+      "sha256": "4d405fc7b8ed2cd76de60590d2bc4e4074f068064372fce6573fbdf9f746e7f5",
+      "provenance": "existing evidence export or explicitly documented derived summary/script"
+    },
+    {
+      "path": "logs/mixed-default.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "provenance": "existing evidence export or explicitly documented derived summary/script"
+    },
+    {
+      "path": "logs/mixed-default.time",
+      "bytes": 39,
+      "sha256": "ca288e53e1779388265ce329603832ec4843d17f8728d5ae623aa7ba463236f3",
+      "provenance": "existing evidence export or explicitly documented derived summary/script"
+    },
+    {
+      "path": "logs/mixed-terminal.log",
+      "bytes": 2508,
+      "sha256": "2a5528d5bec231057d7c53f297205ebf5fcd0980377cdbc88abbe912bac25e87",
+      "provenance": "existing evidence export or explicitly documented derived summary/script"
+    },
+    {
+      "path": "logs/noreset-capture.log",
+      "bytes": 51,
+      "sha256": "a1311823c26019129d414c088796bcaf0f2c24884075e52bd2c670c89bcfbfc5",
+      "provenance": "existing evidence export or explicitly documented derived summary/script"
+    },
+    {
+      "path": "logs/noreset.list",
+      "bytes": 51,
+      "sha256": "d806f8057df38b0bb5db04175f4c46c7a771a59acf727e1fc284ccca97ac5f31",
+      "provenance": "existing evidence export or explicitly documented derived summary/script"
+    },
+    {
+      "path": "logs/noreset.stderr",
+      "bytes": 1103,
+      "sha256": "d62c9fe207da2aa2097d870c804855ec5cd5383f80e965bc74657a9245fa66ce",
+      "provenance": "existing evidence export or explicitly documented derived summary/script"
+    },
+    {
+      "path": "logs/noreset.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "provenance": "existing evidence export or explicitly documented derived summary/script"
+    },
+    {
+      "path": "logs/noreset.time",
+      "bytes": 39,
+      "sha256": "79e8dc802f47902d2f93488992c815acfe6d495e4d83cbe4b3edd4d8456b0b91",
+      "provenance": "existing evidence export or explicitly documented derived summary/script"
+    },
+    {
+      "path": "logs/silent-capture.log",
+      "bytes": 51,
+      "sha256": "f313761623931d65e9ca1f6fa967a309f2d5aeee3cc4b1308372d7969d3677a9",
+      "provenance": "existing evidence export or explicitly documented derived summary/script"
+    },
+    {
+      "path": "logs/silent.list",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "provenance": "existing evidence export or explicitly documented derived summary/script"
+    },
+    {
+      "path": "logs/silent.stderr",
+      "bytes": 1099,
+      "sha256": "4bb92bdb99295197a1ba71adc570b651985fea3b2cbfd00e28de499336c03498",
+      "provenance": "existing evidence export or explicitly documented derived summary/script"
+    },
+    {
+      "path": "logs/silent.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "provenance": "existing evidence export or explicitly documented derived summary/script"
+    },
+    {
+      "path": "logs/silent.time",
+      "bytes": 39,
+      "sha256": "04a7b7d1b4ccca7e743b8ad35c8dbd3a36156d8ff481dca8d174d2262ced3a15",
+      "provenance": "existing evidence export or explicitly documented derived summary/script"
+    },
+    {
+      "path": "pcap/candidate.pcap",
+      "bytes": 1681214,
+      "sha256": "7bd68ec195b70e9d63e455d214be06c69380473e4157e9be23c77cabdb1a4a2f",
+      "provenance": "byte-for-byte PCAP copy"
+    },
+    {
+      "path": "pcap/default.pcap",
+      "bytes": 2593606,
+      "sha256": "be3f5d877dfd0875bee7c6d11c305d5ff24b1003de86b486c160150b71e73f56",
+      "provenance": "byte-for-byte PCAP copy"
+    },
+    {
+      "path": "pcap/mixed-candidate.pcap",
+      "bytes": 396,
+      "sha256": "df30a75ab13b49ccf345ecfda1d2ffb7b608e24998f8e34bb7890821462da1f2",
+      "provenance": "byte-for-byte PCAP copy"
+    },
+    {
+      "path": "pcap/mixed-default.pcap",
+      "bytes": 588,
+      "sha256": "361160d11545382ecc75e3e1c54a41baf90a92faed54fa868c8126ea99a10d1f",
+      "provenance": "byte-for-byte PCAP copy"
+    },
+    {
+      "path": "pcap/noreset.pcap",
+      "bytes": 1680916,
+      "sha256": "3df964eab061219bf36d5a627d5a5e3681b0315e6755a153b30767b2e220f3c2",
+      "provenance": "byte-for-byte PCAP copy"
+    },
+    {
+      "path": "pcap/silent.pcap",
+      "bytes": 840126,
+      "sha256": "f7aec4e160647faf7d176af0f36e03eae51ceba9dafcbf0f927de7ef6d5a9aad",
+      "provenance": "byte-for-byte PCAP copy"
+    },
+    {
+      "path": "references/AGPL-3.0.txt",
+      "bytes": 34523,
+      "sha256": "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0",
+      "provenance": "existing evidence export or explicitly documented derived summary/script"
+    },
+    {
+      "path": "references/LICENSE.masscan",
+      "bytes": 545,
+      "sha256": "cc333e4f7702104fea033d28d16427ba55805a2300eadbd2bab9794676eed7f9",
+      "provenance": "existing evidence export or explicitly documented derived summary/script"
+    },
+    {
+      "path": "references/existing-data-comparison.json",
+      "bytes": 2570,
+      "sha256": "676764ea24fed4d00f7bb93cc9087b36ba8389215908a92a5c3a64259e12621b",
+      "provenance": "existing evidence export or explicitly documented derived summary/script"
+    },
+    {
+      "path": "references/old1000-selected-aggregate.json",
+      "bytes": 681,
+      "sha256": "d9b6615b2f71a1a33a6b13fc9178444ad9ca4fb548d32f7094a9ee4d8f6182bf",
+      "provenance": "existing evidence export or explicitly documented derived summary/script"
+    },
+    {
+      "path": "references/rst-only-synack.patch",
+      "bytes": 506,
+      "sha256": "881263197f5c239e65e52786332d0fdf47dcc17b72e75d702fa3af6bb4c735c6",
+      "provenance": "existing evidence export or explicitly documented derived summary/script"
+    },
+    {
+      "path": "references/source-evidence.log",
+      "bytes": 7956,
+      "sha256": "24b44b363a5b845f262eb003403dbe1cbcc43268ec81f8a600b150feecb67f13",
+      "provenance": "existing evidence export or explicitly documented derived summary/script"
+    },
+    {
+      "path": "references/target-model-excerpts.txt",
+      "bytes": 2151,
+      "sha256": "2d0ae4a2e48c8ffde11dd45dd2f7cd5cb58168d045c875d506d47e30e102e123",
+      "provenance": "existing evidence export or explicitly documented derived summary/script"
+    },
+    {
+      "path": "reproduce/analyze-mixed.py",
+      "bytes": 2116,
+      "sha256": "665688010ef8a2b5d5e3fe792a79209336a9e3ba11cfd7c91b3114a0253f870d",
+      "provenance": "existing evidence export or explicitly documented derived summary/script"
+    },
+    {
+      "path": "reproduce/analyze-pcap.py",
+      "bytes": 1956,
+      "sha256": "94030f13985e3e87e3819042783fb7f160746c2183055fabbdba5ccb585a8687",
+      "provenance": "existing evidence export or explicitly documented derived summary/script"
+    },
+    {
+      "path": "reproduce/micro-fixture.c",
+      "bytes": 3991,
+      "sha256": "006f0f5a8a58c556b054dda24f0636a7da4a65c0831dda20f869ca5f4f94716d",
+      "provenance": "existing evidence export or explicitly documented derived summary/script"
+    },
+    {
+      "path": "reproduce/run-candidate.sh",
+      "bytes": 1971,
+      "sha256": "0871ab936d93a56a3b9ec45cb9ba883d569fc099f253ced3360bb756713a3472",
+      "provenance": "existing evidence export or explicitly documented derived summary/script"
+    },
+    {
+      "path": "reproduce/run-micro.sh",
+      "bytes": 1980,
+      "sha256": "1fd01078b5c67909068ba1847279d9beea5d099edfa427cee1b3931857500c47",
+      "provenance": "existing evidence export or explicitly documented derived summary/script"
+    },
+    {
+      "path": "reproduce/run-mixed.sh",
+      "bytes": 1720,
+      "sha256": "13db728051385e3a6aa8cf6768f19080c29bd82b5f971f15eb75586f3a74e7eb",
+      "provenance": "existing evidence export or explicitly documented derived summary/script"
+    },
+    {
+      "path": "screenshots/PENDING.txt",
+      "bytes": 172,
+      "sha256": "d14ae54dda8b3b3ea474752f4170a6119f3c9f61aa16c4cd73330a6eabcc932c",
+      "provenance": "existing evidence export or explicitly documented derived summary/script"
+    },
+    {
+      "path": "summaries/artifact-provenance.json",
+      "bytes": 1751,
+      "sha256": "c27067ee55e272e9230ad0e2f85aa4941ca9460a26cabfc24669c4fbc1c9d473",
+      "provenance": "existing evidence export or explicitly documented derived summary/script"
+    },
+    {
+      "path": "summaries/masscan-capture-stats.json",
+      "bytes": 312,
+      "sha256": "3d4badf3add82e4d4d7be8c35fea00d543dfae22552614cf11a85a13db124318",
+      "provenance": "existing evidence export or explicitly documented derived summary/script"
+    },
+    {
+      "path": "summaries/micro-summary.json",
+      "bytes": 2417,
+      "sha256": "568c353765780f2fb6313beb4feeb0a42f5d340adf1016efe7443bb9976aea6f",
+      "provenance": "existing evidence export or explicitly documented derived summary/script"
+    },
+    {
+      "path": "summaries/mixed-summary.json",
+      "bytes": 2600,
+      "sha256": "b66af83f1714b77071692950695c97bddf6b6ab5fa4116234c03f0f7e0ee604c",
+      "provenance": "existing evidence export or explicitly documented derived summary/script"
+    }
+  ]
+}

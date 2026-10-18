@@ -1,0 +1,20 @@
+{
+  "scope": "Actual root-provided ControlUI images from R6main only; no new screenshot taken during export",
+  "run_id": "b76f662c-4f70-402b-8602-7f6192a57b6e",
+  "files": [
+    {
+      "file": "r6-bulk1000-results.png",
+      "sha256": "d35dd99b804465a03c382af61ca5e8cfdba88225c31a89eea1eac483f2bb788f",
+      "bytes": 105846,
+      "saved_at_utc": "2026-10-18T03:53:18.882100+00:00",
+      "capture_phase": "after business completion, while raw collection still finishing"
+    },
+    {
+      "file": "r6-bulk1000-task-info.png",
+      "sha256": "53391a01ff4fcf929cef1288eb4c91285348a371ff91379ac80900308ded0857",
+      "bytes": 32920,
+      "saved_at_utc": "2026-10-18T03:54:17.430968+00:00",
+      "capture_phase": "after independent quality gate, inside60sreviewwindow"
+    }
+  ]
+}

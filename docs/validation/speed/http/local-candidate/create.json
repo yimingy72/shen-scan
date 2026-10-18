@@ -1,0 +1,8 @@
+{
+  "at": "2026-10-18T01:35:39.126342+00:00",
+  "url": "http://127.0.0.1:18084/api/runs",
+  "elapsed_seconds": 0.03572575,
+  "status": 201,
+  "request": "POST /api/runs HTTP/1.1\r\nHost: 127.0.0.1:18084\r\nAccept: application/json\r\nAccept-Encoding: identity\r\nConnection: close\r\nAuthorization: Bearer ${REDACTED_ADMIN_TOKEN}\r\nContent-Type: application/json\r\nContent-Length: 80\r\n\r\n{\"name\": \"speed-r2-smoke\", \"targets\": [\"172.28.1.1\"], \"modes\": [\"port\", \"http\"]}",
+  "response": "HTTP/1.1 201 Created\r\nContent-Type: application/json\r\nDate: Sun, 18 Oct 2026 01:35:39 GMT\r\nContent-Length: 519\r\nConnection: close\r\n\r\n{\"id\":\"5b87de9f-e920-4e67-a241-df169796e23d\",\"name\":\"speed-r2-smoke\",\"targets\":[\"172.28.1.1\"],\"modes\":[\"port\",\"http\"],\"status\":\"pending\",\"created_at\":\"2026-10-18T01:35:39.097547Z\",\"updated_at\":\"2026-10-18T01:35:39.097547Z\",\"task_total\":1,\"task_done\":0,\"task_failed\":0,\"asset_count\":0,\"target_count\":1,\"target_done\":0,\"open_port_count\":0,\"http_count\":0,\"input_count\":1,\"poc_enabled\":false,\"finding_count\":0,\"verification_finding_count\":0,\"check_match_count\":0,\"discovery_match_count\":0,\"poc_checked_count\":0,\"error\":\"\"}\n"
+}

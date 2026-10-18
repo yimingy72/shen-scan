@@ -1,0 +1,8 @@
+{
+  "binary_sha256": "2ee12f51003d127996b49c98771d118d713a9fc5d16ff623de864e1ac9bb0c3d",
+  "tested_source_archive_sha256": "c644521abff78949a8d511d80237e97d1e33af6f142080268895cc0318cebf8f",
+  "published_source_archive_sha256": "88fd72494c8b98488b9984e902bf26758de413e4e2f75c7e85a6bd19193d1c73",
+  "source_change": "Only README,SOURCE and build validation assertion refreshed; upstream archive and exact tested code patch identical; tested ELF copied without rebuilding.",
+  "patch_sha256": "120d4317aeb3f8f2605443764dc077fac52d4009b82ac89212be5c1404968e17",
+  "export_note": "Later release metadata only; no claim that the refreshed source archive was present during local microtests. ELF was copied unchanged; upstream tar and exact code patch unchanged. README/SOURCE and build-check assertions changed."
+}

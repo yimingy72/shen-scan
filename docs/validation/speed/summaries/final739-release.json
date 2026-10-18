@@ -1,0 +1,30 @@
+{
+  "commit": "73970c79db0ed845ebc14729527d11683f628270",
+  "package": "scan-agent-linux-amd64-speed-b86f28aaddbb.tar.gz",
+  "package_sha256": "b86f28aaddbb6b98d542cd86c671d90e2c26392bacfa72812c2deec785ae2815",
+  "version": "bundle-b86f28aaddbb",
+  "server_sha256": "eb80bf1822c9f98365e6edf4eb048faf9637aa432a3dc226c0d6400868d070a6",
+  "server_download": "scan-server-speed-eb80bf1822c9",
+  "checker_sha256": "c429707839903cf6b68552d6c842212182401178f86bf408d360b1e574984060",
+  "web_sha256": "44ce11b780004cb45626fe1c22b79e347b5135b7f2dcbf31d823281f9d68ebf1",
+  "ca_sha256": "66ca56b4066d979e6c07abe9251c1212868ff462a22040388c2189b1aa803f77",
+  "masscan_sha256": "afc20e66f99e13f4c65a7a7acc52b51d9f51b3798c3f7ac296abc6121ba39f7d",
+  "masscan_source_sha256": "162ae4a3f5c933d74048864fbe37492ce48c485fdd443cbaa5cc1d077f45a349",
+  "component_sha256": {
+    "scan-agent": "3a2d20830260640ffb8918daa8bd3b34e93412735b4ca0fe3de09b1938a35946",
+    "web-probe-worker": "12320666fc11177be345305552501f695a515122c39dcc82694c48866d6ffbd9",
+    "fingerprint-worker": "c429707839903cf6b68552d6c842212182401178f86bf408d360b1e574984060",
+    "httpx": "6d78b83b4da452a7e0bd3613c4fae04cbf523209f083904b563f4d4406a680b0",
+    "nuclei": "c49588140f357cbdddd5436dec11201953a4c5390faeec90777f9ee2cfd70251"
+  },
+  "agent_go_build_commit": "73970c79db0ed845ebc14729527d11683f628270",
+  "server_source_commit": "73970c79db0ed845ebc14729527d11683f628270",
+  "web_helper_source_commit": "73970c79db0ed845ebc14729527d11683f628270",
+  "verification_scope": {
+    "source": "Microtested Masscan statusOpen reset guard; unchanged tested binary, corresponding source documentation refreshed",
+    "targeted_checks": "Port fixed-wait model unit, frozen statistical tool identity Agent unit and isolated Control/PG scenario; frontend build",
+    "linux_release": "Cross-built from clean source revision; hashes and Go VCS metadata verified",
+    "cloud": "Pending paired5Worker validation; no performance conclusion yet"
+  },
+  "export_note": "Original build-time metadata; its pending cloud text predates completed R4. Actual R4 validation is in r4-machine-summary.json. No build metadata was retroactively rewritten."
+}

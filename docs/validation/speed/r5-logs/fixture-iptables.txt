@@ -1,0 +1,11 @@
+Chain INPUT (policy ACCEPT 0 packets, 0 bytes)
+    pkts      bytes target     prot opt in     out     source               destination         
+   18178  1813621 ACCEPT     tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            destination IP range 172.28.1.1-172.28.4.232 multiport dports 80,8088,9443
+ 3276375 131055000 DROP       tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            destination IP range 172.28.1.51-172.28.1.100
+       0        0 DROP       tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            destination IP range 172.28.3.39-172.28.4.232
+
+Chain FORWARD (policy ACCEPT 0 packets, 0 bytes)
+    pkts      bytes target     prot opt in     out     source               destination         
+
+Chain OUTPUT (policy ACCEPT 0 packets, 0 bytes)
+    pkts      bytes target     prot opt in     out     source               destination         

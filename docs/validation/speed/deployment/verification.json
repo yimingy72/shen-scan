@@ -1,0 +1,33 @@
+{
+  "at_utc": "2026-10-18T03:57:34.317992+00:00",
+  "health_ok": true,
+  "scheduler_status_ok": true,
+  "server_and_package_hashes_match": true,
+  "package_https_head_status": 200,
+  "pool_enabled": false,
+  "desired_workers": 10,
+  "leased_tasks": 0,
+  "existing_pending_run_unchanged": true,
+  "source_commit": "2691677e02185a63c8494920bee0864477df4553",
+  "agent_version": "bundle-b20474d68e6d",
+  "server_sha256": "23cf94f40cb3d4c3c16059501e29003cef17ff32b24347923f8304d60e872d62",
+  "agent_package_sha256": "b20474d68e6d14b64b66768bcf0322de53caff0f0818df46246516da41e74b7e",
+  "masscan_sha256": "2ee12f51003d127996b49c98771d118d713a9fc5d16ff623de864e1ac9bb0c3d",
+  "masscan_source_sha256": "88fd72494c8b98488b9984e902bf26758de413e4e2f75c7e85a6bd19193d1c73",
+  "fingerprint_helper_sha256": "99e4d632cd630779aef58a20b37d525676530a6a463c5db837da8e88a6f49242",
+  "fingerprint_helper_verified": true,
+  "runtime": {
+    "SCAN_PORT_RATE_PPS": 10000,
+    "SCAN_TARGET_DISCOVERY_PPS": 10000,
+    "SCAN_PORT_SHARD_MAX": 8
+  },
+  "new_tasks_only": true,
+  "production_scan_launched_by_release": false,
+  "backup_created": true,
+  "private_config_and_canonical_masscan_synchronized": true,
+  "selected_full_HTTP": [
+    "health.json",
+    "download-head.json"
+  ],
+  "note": "Production user-run bodies, account data and Worker history are not published; only equality/idle booleans are included."
+}

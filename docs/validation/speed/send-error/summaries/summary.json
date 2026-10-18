@@ -1,0 +1,251 @@
+{
+  "passed": true,
+  "scope": "Local Linuxamd64 privateDocker --network none, AF_PACKET+kernelVXLAN; controlled fault injection and one normal65535-port10k cold case only",
+  "R5_causality": "NOT established. This demonstrates ignored send-error propagation, not the cause ofR5 deficit; local cold case cannot reproduce/attribute the cloud gap.",
+  "Agent_path": "At original rawTCP microtime: source review only. Subsequent independent actual Agent/Control failure-chain validation is separately archived at ../../summaries/send-chain.json; no direct manifestSQLsnapshot retained.",
+  "counter_semantics": "Per-adapter failed sendpacket calls/retries. phase=rx_shutdown is a snapshot, not a final total of all possible subsequent send calls. Successful sendpacket does not prove remote delivery.",
+  "cases": {
+    "persistent-original": {
+      "exit": 0,
+      "timing": "elapsed=2.31 user=0.09 sys=0.17 exit=0",
+      "send_logs": [
+        "send_inject: call=1 same_as_first=1 length=54",
+        "send_inject: call=2 same_as_first=0 length=54",
+        "send_inject: call=3 same_as_first=0 length=54",
+        "send_inject: call=4 same_as_first=0 length=54",
+        "send_inject: summary selected_calls=256 injected_failures=256 forwarded_successes=0"
+      ],
+      "open8080": false,
+      "sides": {
+        "source": {
+          "SYN": 0,
+          "unique_SYN_ports": 0,
+          "each_port_once": false,
+          "SYN_span_seconds": null,
+          "TCP_flags": {},
+          "first_two_full_SYN_frames": [],
+          "expected_exact_port_set": false,
+          "capture_stats": "captured=10 kernel_packets=10 kernel_drops=0"
+        },
+        "target": {
+          "SYN": 0,
+          "unique_SYN_ports": 0,
+          "each_port_once": false,
+          "SYN_span_seconds": null,
+          "TCP_flags": {},
+          "first_two_full_SYN_frames": [],
+          "expected_exact_port_set": false,
+          "capture_stats": "captured=10 kernel_packets=10 kernel_drops=0"
+        }
+      },
+      "false_success_reproduced": true,
+      "injection_source_version": "attempt4/inject-send.c v1; persistent mode semantics unchanged;256ENOBUFS, no actual SYN forwarded"
+    },
+    "persistent-fixed": {
+      "exit": 1,
+      "timing": "Command exited with non-zero status 1\nelapsed=0.31 user=0.05 sys=0.10 exit=1",
+      "send_logs": [
+        "send_inject: call=1 same_as_first=1 length=54",
+        "scan_send: retry failed_calls=1 retries=1 attempt=1 errno=105 pcaperr=send: No buffer space available",
+        "send_inject: call=2 same_as_first=1 length=54",
+        "scan_send: retry failed_calls=2 retries=2 attempt=2 errno=105 pcaperr=send: No buffer space available",
+        "send_inject: call=3 same_as_first=1 length=54",
+        "scan_send: retry failed_calls=3 retries=3 attempt=3 errno=105 pcaperr=send: No buffer space available",
+        "send_inject: call=4 same_as_first=1 length=54",
+        "scan_send: retry failed_calls=4 retries=4 attempt=4 errno=105 pcaperr=send: No buffer space available",
+        "send_inject: call=5 same_as_first=1 length=54",
+        "scan_send: retry failed_calls=5 retries=5 attempt=5 errno=105 pcaperr=send: No buffer space available",
+        "send_inject: call=6 same_as_first=1 length=54",
+        "scan_send: retry failed_calls=6 retries=6 attempt=6 errno=105 pcaperr=send: No buffer space available",
+        "send_inject: call=7 same_as_first=1 length=54",
+        "scan_send: retry failed_calls=7 retries=7 attempt=7 errno=105 pcaperr=send: No buffer space available",
+        "send_inject: call=8 same_as_first=1 length=54",
+        "scan_send: fatal failed_calls=8 retries=7 attempts=8 errno=105 pcaperr=send: No buffer space available",
+        "send_inject: summary selected_calls=8 injected_failures=8 forwarded_successes=0 transient_block_ms=40"
+      ],
+      "open8080": false,
+      "sides": {
+        "source": {
+          "SYN": 0,
+          "unique_SYN_ports": 0,
+          "each_port_once": false,
+          "SYN_span_seconds": null,
+          "TCP_flags": {},
+          "first_two_full_SYN_frames": [],
+          "expected_exact_port_set": false,
+          "capture_stats": "captured=6 kernel_packets=6 kernel_drops=0"
+        },
+        "target": {
+          "SYN": 0,
+          "unique_SYN_ports": 0,
+          "each_port_once": false,
+          "SYN_span_seconds": null,
+          "TCP_flags": {},
+          "first_two_full_SYN_frames": [],
+          "expected_exact_port_set": false,
+          "capture_stats": "captured=6 kernel_packets=6 kernel_drops=0"
+        }
+      }
+    },
+    "transient-fixed": {
+      "exit": 0,
+      "timing": "elapsed=1.97 user=0.08 sys=0.08 exit=0",
+      "send_logs": [
+        "send_inject: call=1 same_as_first=1 length=54",
+        "scan_send: retry failed_calls=1 retries=1 attempt=1 errno=11 pcaperr=send: Resource temporarily unavailable",
+        "send_inject: call=2 same_as_first=1 length=54",
+        "scan_send: retry failed_calls=2 retries=2 attempt=2 errno=11 pcaperr=send: Resource temporarily unavailable",
+        "send_inject: call=3 same_as_first=1 length=54",
+        "scan_send: retry failed_calls=3 retries=3 attempt=3 errno=11 pcaperr=send: Resource temporarily unavailable",
+        "send_inject: call=4 same_as_first=1 length=54",
+        "scan_send: retry failed_calls=4 retries=4 attempt=4 errno=11 pcaperr=send: Resource temporarily unavailable",
+        "send_inject: call=5 same_as_first=1 length=54",
+        "scan_send: retry failed_calls=5 retries=5 attempt=5 errno=11 pcaperr=send: Resource temporarily unavailable",
+        "send_inject: call=6 same_as_first=1 length=54",
+        "scan_send: retry failed_calls=6 retries=6 attempt=6 errno=11 pcaperr=send: Resource temporarily unavailable",
+        "send_inject: call=7 same_as_first=1 length=54",
+        "scan_send: recovered attempts=7",
+        "send_inject: call=8 same_as_first=0 length=54",
+        "scan_send: stats failed_calls=6 retries=6 phase=rx_shutdown",
+        "send_inject: summary selected_calls=262 injected_failures=6 forwarded_successes=256 transient_block_ms=40"
+      ],
+      "open8080": true,
+      "sides": {
+        "source": {
+          "SYN": 256,
+          "unique_SYN_ports": 256,
+          "each_port_once": true,
+          "SYN_span_seconds": 0.008050918579101562,
+          "TCP_flags": {
+            "198.18.0.3->198.18.0.2 0x2": 256,
+            "198.18.0.2->198.18.0.3 0x14": 255,
+            "198.18.0.2->198.18.0.3 0x12": 1,
+            "198.18.0.3->198.18.0.2 0x4": 1
+          },
+          "first_two_full_SYN_frames": [
+            {
+              "timestamp": 1792292757.922539,
+              "destination_port": 8063,
+              "complete_frame_hex": "02 00 00 00 00 12 02 00 00 00 00 11 08 00 45 00 00 28 e0 b1 00 00 ff 06 4e f4 c6 12 00 03 c6 12 00 02 ce 15 1f 7f b2 1e ff cc 00 00 00 00 50 02 04 00 80 38 00 00",
+              "captured_length": 54,
+              "original_length": 54
+            },
+            {
+              "timestamp": 1792292757.923056,
+              "destination_port": 8007,
+              "complete_frame_hex": "02 00 00 00 00 12 02 00 00 00 00 11 08 00 45 00 00 28 dc 10 00 00 ff 06 53 95 c6 12 00 03 c6 12 00 02 ce 15 1f 47 1e 0c c3 55 00 00 00 00 50 02 04 00 50 fa 00 00",
+              "captured_length": 54,
+              "original_length": 54
+            }
+          ],
+          "expected_exact_port_set": true,
+          "capture_stats": "captured=530 kernel_packets=530 kernel_drops=0"
+        },
+        "target": {
+          "SYN": 256,
+          "unique_SYN_ports": 256,
+          "each_port_once": true,
+          "SYN_span_seconds": 0.007999897003173828,
+          "TCP_flags": {
+            "198.18.0.3->198.18.0.2 0x2": 256,
+            "198.18.0.2->198.18.0.3 0x14": 255,
+            "198.18.0.2->198.18.0.3 0x12": 1,
+            "198.18.0.3->198.18.0.2 0x4": 1
+          },
+          "first_two_full_SYN_frames": [
+            {
+              "timestamp": 1792292757.92257,
+              "destination_port": 8063,
+              "complete_frame_hex": "02 00 00 00 00 12 02 00 00 00 00 11 08 00 45 00 00 28 e0 b1 00 00 ff 06 4e f4 c6 12 00 03 c6 12 00 02 ce 15 1f 7f b2 1e ff cc 00 00 00 00 50 02 04 00 80 38 00 00",
+              "captured_length": 54,
+              "original_length": 54
+            },
+            {
+              "timestamp": 1792292757.923054,
+              "destination_port": 8007,
+              "complete_frame_hex": "02 00 00 00 00 12 02 00 00 00 00 11 08 00 45 00 00 28 dc 10 00 00 ff 06 53 95 c6 12 00 03 c6 12 00 02 ce 15 1f 47 1e 0c c3 55 00 00 00 00 50 02 04 00 50 fa 00 00",
+              "captured_length": 54,
+              "original_length": 54
+            }
+          ],
+          "expected_exact_port_set": true,
+          "capture_stats": "captured=530 kernel_packets=530 kernel_drops=0"
+        }
+      },
+      "continuous_EAGAIN_ms": 40,
+      "same_packet_recovered_after_failed_calls": 6
+    },
+    "normal-cold": {
+      "exit": 0,
+      "timing": "elapsed=9.20 user=0.34 sys=1.59 exit=0",
+      "send_logs": [
+        "scan_send: stats failed_calls=0 retries=0 phase=rx_shutdown"
+      ],
+      "open8080": true,
+      "sides": {
+        "source": {
+          "SYN": 65535,
+          "unique_SYN_ports": 65535,
+          "each_port_once": true,
+          "SYN_span_seconds": 6.502715110778809,
+          "TCP_flags": {
+            "198.18.0.3->198.18.0.2 0x2": 65535,
+            "198.18.0.2->198.18.0.3 0x14": 65534,
+            "198.18.0.2->198.18.0.3 0x12": 1,
+            "198.18.0.3->198.18.0.2 0x4": 1
+          },
+          "first_two_full_SYN_frames": [
+            {
+              "timestamp": 1792292762.496223,
+              "destination_port": 40025,
+              "complete_frame_hex": "02 00 00 00 00 12 02 00 00 00 00 11 08 00 45 00 00 28 8b 78 00 00 ff 06 a4 2d c6 12 00 03 c6 12 00 02 ce 1a 9c 59 77 19 17 23 00 00 00 00 50 02 04 00 27 08 00 00",
+              "captured_length": 54,
+              "original_length": 54
+            },
+            {
+              "timestamp": 1792292762.496266,
+              "destination_port": 34568,
+              "complete_frame_hex": "02 00 00 00 00 12 02 00 00 00 00 11 08 00 45 00 00 28 b9 ae 00 00 ff 06 75 f7 c6 12 00 03 c6 12 00 02 ce 1a 87 08 5e 85 3e a4 00 00 00 00 50 02 04 00 2d 6c 00 00",
+              "captured_length": 54,
+              "original_length": 54
+            }
+          ],
+          "expected_exact_port_set": true,
+          "capture_stats": "captured=131105 kernel_packets=131105 kernel_drops=0"
+        },
+        "target": {
+          "SYN": 65535,
+          "unique_SYN_ports": 65535,
+          "each_port_once": true,
+          "SYN_span_seconds": 6.5025129318237305,
+          "TCP_flags": {
+            "198.18.0.3->198.18.0.2 0x2": 65535,
+            "198.18.0.2->198.18.0.3 0x14": 65534,
+            "198.18.0.2->198.18.0.3 0x12": 1,
+            "198.18.0.3->198.18.0.2 0x4": 1
+          },
+          "first_two_full_SYN_frames": [
+            {
+              "timestamp": 1792292762.496362,
+              "destination_port": 40025,
+              "complete_frame_hex": "02 00 00 00 00 12 02 00 00 00 00 11 08 00 45 00 00 28 8b 78 00 00 ff 06 a4 2d c6 12 00 03 c6 12 00 02 ce 1a 9c 59 77 19 17 23 00 00 00 00 50 02 04 00 27 08 00 00",
+              "captured_length": 54,
+              "original_length": 54
+            },
+            {
+              "timestamp": 1792292762.496366,
+              "destination_port": 34568,
+              "complete_frame_hex": "02 00 00 00 00 12 02 00 00 00 00 11 08 00 45 00 00 28 b9 ae 00 00 ff 06 75 f7 c6 12 00 03 c6 12 00 02 ce 1a 87 08 5e 85 3e a4 00 00 00 00 50 02 04 00 2d 6c 00 00",
+              "captured_length": 54,
+              "original_length": 54
+            }
+          ],
+          "expected_exact_port_set": true,
+          "capture_stats": "captured=131105 kernel_packets=131105 kernel_drops=0"
+        }
+      },
+      "configured_PPS": 10000,
+      "cold_definition": "fresh namespace/underlay veth/VXLAN per case; no ping or warmup scan; not a100IP/5Worker cloud model"
+    }
+  }
+}

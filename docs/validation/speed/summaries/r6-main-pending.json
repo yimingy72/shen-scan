@@ -1,0 +1,12 @@
+{
+  "run_id": "b76f662c-4f70-402b-8602-7f6192a57b6e",
+  "status": "archived pending marker superseded: main completed and accepted",
+  "accepted": true,
+  "replaced_by": [
+    "r6-main.json",
+    "r6-main-quality.json",
+    "r6-root-acceptance.json",
+    "r6-cleanup.json"
+  ],
+  "note": "Earlier report said running based on then-current root notice; no history rewritten."
+}

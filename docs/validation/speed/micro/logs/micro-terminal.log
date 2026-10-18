@@ -1,0 +1,76 @@
++ out=/shen/work/speed-regression-analysis
++ cc -O2 -Wall -Wextra /shen/work/speed-regression-analysis/micro-fixture.c -o /shen/work/speed-regression-analysis/micro-fixture
+/shen/work/speed-regression-analysis/micro-fixture.c: In function 'main':
+/shen/work/speed-regression-analysis/micro-fixture.c:42:9: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+   42 |         if(fwrite(r,sizeof(r),1,f)!=1 || fwrite(b,n,1,f)!=1)fail("write");packets++;
+      |         ^~
+/shen/work/speed-regression-analysis/micro-fixture.c:42:75: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+   42 |         if(fwrite(r,sizeof(r),1,f)!=1 || fwrite(b,n,1,f)!=1)fail("write");packets++;
+      |                                                                           ^~~~~~~
+/shen/work/speed-regression-analysis/micro-fixture.c:46:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+   46 |     if(fclose(f))fail("close");close(fd);
+      |     ^~
+/shen/work/speed-regression-analysis/micro-fixture.c:46:32: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+   46 |     if(fclose(f))fail("close");close(fd);
+      |                                ^~~~~
++ ip netns add speedtarget
++ ip link add speedsrc type veth peer name eth0 netns speedtarget
++ trap ip netns del speedtarget 2>/dev/null || true; ip link del speedsrc 2>/dev/null || true EXIT INT TERM
++ ip link set speedsrc addrgenmode none address 02:00:00:00:00:11
++ ip -n speedtarget link set eth0 addrgenmode none address 02:00:00:00:00:12
++ ip addr add 198.18.0.1/24 dev speedsrc
++ ip -n speedtarget addr add 198.18.0.2/24 dev eth0
++ ip link set speedsrc up
++ ip -n speedtarget link set eth0 up
++ ip -n speedtarget link set lo up
++ server=21
++ ip netns exec speedtarget /shen/work/speed-regression-analysis/micro-fixture serve
++ [ default = silent ]
++ capture=22
++ sleep 1
++ ip netns exec speedtarget /shen/work/speed-regression-analysis/micro-fixture capture eth0 /shen/work/speed-regression-analysis/default.pcap
++ extra=
++ [ default = noreset ]
++ /usr/bin/time -f elapsed=%e user=%U sys=%S exit=%x -o /shen/work/speed-regression-analysis/default.time timeout -k 1 20 /shen/outputs/scan-platform/bin/masscan/masscan --adapter speedsrc --adapter-ip 198.18.0.3 --adapter-mac 02:00:00:00:00:11 --router-mac 02:00:00:00:00:12 --rate 5000 --wait 2 --seed 42 -p1-12000 -oL /shen/work/speed-regression-analysis/default.list 198.18.0.2
++ kill 22
++ wait 22
++ cat /shen/work/speed-regression-analysis/default.time /shen/work/speed-regression-analysis/default-capture.log /shen/work/speed-regression-analysis/default.list
+elapsed=8.95 user=0.29 sys=0.59 exit=0
+captured=36020 kernel_packets=36020 kernel_drops=0
+#masscan
+open tcp 8080 198.18.0.2 1792285373
+# end
++ [ noreset = silent ]
++ capture=30
++ sleep 1
++ ip netns exec speedtarget /shen/work/speed-regression-analysis/micro-fixture capture eth0 /shen/work/speed-regression-analysis/noreset.pcap
++ extra=
++ [ noreset = noreset ]
++ extra=--noreset
++ /usr/bin/time -f elapsed=%e user=%U sys=%S exit=%x -o /shen/work/speed-regression-analysis/noreset.time timeout -k 1 20 /shen/outputs/scan-platform/bin/masscan/masscan --adapter speedsrc --adapter-ip 198.18.0.3 --adapter-mac 02:00:00:00:00:11 --router-mac 02:00:00:00:00:12 --rate 5000 --wait 2 --seed 42 -p1-12000 -oL /shen/work/speed-regression-analysis/noreset.list --noreset 198.18.0.2
++ kill 30
++ wait 30
++ cat /shen/work/speed-regression-analysis/noreset.time /shen/work/speed-regression-analysis/noreset-capture.log /shen/work/speed-regression-analysis/noreset.list
+elapsed=6.02 user=0.15 sys=0.42 exit=0
+captured=24012 kernel_packets=24012 kernel_drops=0
+#masscan
+open tcp 8080 198.18.0.2 1792285383
+# end
++ [ silent = silent ]
++ ip -n speedtarget addr del 198.18.0.2/24 dev eth0
++ capture=39
++ sleep 1
++ ip netns exec speedtarget /shen/work/speed-regression-analysis/micro-fixture capture eth0 /shen/work/speed-regression-analysis/silent.pcap
++ extra=
++ [ silent = noreset ]
++ /usr/bin/time -f elapsed=%e user=%U sys=%S exit=%x -o /shen/work/speed-regression-analysis/silent.time timeout -k 1 20 /shen/outputs/scan-platform/bin/masscan/masscan --adapter speedsrc --adapter-ip 198.18.0.3 --adapter-mac 02:00:00:00:00:11 --router-mac 02:00:00:00:00:12 --rate 5000 --wait 2 --seed 42 -p1-12000 -oL /shen/work/speed-regression-analysis/silent.list 198.18.0.2
++ kill 39
++ wait 39
++ cat /shen/work/speed-regression-analysis/silent.time /shen/work/speed-regression-analysis/silent-capture.log /shen/work/speed-regression-analysis/silent.list
+elapsed=5.95 user=0.11 sys=0.20 exit=0
+captured=12001 kernel_packets=12001 kernel_drops=0
++ kill 21
++ wait 21
++ ip netns del speedtarget
++ ip link del speedsrc
++ true

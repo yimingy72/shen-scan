@@ -1,0 +1,165 @@
+{
+  "passed": true,
+  "scope": "ActualLinuxamd64Ubuntu22.04,realhistorical/currentfrozenControl+Agent,oneownedVXLAN/netnsIP+HTTP80/8088/TLS9443,fullTCP1-65535both;localfunctionalcompatibilityonly,notcloudperformancebenchmark",
+  "variants": {
+    "baseline": {
+      "checks": {
+        "completed": true,
+        "3ports3HTTP": true,
+        "zero_failed": true,
+        "allTCPports_actualSYN": true,
+        "wire_observer_no_drop": true,
+        "no_poc_tasktypes": true,
+        "raw_DB_and_both_nodes_complete": true
+      },
+      "passed": true,
+      "run_id": "be5df6bf-697d-46a3-a655-96153d6055ea",
+      "actual_SYN_packets": 65535,
+      "actual_unique_tcp_ports": 65535,
+      "packet_capture": {
+        "socket_packets": 196618,
+        "socket_drops": 0
+      },
+      "TCP_flag_totals": {
+        "tx_tcp_selected": 131076,
+        "tx_ip_bytes": 5243160,
+        "tx_syn": 65541,
+        "tx_masscan_syn": 65535,
+        "rst_targets_tx_masscan_syn": 65535,
+        "rx_tcp_selected": 65542,
+        "rx_ip_bytes": 2621812,
+        "rx_rst": 65533,
+        "rx_masscan_rst": 65532,
+        "rst_targets_rx_masscan_rst": 65532,
+        "tx_rst": 65535,
+        "tx_masscan_rst": 65535,
+        "rst_targets_tx_masscan_rst": 65535,
+        "rx_synack": 9,
+        "rx_masscan_synack": 3,
+        "rst_targets_rx_masscan_synack": 3
+      },
+      "old_missing_columns_supported": {
+        "manifest_absent": true,
+        "first_started_at_absent": true
+      },
+      "rules_snapshot_preserved_where_present": false,
+      "API_capture": {
+        "run_id": "be5df6bf-697d-46a3-a655-96153d6055ea",
+        "at": "2026-10-18T01:35:28.038169+00:00",
+        "saved": [
+          "final-run.json",
+          "final-results.json",
+          "final-http-page.json"
+        ],
+        "errors": [],
+        "optional_errors": [
+          {
+            "file": "scheduler-policy.json",
+            "error": "RuntimeError: GET /api/scheduler/status: HTTP 404; see packet file"
+          }
+        ],
+        "complete": true,
+        "results_count": 1,
+        "http_count_all_statuses": 3
+      },
+      "full_fixture_HTTP": "evidence/baseline/snapshot-smoke/shen-speed-compat-target.tar.gz:fixture-http.jsonl"
+    },
+    "candidate": {
+      "checks": {
+        "completed": true,
+        "3ports3HTTP": true,
+        "zero_failed": true,
+        "allTCPports_actualSYN": true,
+        "wire_observer_no_drop": true,
+        "no_poc_tasktypes": true,
+        "raw_DB_and_both_nodes_complete": true,
+        "current_manifest_exact": true,
+        "current_poc_explicitlyfalse": true
+      },
+      "passed": true,
+      "run_id": "5b87de9f-e920-4e67-a241-df169796e23d",
+      "actual_SYN_packets": 65535,
+      "actual_unique_tcp_ports": 65535,
+      "packet_capture": {
+        "socket_packets": 196676,
+        "socket_drops": 0
+      },
+      "TCP_flag_totals": {
+        "tx_tcp_selected": 131102,
+        "tx_ip_bytes": 5244720,
+        "tx_syn": 65567,
+        "tx_masscan_syn": 65535,
+        "rst_targets_tx_masscan_syn": 65535,
+        "rx_tcp_selected": 65574,
+        "rx_ip_bytes": 2623612,
+        "rx_rst": 65539,
+        "rx_masscan_rst": 65532,
+        "rst_targets_rx_masscan_rst": 65532,
+        "tx_rst": 65535,
+        "tx_masscan_rst": 65535,
+        "rst_targets_tx_masscan_rst": 65535,
+        "rx_synack": 35,
+        "rx_masscan_synack": 3,
+        "rst_targets_rx_masscan_synack": 3
+      },
+      "old_missing_columns_supported": {
+        "manifest_absent": false,
+        "first_started_at_absent": false
+      },
+      "rules_snapshot_preserved_where_present": true,
+      "API_capture": {
+        "run_id": "5b87de9f-e920-4e67-a241-df169796e23d",
+        "at": "2026-10-18T01:36:26.360668+00:00",
+        "saved": [
+          "final-run.json",
+          "final-results.json",
+          "final-http-page.json",
+          "scheduler-policy.json"
+        ],
+        "errors": [],
+        "optional_errors": [],
+        "complete": true,
+        "results_count": 1,
+        "http_count_all_statuses": 3
+      },
+      "full_fixture_HTTP": "evidence/candidate/snapshot-smoke/shen-speed-compat-target.tar.gz:fixture-http.jsonl"
+    }
+  },
+  "identical_create_input": {
+    "name": "speed-r2-smoke",
+    "targets": [
+      "172.28.1.1"
+    ],
+    "modes": [
+      "port",
+      "http"
+    ]
+  },
+  "poc_semantics": "poc_enabledomittedinboth;oldhasnoPoCmodule,currentdefaultsfalseand0checkedconfirmed",
+  "actual_core_transport": "Samebyte-identicalapi_check/evidence_api/capture_case/collect/finalize;onlycloud_ops/orchestrateexecutiontransportadaptedtoownedDocker,realSQLrunsviapsqltoisolatedPGdatabases. DockerstdioexplicitlymarkednotSystemdjournal.",
+  "tested_core_sha256": {
+    "api_check.py": "f7d014d543b21f7c798bc028bfced3954a08fe4f7061d91c6cf6c724c39c3b20",
+    "evidence_api.py": "ed21674426f6eff4d75ae4b68ee18642c69b6a61425b82fca406919b69c37f9f",
+    "capture_case.py": "4af6dcbc553fea36820ef8bda6a63698c9360bc72bedbaca3df8f769ec8e4c9f",
+    "collect.py": "4ae748cc906963909eb71cee9536448c30daad15e356c50457a2fee40726369e",
+    "finalize_case.py": "88a0cb32abb153a898b93792005b48eb9f058d718e015d2657846aa02a9b6b36",
+    "fixture-network.sh": "5f77f2b4ee1218a2ef823552b9af7a098158f4a3475035040309f99ef30e5079",
+    "fixture.py": "a49fb44305a7f97e1c0d1695fd2edceda51fef15fffbac38249e823546bd137c",
+    "metrics.py": "eb2b1b0156d19100819727ad8fb02f8126c709ce0417138f792144cd20039444",
+    "packet_counter.py": "aa37360ad4f0145d7ab0dc6be98ac2bf40cd0262f56c95294ae66f54bd248458",
+    "tool_audit.py": "da568c4f6b32057edccd069ec29a83133172207b0aa15494bf4a03625357ddee"
+  },
+  "cleanup": {
+    "containers_deleted": [
+      "shen-speed-compat-target",
+      "shen-speed-compat-worker"
+    ],
+    "isolated_databases_deleted": [
+      "speed_local_legacy_complete",
+      "speed_local_current_complete"
+    ],
+    "paid_cloud_resources": 0
+  },
+  "R1_R2_cloud_failures": "Preservedunder../speed-regression-r1and../speed-regression-r2;notcountedasscanningresults. R1remoteAPI/journalgapexplicitlyretained.",
+  "scope_note": "Local functional compatibility only. Not a cloud speed result or 1000IP capacity measurement."
+}

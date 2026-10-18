@@ -1,0 +1,208 @@
+PINNED main.c:285-310
+ 285 
+ 286         /*
+ 287          * Do a batch of many packets at a time. That because per-packet
+ 288          * throttling is expensive at 10-million pps, so we reduce the
+ 289          * per-packet cost by doing batches. At slower rates, the batch
+ 290          * size will always be one. (--max-rate)
+ 291          */
+ 292         batch_size = throttler_next_batch(throttler, packets_sent);
+ 293 
+ 294         /*
+ 295          * Transmit packets from other thread, when doing --banners. This
+ 296          * takes priority over sending SYN packets. If there is so much
+ 297          * activity grabbing banners that we cannot transmit more SYN packets,
+ 298          * then "batch_size" will get decremented to zero, and we won't be
+ 299          * able to transmit SYN packets.
+ 300          */
+ 301         stack_flush_packets(parms->stack, adapter,
+ 302                         &packets_sent, &batch_size);
+ 303 
+ 304 
+ 305         /*
+ 306          * Transmit a bunch of packets. At any rate slower than 100,000
+ 307          * packets/second, the 'batch_size' is likely to be 1. At higher
+ 308          * rates, we can't afford to throttle on a per-packet basis and 
+ 309          * instead throttle on a per-batch basis. In other words, throttle
+ 310          * based on 2-at-a-time, 3-at-time, and so on, with the batch
+
+PINNED main.c:1008-1067
+1008             ; //printf("\nerr\n");
+1009    
+1010         if (TCP_IS_SYNACK(px, parsed.transport_offset)
+1011             || TCP_IS_RST(px, parsed.transport_offset)) {
+1012 
+1013             /* figure out the status */
+1014             status = PortStatus_Unknown;
+1015             if (TCP_IS_SYNACK(px, parsed.transport_offset))
+1016                 status = PortStatus_Open;
+1017             if (TCP_IS_RST(px, parsed.transport_offset)) {
+1018                 status = PortStatus_Closed;
+1019             }
+1020 
+1021             /* verify: syn-cookies */
+1022             if (cookie != seqno_me - 1) {
+1023                 ipaddress_formatted_t fmt = ipaddress_fmt(ip_them);
+1024                 LOG(5, "%s - bad cookie: ackno=0x%08x expected=0x%08x\n",
+1025                     fmt.string, seqno_me-1, cookie);
+1026                 continue;
+1027             }
+1028 
+1029             /* verify: ignore duplicates */
+1030             if (dedup_is_duplicate(dedup, ip_them, port_them, ip_me, port_me))
+1031                 continue;
+1032 
+1033             /* keep statistics on number received */
+1034             if (TCP_IS_SYNACK(px, parsed.transport_offset))
+1035                 (*status_synack_count)++;
+1036 
+1037             /*
+1038              * This is where we do the output
+1039              */
+1040             output_report_status(
+1041                         out,
+1042                         global_now,
+1043                         status,
+1044                         ip_them,
+1045                         6, /* ip proto = tcp */
+1046                         port_them,
+1047                         px[parsed.transport_offset + 13], /* tcp flags */
+1048                         parsed.ip_ttl,
+1049                         parsed.mac_src
+1050                         );
+1051             
+1052 
+1053             /*
+1054              * Send RST so other side isn't left hanging (only doing this in
+1055              * complete stateless mode where we aren't tracking banners)
+1056              */
+1057             if (tcpcon == NULL && !masscan->is_noreset)
+1058                 tcp_send_RST(
+1059                     &parms->tmplset->pkts[Proto_TCP],
+1060                     parms->stack,
+1061                     ip_them, ip_me,
+1062                     port_them, port_me,
+1063                     0, seqno_me);
+1064 
+1065         }
+1066     }
+1067 
+
+PINNED proto-tcp.c:893-937
+ 893 tcp_send_RST(
+ 894     struct TemplatePacket *templ,
+ 895     struct stack_t *stack,
+ 896     ipaddress ip_them, ipaddress ip_me,
+ 897     unsigned port_them, unsigned port_me,
+ 898     unsigned seqno_them, unsigned seqno_me
+ 899 )
+ 900 {
+ 901     struct PacketBuffer *response = 0;
+ 902     
+ 903 
+ 904     /* Get a buffer for sending the response packet. This thread doesn't
+ 905      * send the packet itself. Instead, it formats a packet, then hands
+ 906      * that packet off to a transmit thread for later transmission. */
+ 907     response = stack_get_packetbuffer(stack);
+ 908     if (response == NULL) {
+ 909         static int is_warning_printed = 0;
+ 910         if (!is_warning_printed) {
+ 911             LOG(0, "packet buffers empty (should be impossible)\n");
+ 912             is_warning_printed = 1;
+ 913         }
+ 914         fflush(stdout);
+ 915         pixie_usleep(100); /* no packet available */
+ 916     }
+ 917     if (response == NULL)
+ 918         return;
+ 919 
+ 920     response->length = tcp_create_packet(
+ 921         templ,
+ 922         ip_them, port_them,
+ 923         ip_me, port_me,
+ 924         seqno_me, seqno_them,
+ 925         0x04, /*RST*/
+ 926         0, 0,
+ 927         response->px, sizeof(response->px)
+ 928         );
+ 929 
+ 930 
+ 931     /* Put this buffer on the transmit queue. Remember: transmits happen
+ 932      * from a transmit-thread only, and this function is being called
+ 933      * from a receive-thread. Therefore, instead of transmiting ourselves,
+ 934      * we hae to queue it up for later transmission. */
+ 935     stack_transmit_packetbuffer(stack, response);
+ 936 }
+ 937 
+
+PINNED stack-queue.c:47-94
+  47 stack_flush_packets(
+  48     struct stack_t *stack,
+  49     struct Adapter *adapter,
+  50     uint64_t *packets_sent,
+  51     uint64_t *batchsize)
+  52 {
+  53     /*
+  54      * Send a batch of queued packets
+  55      */
+  56     for ( ; (*batchsize); (*batchsize)--) {
+  57         int err;
+  58         struct PacketBuffer *p;
+  59 
+  60         /*
+  61          * Get the next packet from the transmit queue. This packet was
+  62          * put there by a receive thread, and will contain things like
+  63          * an ACK or an HTTP request
+  64          */
+  65         err = rte_ring_sc_dequeue(stack->transmit_queue, (void**)&p);
+  66         if (err) {
+  67             break; /* queue is empty, nothing to send */
+  68         }
+  69 
+  70 
+  71         /*
+  72          * Actually send the packet
+  73          */
+  74         rawsock_send_packet(adapter, p->px, (unsigned)p->length, 1);
+  75 
+  76         /*
+  77          * Now that we are done with the packet, put it on the free list
+  78          * of buffers that the transmit thread can reuse
+  79          */
+  80         for (err=1; err; ) {
+  81             err = rte_ring_sp_enqueue(stack->packet_buffers, p);
+  82             if (err) {
+  83                 fprintf(stderr, "[-] transmit queue full (should be impossible)\n");
+  84                 pixie_usleep(10000);
+  85             }
+  86         }
+  87 
+  88 
+  89         /*
+  90          * Remember that we sent a packet, which will be used in
+  91          * throttling.
+  92          */
+  93         (*packets_sent)++;
+  94     }
+
+PINNED main-conf.c:1138-1148
+1138 static int SET_noreset(struct Masscan *masscan, const char *name, const char *value)
+1139 {
+1140     UNUSEDPARM(name);
+1141     if (masscan->echo) {
+1142         if (masscan->is_noreset || masscan->echo_all)
+1143             fprintf(masscan->echo, "noreset = %s\n", masscan->is_noreset?"true":"false");
+1144         return 0;
+1145     }
+1146     masscan->is_noreset = parseBoolean(value);
+1147     return CONF_OK;
+1148 }
+
+PINNED proto-tcp.h:13-19
+  13 #define TCP_SEQNO(px,i) (px[i+4]<<24|px[i+5]<<16|px[i+6]<<8|px[i+7])
+  14 #define TCP_ACKNO(px,i) (px[i+8]<<24|px[i+9]<<16|px[i+10]<<8|px[i+11])
+  15 #define TCP_FLAGS(px,i) (px[(i)+13])
+  16 #define TCP_IS_SYNACK(px,i) ((TCP_FLAGS(px,i) & 0x12) == 0x12)
+  17 #define TCP_IS_ACK(px,i) ((TCP_FLAGS(px,i) & 0x10) == 0x10)
+  18 #define TCP_IS_RST(px,i) ((TCP_FLAGS(px,i) & 0x4) == 0x4)
+  19 #define TCP_IS_FIN(px,i) ((TCP_FLAGS(px,i) & 0x1) == 0x1)

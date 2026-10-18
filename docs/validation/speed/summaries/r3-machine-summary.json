@@ -1,0 +1,751 @@
+{
+  "measurement_passed": true,
+  "same_cohort": "5identical2CPU2GiBworkers+1self-built2CPU4GiBfixture/control,100sameIPs,TCP1-65535,rate5000,wait15,bothICMP1pps/source40000instrumentation",
+  "elapsed_change_percent": 0.09922296752327142,
+  "first_result_change_percent": -90.6077120497571,
+  "cleanup": {
+    "at": "2026-10-18T02:04:07.089470+00:00",
+    "remaining": [],
+    "delete_errors": [],
+    "security_group_deleted": true,
+    "regional_instance_count": 0
+  },
+  "original_driver_result": "nonzero ONLY offlinePython3.9fractionparser;originalfailure/log/frozenanalyzerretained;analyze_pair_offline.py repairedaftercleanup",
+  "old_date_or_manifest_fields": "Oldfirst_started_at/manifestabsentremainunknown;actualclaimrowsandwirebitmapsused,neverfabricated",
+  "limitations": "One pairedsyntheticrun,noconfidenceinterval;oldnativeGo vsnewNmap/fingers workdiffers;no extrapolationto1000publichosts.",
+  "variants": {
+    "baseline": {
+      "run_id": "c8a45707-6ed2-4136-a2f4-50695eceaf27",
+      "completed": true,
+      "monitor_elapsed_seconds": 501.526313334,
+      "control_created_to_completed_seconds": 500.2294898033142,
+      "first_result_poll_seconds": 68.788665959,
+      "quality": {
+        "run_completed": true,
+        "no_failed_tasks": true,
+        "all_targets_present": true,
+        "http_pages_complete": true,
+        "exact_target_ip_set": true,
+        "expected_port_set_each_ip": true,
+        "all_three_http_tls_endpoints_each_ip": true,
+        "no_http_errors": true
+      },
+      "task_total": 225,
+      "stages": {
+        "port": {
+          "tasks": 25,
+          "attempts": {
+            "1": 25
+          },
+          "created_to_claim_seconds": {
+            "count": 25,
+            "sum": 5395.446558713913,
+            "p50": 240.15513491630554,
+            "p95": 401.98383688926697,
+            "max": 429.6529757976532
+          },
+          "claim_to_complete_seconds": {
+            "count": 25,
+            "sum": 2355.4767560958862,
+            "p50": 94.25766587257385,
+            "p95": 120.75362086296082,
+            "max": 120.81497597694397
+          },
+          "db_first_started_to_completed_seconds": {
+            "count": 0,
+            "sum": null,
+            "p50": null,
+            "p95": null,
+            "max": null
+          },
+          "semantics": "claim-to-complete includes queue/reservation/transport, not pureCPU/execution; absent oldfirst_started staysunknown"
+        },
+        "service": {
+          "tasks": 100,
+          "attempts": {
+            "1": 100
+          },
+          "created_to_claim_seconds": {
+            "count": 100,
+            "sum": 7.928023338317871,
+            "p50": 0.05845201015472412,
+            "p95": 0.2798728942871094,
+            "max": 0.386199951171875
+          },
+          "claim_to_complete_seconds": {
+            "count": 100,
+            "sum": 201.56452679634094,
+            "p50": 2.013143539428711,
+            "p95": 2.026853084564209,
+            "max": 2.035876989364624
+          },
+          "db_first_started_to_completed_seconds": {
+            "count": 0,
+            "sum": null,
+            "p50": null,
+            "p95": null,
+            "max": null
+          },
+          "semantics": "claim-to-complete includes queue/reservation/transport, not pureCPU/execution; absent oldfirst_started staysunknown"
+        },
+        "http": {
+          "tasks": 100,
+          "attempts": {
+            "1": 100
+          },
+          "created_to_claim_seconds": {
+            "count": 100,
+            "sum": 19.7063946723938,
+            "p50": 0.08267450332641602,
+            "p95": 0.9504408836364746,
+            "max": 1.0391449928283691
+          },
+          "claim_to_complete_seconds": {
+            "count": 100,
+            "sum": 2.793659210205078,
+            "p50": 0.02567148208618164,
+            "p95": 0.04335808753967285,
+            "max": 0.07088112831115723
+          },
+          "db_first_started_to_completed_seconds": {
+            "count": 0,
+            "sum": null,
+            "p50": null,
+            "p95": null,
+            "max": null
+          },
+          "semantics": "claim-to-complete includes queue/reservation/transport, not pureCPU/execution; absent oldfirst_started staysunknown"
+        }
+      },
+      "actual_fullTCP_processes": 25,
+      "per_response_mode_process_timings": {
+        "RST": {
+          "actual_scan_processes": 12,
+          "wall_seconds": {
+            "count": 12,
+            "sum": 1441.77998806,
+            "p50": 120.20162732450001,
+            "p95": 120.726063485,
+            "max": 120.730237606
+          },
+          "start_to_first_send100_report_seconds": {
+            "count": 12,
+            "sum": 1246.283519499,
+            "p50": 103.664239847,
+            "p95": 104.427806409,
+            "max": 104.4356803
+          },
+          "first_send100_to_exit_seconds": {
+            "count": 12,
+            "sum": 195.49646856100003,
+            "p50": 16.296407191,
+            "p95": 16.543364558,
+            "max": 16.786508537
+          }
+        },
+        "DROP": {
+          "actual_scan_processes": 12,
+          "wall_seconds": {
+            "count": 12,
+            "sum": 817.147648166,
+            "p50": 68.331280037,
+            "p95": 68.452093103,
+            "max": 68.699908463
+          },
+          "start_to_first_send100_report_seconds": {
+            "count": 12,
+            "sum": 622.9011912730001,
+            "p50": 51.907203051500005,
+            "p95": 51.915761892,
+            "max": 51.91878011
+          },
+          "first_send100_to_exit_seconds": {
+            "count": 12,
+            "sum": 194.246456893,
+            "p50": 16.422642691500002,
+            "p95": 16.544830626,
+            "max": 16.788887574
+          }
+        },
+        "MIXED": {
+          "actual_scan_processes": 1,
+          "wall_seconds": {
+            "count": 1,
+            "sum": 94.205504925,
+            "p50": 94.205504925,
+            "p95": 94.205504925,
+            "max": 94.205504925
+          },
+          "start_to_first_send100_report_seconds": {
+            "count": 1,
+            "sum": 78.164480502,
+            "p50": 78.164480502,
+            "p95": 78.164480502,
+            "max": 78.164480502
+          },
+          "first_send100_to_exit_seconds": {
+            "count": 1,
+            "sum": 16.041024423,
+            "p50": 16.041024423,
+            "p95": 16.041024423,
+            "max": 16.041024423
+          }
+        }
+      },
+      "inter_scan_idle_seconds_all_workers": {
+        "count": 20,
+        "sum": 5.107206542999999,
+        "p50": 0.0969229635,
+        "p95": 1.218689247,
+        "max": 2.129563487
+      },
+      "wire": {
+        "observer_nodes": 5,
+        "observer_socket_drops": 0,
+        "everyIP_exact65535_distinctSYN": true,
+        "totals": {
+          "tx_tcp_selected": 9830639,
+          "tx_ip_bytes": 393237560,
+          "tx_syn": 6554100,
+          "tx_masscan_syn": 6553500,
+          "rst_targets_tx_masscan_syn": 3276750,
+          "rx_tcp_selected": 3277336,
+          "rx_ip_bytes": 131106640,
+          "rx_rst": 3276436,
+          "rx_masscan_rst": 3276239,
+          "rst_targets_rx_masscan_rst": 3276239,
+          "tx_rst": 3276539,
+          "tx_masscan_rst": 3276539,
+          "rst_targets_tx_masscan_rst": 3276389,
+          "rx_synack": 900,
+          "rx_masscan_synack": 300,
+          "rst_targets_rx_masscan_synack": 150,
+          "drop_targets_tx_masscan_syn": 3276750,
+          "drop_targets_rx_masscan_synack": 150,
+          "drop_targets_tx_masscan_rst": 150
+        }
+      },
+      "new_manifest_exact": null,
+      "active_target_quotas": null,
+      "resource_semantics": "HostCPU includes same packet observer/metrics overhead; endDBstats include startup and are not isolatedscanDBlatency.",
+      "resources_selected": [
+        {
+          "type": "worker",
+          "hostCPU_busy_percent": {
+            "count": 249,
+            "sum": 1756.2880329477491,
+            "p50": 8.080808080808081,
+            "p95": 10.864197530864198,
+            "max": 40.806045340050375
+          },
+          "hostCPU_steal_percent": {
+            "count": 249,
+            "sum": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "max": 0.0
+          },
+          "minimum_available_memory_MiB": 1062.390625,
+          "maximum_process_RSS_MiB": {
+            "python3": 14.65234375,
+            "scan-agent": 20.37109375,
+            "masscan": 101.88671875
+          }
+        },
+        {
+          "type": "worker",
+          "hostCPU_busy_percent": {
+            "count": 248,
+            "sum": 6638.854096678136,
+            "p50": 10.817764107237792,
+            "p95": 61.86868686868687,
+            "max": 93.79652605459057
+          },
+          "hostCPU_steal_percent": {
+            "count": 248,
+            "sum": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "max": 0.0
+          },
+          "minimum_available_memory_MiB": 927.27734375,
+          "maximum_process_RSS_MiB": {
+            "python3": 14.44140625,
+            "scan-agent": 18.8828125,
+            "masscan": 101.69921875,
+            "python3-urllib3": 0.9453125,
+            "python3.10": 10.73828125
+          }
+        },
+        {
+          "type": "worker",
+          "hostCPU_busy_percent": {
+            "count": 249,
+            "sum": 6921.676348651464,
+            "p50": 10.275689223057643,
+            "p95": 64.0506329113924,
+            "max": 83.25
+          },
+          "hostCPU_steal_percent": {
+            "count": 249,
+            "sum": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "max": 0.0
+          },
+          "minimum_available_memory_MiB": 899.62890625,
+          "maximum_process_RSS_MiB": {
+            "python3": 14.0703125,
+            "scan-agent": 25.41015625,
+            "masscan": 101.74609375,
+            "python3-jwt.pos": 0.96484375,
+            "python3-request": 0.96484375,
+            "python3-urllib3": 0.96484375
+          }
+        },
+        {
+          "type": "fixture/control",
+          "hostCPU_busy_percent": {
+            "count": 247,
+            "sum": 7278.565335352775,
+            "p50": 14.17910447761194,
+            "p95": 60.75,
+            "max": 62.46913580246913
+          },
+          "hostCPU_steal_percent": {
+            "count": 247,
+            "sum": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "max": 0.0
+          },
+          "minimum_available_memory_MiB": 2705.9921875,
+          "maximum_process_RSS_MiB": {
+            "postgres": 36.8984375,
+            "python3": 21.078125,
+            "scan-server": 18.33984375,
+            "python3.10": 7.25
+          }
+        },
+        {
+          "type": "worker",
+          "hostCPU_busy_percent": {
+            "count": 249,
+            "sum": 1485.4705380025787,
+            "p50": 6.733167082294265,
+            "p95": 10.37037037037037,
+            "max": 25.621890547263682
+          },
+          "hostCPU_steal_percent": {
+            "count": 249,
+            "sum": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "max": 0.0
+          },
+          "minimum_available_memory_MiB": 1212.83984375,
+          "maximum_process_RSS_MiB": {
+            "python3": 14.4296875,
+            "scan-agent": 23.51171875,
+            "masscan": 101.87890625
+          }
+        },
+        {
+          "type": "worker",
+          "hostCPU_busy_percent": {
+            "count": 248,
+            "sum": 6698.457819479615,
+            "p50": 9.925619427614404,
+            "p95": 62.849872773536894,
+            "max": 67.5
+          },
+          "hostCPU_steal_percent": {
+            "count": 248,
+            "sum": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "max": 0.0
+          },
+          "minimum_available_memory_MiB": 1028.890625,
+          "maximum_process_RSS_MiB": {
+            "python3": 14.0859375,
+            "scan-agent": 28.52734375,
+            "masscan": 101.859375,
+            "python3-jwt.pos": 0.91796875
+          }
+        }
+      ]
+    },
+    "candidate": {
+      "run_id": "6405bb46-dc3d-4870-923a-3b06871f2d78",
+      "completed": true,
+      "monitor_elapsed_seconds": 502.023942625,
+      "control_created_to_completed_seconds": 499.0733618736267,
+      "first_result_poll_seconds": 6.460829584,
+      "quality": {
+        "run_completed": true,
+        "no_failed_tasks": true,
+        "all_targets_present": true,
+        "http_pages_complete": true,
+        "exact_target_ip_set": true,
+        "expected_port_set_each_ip": true,
+        "all_three_http_tls_endpoints_each_ip": true,
+        "no_http_errors": true
+      },
+      "task_total": 604,
+      "stages": {
+        "port": {
+          "tasks": 25,
+          "attempts": {
+            "1": 25
+          },
+          "created_to_claim_seconds": {
+            "count": 25,
+            "sum": 5410.592131614685,
+            "p50": 241.09265995025635,
+            "p95": 403.1235110759735,
+            "max": 430.18303203582764
+          },
+          "claim_to_complete_seconds": {
+            "count": 25,
+            "sum": 2359.4737017154694,
+            "p50": 93.9933729171753,
+            "p95": 120.25511884689331,
+            "max": 120.7603030204773
+          },
+          "db_first_started_to_completed_seconds": {
+            "count": 25,
+            "sum": 2359.4737017154694,
+            "p50": 93.9933729171753,
+            "p95": 120.25511884689331,
+            "max": 120.7603030204773
+          },
+          "semantics": "claim-to-complete includes queue/reservation/transport, not pureCPU/execution; absent oldfirst_started staysunknown"
+        },
+        "service": {
+          "tasks": 279,
+          "attempts": {
+            "1": 279
+          },
+          "created_to_claim_seconds": {
+            "count": 279,
+            "sum": 487.0086073875427,
+            "p50": 0.7697720527648926,
+            "p95": 6.521411180496216,
+            "max": 17.640398025512695
+          },
+          "claim_to_complete_seconds": {
+            "count": 279,
+            "sum": 1800.3038189411163,
+            "p50": 6.449751853942871,
+            "p95": 6.486145973205566,
+            "max": 6.677713871002197
+          },
+          "db_first_started_to_completed_seconds": {
+            "count": 279,
+            "sum": 1800.3038189411163,
+            "p50": 6.449751853942871,
+            "p95": 6.486145973205566,
+            "max": 6.677713871002197
+          },
+          "semantics": "claim-to-complete includes queue/reservation/transport, not pureCPU/execution; absent oldfirst_started staysunknown"
+        },
+        "http": {
+          "tasks": 300,
+          "attempts": {
+            "1": 300
+          },
+          "created_to_claim_seconds": {
+            "count": 300,
+            "sum": 5.248775005340576,
+            "p50": 0.008776068687438965,
+            "p95": 0.04699516296386719,
+            "max": 0.2942168712615967
+          },
+          "claim_to_complete_seconds": {
+            "count": 300,
+            "sum": 53.837608098983765,
+            "p50": 0.13682293891906738,
+            "p95": 0.33794379234313965,
+            "max": 1.515355110168457
+          },
+          "db_first_started_to_completed_seconds": {
+            "count": 300,
+            "sum": 53.837608098983765,
+            "p50": 0.13682293891906738,
+            "p95": 0.33794379234313965,
+            "max": 1.515355110168457
+          },
+          "semantics": "claim-to-complete includes queue/reservation/transport, not pureCPU/execution; absent oldfirst_started staysunknown"
+        }
+      },
+      "actual_fullTCP_processes": 25,
+      "per_response_mode_process_timings": {
+        "RST": {
+          "actual_scan_processes": 12,
+          "wall_seconds": {
+            "count": 12,
+            "sum": 1440.9449777710001,
+            "p50": 119.9541618005,
+            "p95": 120.456813045,
+            "max": 120.707122848
+          },
+          "start_to_first_send100_report_seconds": {
+            "count": 12,
+            "sum": 1252.951833931,
+            "p50": 104.4124635995,
+            "p95": 104.41798456,
+            "max": 104.420229576
+          },
+          "first_send100_to_exit_seconds": {
+            "count": 12,
+            "sum": 187.99314384,
+            "p50": 15.539363926,
+            "p95": 16.04670042,
+            "max": 16.295359156
+          }
+        },
+        "DROP": {
+          "actual_scan_processes": 12,
+          "wall_seconds": {
+            "count": 12,
+            "sum": 823.34802497,
+            "p50": 68.9426684,
+            "p95": 68.949848364,
+            "max": 68.952899626
+          },
+          "start_to_first_send100_report_seconds": {
+            "count": 12,
+            "sum": 628.873906308,
+            "p50": 52.6546108055,
+            "p95": 52.65658266,
+            "max": 52.658182039
+          },
+          "first_send100_to_exit_seconds": {
+            "count": 12,
+            "sum": 194.47411866200002,
+            "p50": 16.286634581,
+            "p95": 16.294717587,
+            "max": 16.29515812
+          }
+        },
+        "MIXED": {
+          "actual_scan_processes": 1,
+          "wall_seconds": {
+            "count": 1,
+            "sum": 93.941048557,
+            "p50": 93.941048557,
+            "p95": 93.941048557,
+            "max": 93.941048557
+          },
+          "start_to_first_send100_report_seconds": {
+            "count": 1,
+            "sum": 78.152643285,
+            "p50": 78.152643285,
+            "p95": 78.152643285,
+            "max": 78.152643285
+          },
+          "first_send100_to_exit_seconds": {
+            "count": 1,
+            "sum": 15.788405272,
+            "p50": 15.788405272,
+            "p95": 15.788405272,
+            "max": 15.788405272
+          }
+        }
+      },
+      "inter_scan_idle_seconds_all_workers": {
+        "count": 20,
+        "sum": 1.192839415,
+        "p50": 0.056621498000000006,
+        "p95": 0.071901408,
+        "max": 0.092829468
+      },
+      "wire": {
+        "observer_nodes": 5,
+        "observer_socket_drops": 0,
+        "everyIP_exact65535_distinctSYN": true,
+        "totals": {
+          "tx_tcp_selected": 9833600,
+          "tx_ip_bytes": 393408000,
+          "tx_syn": 6556700,
+          "tx_masscan_syn": 6553500,
+          "rst_targets_tx_masscan_syn": 3276750,
+          "rx_tcp_selected": 3281196,
+          "rx_ip_bytes": 131313040,
+          "rx_rst": 3277696,
+          "rx_masscan_rst": 3276600,
+          "rst_targets_rx_masscan_rst": 3276600,
+          "tx_rst": 3276900,
+          "tx_masscan_rst": 3276900,
+          "rst_targets_tx_masscan_rst": 3276750,
+          "rx_synack": 3500,
+          "rx_masscan_synack": 300,
+          "rst_targets_rx_masscan_synack": 150,
+          "drop_targets_tx_masscan_syn": 3276750,
+          "drop_targets_rx_masscan_synack": 150,
+          "drop_targets_tx_masscan_rst": 150
+        }
+      },
+      "new_manifest_exact": true,
+      "active_target_quotas": 0,
+      "resource_semantics": "HostCPU includes same packet observer/metrics overhead; endDBstats include startup and are not isolatedscanDBlatency.",
+      "resources_selected": [
+        {
+          "type": "worker",
+          "hostCPU_busy_percent": {
+            "count": 248,
+            "sum": 2542.3472738566225,
+            "p50": 9.774436090225564,
+            "p95": 21.393034825870647,
+            "max": 38.25
+          },
+          "hostCPU_steal_percent": {
+            "count": 248,
+            "sum": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "max": 0.0
+          },
+          "minimum_available_memory_MiB": 653.5078125,
+          "maximum_process_RSS_MiB": {
+            "python3": 13.5078125,
+            "scan-agent": 39.859375,
+            "masscan": 101.75,
+            "nmap": 56.23828125,
+            "web-probe-worke": 34.45703125,
+            "fingerprint-wor": 367.1875
+          }
+        },
+        {
+          "type": "worker",
+          "hostCPU_busy_percent": {
+            "count": 248,
+            "sum": 2532.949258089493,
+            "p50": 9.547738693467336,
+            "p95": 20.759493670886076,
+            "max": 35.11450381679389
+          },
+          "hostCPU_steal_percent": {
+            "count": 248,
+            "sum": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "max": 0.0
+          },
+          "minimum_available_memory_MiB": 636.265625,
+          "maximum_process_RSS_MiB": {
+            "python3": 13.75390625,
+            "scan-agent": 38.82421875,
+            "masscan": 101.66796875,
+            "nmap": 55.38671875,
+            "web-probe-worke": 35.78125,
+            "fingerprint-wor": 360.03515625
+          }
+        },
+        {
+          "type": "worker",
+          "hostCPU_busy_percent": {
+            "count": 248,
+            "sum": 2203.6856555708364,
+            "p50": 8.575154252274029,
+            "p95": 19.79949874686717,
+            "max": 38.0352644836272
+          },
+          "hostCPU_steal_percent": {
+            "count": 248,
+            "sum": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "max": 0.0
+          },
+          "minimum_available_memory_MiB": 638.640625,
+          "maximum_process_RSS_MiB": {
+            "python3": 13.7109375,
+            "scan-agent": 32.6328125,
+            "masscan": 101.65625,
+            "nmap": 55.3515625,
+            "web-probe-worke": 34.890625,
+            "fingerprint-wor": 360.53515625
+          }
+        },
+        {
+          "type": "fixture/control",
+          "hostCPU_busy_percent": {
+            "count": 247,
+            "sum": 3378.374580353643,
+            "p50": 14.039408866995075,
+            "p95": 19.211822660098523,
+            "max": 22.48803827751196
+          },
+          "hostCPU_steal_percent": {
+            "count": 247,
+            "sum": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "max": 0.0
+          },
+          "minimum_available_memory_MiB": 2811.66796875,
+          "maximum_process_RSS_MiB": {
+            "postgres": 45.42578125,
+            "python3": 21.26171875,
+            "scan-server": 32.4765625
+          }
+        },
+        {
+          "type": "worker",
+          "hostCPU_busy_percent": {
+            "count": 248,
+            "sum": 2215.0517006002133,
+            "p50": 8.883248730964468,
+            "p95": 20.199501246882793,
+            "max": 52.61845386533666
+          },
+          "hostCPU_steal_percent": {
+            "count": 248,
+            "sum": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "max": 0.0
+          },
+          "minimum_available_memory_MiB": 778.67578125,
+          "maximum_process_RSS_MiB": {
+            "python3": 13.640625,
+            "scan-agent": 39.14453125,
+            "masscan": 101.69921875,
+            "nmap": 55.48046875,
+            "web-probe-worke": 35.35546875,
+            "fingerprint-wor": 373.03125
+          }
+        },
+        {
+          "type": "worker",
+          "hostCPU_busy_percent": {
+            "count": 248,
+            "sum": 2461.916260047332,
+            "p50": 9.30510395112819,
+            "p95": 21.5,
+            "max": 42.857142857142854
+          },
+          "hostCPU_steal_percent": {
+            "count": 248,
+            "sum": 0.0,
+            "p50": 0.0,
+            "p95": 0.0,
+            "max": 0.0
+          },
+          "minimum_available_memory_MiB": 718.796875,
+          "maximum_process_RSS_MiB": {
+            "python3": 13.71875,
+            "scan-agent": 37.73828125,
+            "masscan": 101.72265625,
+            "nmap": 55.5703125,
+            "web-probe-worke": 36.14453125,
+            "fingerprint-wor": 362.640625
+          }
+        }
+      ]
+    }
+  },
+  "selection_note": "Selected exact fields from the existing machine summary. Resource node IDs and unrelated database counters omitted; unknown values remain null. No new test."
+}

@@ -1,0 +1,8 @@
+{
+  "at": "2026-10-18T03:52:43.124496+00:00",
+  "url": "http://127.0.0.1:18084/api/scheduler/status",
+  "elapsed_seconds": 0.16048249999994368,
+  "status": 200,
+  "request": "GET /api/scheduler/status HTTP/1.1\r\nHost: 127.0.0.1:18084\r\nAccept: application/json\r\nAccept-Encoding: identity\r\nConnection: close\r\nAuthorization: ${REDACTED_CREDENTIAL}\r\n\r\n",
+  "response": "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nDate: Sun, 18 Oct 2026 03:52:43 GMT\r\nContent-Length: 978\r\nConnection: close\r\n\r\n{\"http_budget\":{\"active_connect_ips\":14,\"admission_burst\":1,\"cluster_rps\":250,\"enforcement\":\"cooperative_request_admission\",\"per_connect_ip_rps\":10,\"permit_lifetime_ms\":500,\"unexpired_permit_receipts\":0},\"port_batch\":{\"size\":8,\"samples\":32,\"seconds_per_item\":8.615145574193313,\"variable_seconds_per_item\":6.740145574193314,\"reason\":\"observed\",\"fixed_seconds\":15,\"target_seconds\":135,\"healthy_samples\":32,\"cost_profile\":\"masscan-sha256:68064d8f72edf74cd646cc92a3c41fe9676ade9eb67ecf8450be5c78b70cdb32\"},\"port_range\":\"1-65535\",\"service_batch\":{\"size\":10,\"samples\":32,\"seconds_per_item\":4.79734654103326,\"reason\":\"observed\"},\"service_pressure\":{\"available\":true,\"prefer_service\":false,\"observed_at\":\"2026-10-18T03:52:43.205593413Z\",\"sample_limit\":1024,\"candidate_tasks\":0,\"sampled_tasks\":0,\"sampled_endpoints\":0,\"truncated\":false,\"work_is_lower_bound\":false,\"oldest_wait_seconds\":0,\"cost_samples\":32,\"seconds_per_endpoint\":4.79734654103326,\"reason\":\"below_threshold\"},\"stages\":[]}\n"
+}

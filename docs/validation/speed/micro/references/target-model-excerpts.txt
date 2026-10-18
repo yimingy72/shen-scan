@@ -1,0 +1,33 @@
+Existing evidence references; all synthetic assets are 未利用. No new test performed.
+
+Old fixture: work/load-test/optimized-agent-v3/load-fixture.sh:48-65 (default SYN DROP except known open ports):
+48: }
+49: 
+50: configure_closed_port_model() {
+51: 	case "${SCAN_LOAD_FILTER_CLOSED:-true}" in
+52: 		1 | true | TRUE | yes | YES)
+53: 			ip netns exec "$namespace" iptables -w 5 -N SCAN_LOAD_SYN
+54: 			ip netns exec "$namespace" iptables -w 5 -A SCAN_LOAD_SYN -d 172.31.243.250 -j RETURN
+55: 			ip netns exec "$namespace" iptables -w 5 -A SCAN_LOAD_SYN -d 172.31.243.251 -p tcp --dport 8081 -j RETURN
+56: 			ip netns exec "$namespace" iptables -w 5 -A SCAN_LOAD_SYN -d 172.31.243.251 -j DROP
+57: 			ip netns exec "$namespace" iptables -w 5 -A SCAN_LOAD_SYN -m iprange --dst-range 172.31.240.2-172.31.243.233 -p tcp -m multiport --dports 80,8080,2222 -j RETURN
+58: 			ip netns exec "$namespace" iptables -w 5 -A SCAN_LOAD_SYN -m iprange --dst-range 172.31.240.2-172.31.243.233 -j DROP
+59: 			ip netns exec "$namespace" iptables -w 5 -A INPUT -p tcp --syn -j SCAN_LOAD_SYN
+60: 			;;
+61: 		0 | false | FALSE | no | NO) ;;
+62: 		*)
+63: 			printf '%s\n' 'SCAN_LOAD_FILTER_CLOSED must be true or false' >&2
+64: 			exit 1
+65: 			;;
+
+R4 fixture: work/p1-cloud-round4/fixture-network.sh (target network setup has no closed-SYN DROP rule; worker OUTPUT RST rule is kernel-only):
+13:     ip netns add p1-fixture
+19:     ip -n p1-fixture address add 172.28.0.1/16 dev eth0
+20:     for n in $(seq 1 128); do ip -n p1-fixture address add "172.28.1.$n/16" dev eth0; done
+23:     # The namespace has no default route and no SSH listener.
+33:     ip address add "172.28.0.$((10+index))/16" dev vxlan42
+35:     # Avoid host-kernel RSTs terminating raw Masscan handshakes.
+36:     iptables -A OUTPUT -o vxlan42 -p tcp --tcp-flags RST RST -j DROP
+
+Historical source files: work/load-test/main-final.json; task-duration-summary.json; work/p1-cloud-round4/comparison-summary.json; measurement-summary.json.
+R4 aggregate counters include service/HTTP/background traffic; do not treat them as per-packet SYN attribution. Raw local PCAP provides the packet classification.

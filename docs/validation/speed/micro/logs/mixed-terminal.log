@@ -1,0 +1,33 @@
++ out=/shen/work/speed-regression-analysis
++ cc -O2 -Wall -Wextra /shen/work/speed-regression-analysis/micro-fixture.c -o /shen/work/speed-regression-analysis/micro-fixture
++ ip netns add speedtarget
++ ip link add speedsrc type veth peer name eth0 netns speedtarget
++ trap ip netns del speedtarget 2>/dev/null || true; ip link del speedsrc 2>/dev/null || true EXIT INT TERM
++ ip link set speedsrc addrgenmode none address 02:00:00:00:00:11
++ ip -n speedtarget link set eth0 addrgenmode none address 02:00:00:00:00:12
++ ip addr add 198.18.0.1/24 dev speedsrc
++ ip link set speedsrc up
++ ip -n speedtarget link set eth0 up
++ capture=19
++ sleep 1
++ ip netns exec speedtarget /shen/work/speed-regression-analysis/micro-fixture mixed eth0 /shen/work/speed-regression-analysis/mixed-default.pcap
++ binary=/shen/outputs/scan-platform/bin/masscan/masscan
++ /usr/bin/time -f elapsed=%e user=%U sys=%S exit=%x -o /shen/work/speed-regression-analysis/mixed-default.time timeout -k 1 10 /shen/outputs/scan-platform/bin/masscan/masscan --adapter speedsrc --adapter-ip 198.18.0.3 --adapter-mac 02:00:00:00:00:11 --router-mac 02:00:00:00:00:12 --rate 10 --wait 1 --seed 42 -p8080 -oL /shen/work/speed-regression-analysis/mixed-default.list 198.18.0.2
++ kill 19
++ wait 19
++ cat /shen/work/speed-regression-analysis/mixed-default.time /shen/work/speed-regression-analysis/mixed-default-capture.log /shen/work/speed-regression-analysis/mixed-default.list
+elapsed=2.49 user=0.08 sys=0.10 exit=0
+captured=9 kernel_packets=9 kernel_drops=0
++ capture=27
++ sleep 1
++ ip netns exec speedtarget /shen/work/speed-regression-analysis/micro-fixture mixed eth0 /shen/work/speed-regression-analysis/mixed-candidate.pcap
++ binary=/shen/work/speed-regression-analysis/candidate-bin/masscan
++ /usr/bin/time -f elapsed=%e user=%U sys=%S exit=%x -o /shen/work/speed-regression-analysis/mixed-candidate.time timeout -k 1 10 /shen/work/speed-regression-analysis/candidate-bin/masscan --adapter speedsrc --adapter-ip 198.18.0.3 --adapter-mac 02:00:00:00:00:11 --router-mac 02:00:00:00:00:12 --rate 10 --wait 1 --seed 42 -p8080 -oL /shen/work/speed-regression-analysis/mixed-candidate.list 198.18.0.2
++ kill 27
++ wait 27
++ cat /shen/work/speed-regression-analysis/mixed-candidate.time /shen/work/speed-regression-analysis/mixed-candidate-capture.log /shen/work/speed-regression-analysis/mixed-candidate.list
+elapsed=1.95 user=0.07 sys=0.05 exit=0
+captured=6 kernel_packets=6 kernel_drops=0
++ ip netns del speedtarget
++ ip link del speedsrc
++ true

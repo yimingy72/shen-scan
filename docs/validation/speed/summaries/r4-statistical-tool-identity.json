@@ -1,0 +1,29 @@
+{
+  "kind": "selected readonly DB identity/scope summary",
+  "source": "work/speed-regression-r4/evidence/candidate/snapshot-bulk100/database.json",
+  "source_sha256": "49995f02430d90d2c8b70991d6a18bca0a312d23f7e205ddf592a08d5cef5825",
+  "worker_reported_port_cost_profiles": {
+    "masscan-sha256:5a349e47e35283bb5351f9cab42d9f1b266ef2fae64c9cc12ebca941bb492b83": 5
+  },
+  "port_payload_frozen_cost_profiles": {
+    "masscan-sha256:5a349e47e35283bb5351f9cab42d9f1b266ef2fae64c9cc12ebca941bb492b83": 25
+  },
+  "port_batch_sizes": {
+    "4": 25
+  },
+  "port_ranges": [
+    "1-65535"
+  ],
+  "PPS": [
+    5000
+  ],
+  "wait_seconds": [
+    15
+  ],
+  "port_attempts": {
+    "1": 25
+  },
+  "real_masscan_ELF_sha256": "afc20e66f99e13f4c65a7a7acc52b51d9f51b3798c3f7ac296abc6121ba39f7d",
+  "PATH_launcher_sha256": "5a349e47e35283bb5351f9cab42d9f1b266ef2fae64c9cc12ebca941bb492b83",
+  "note": "The statistical profile hashes the PATH launcher. Its fixed comment binds the separately SHA-verified real ELF. These are distinct hashes; worker/task fields are copied from collected DB, not inferred from the ELF hash."
+}

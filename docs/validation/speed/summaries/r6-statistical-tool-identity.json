@@ -1,0 +1,65 @@
+{
+  "identities": [
+    {
+      "node": "i-bp19xetim6x4upkm2m2k.tar.gz",
+      "source_member": "./tool-identities.jsonl",
+      "variant": "candidate",
+      "real_tool_path": "/opt/p1-test/candidate/masscan",
+      "real_tool_sha256": "2ee12f51003d127996b49c98771d118d713a9fc5d16ff623de864e1ac9bb0c3d",
+      "PATH_launcher_path": "/opt/p1-test/candidate/auditbin/masscan",
+      "PATH_launcher_sha256": "68064d8f72edf74cd646cc92a3c41fe9676ade9eb67ecf8450be5c78b70cdb32",
+      "expected_port_cost_profile": "masscan-sha256:68064d8f72edf74cd646cc92a3c41fe9676ade9eb67ecf8450be5c78b70cdb32",
+      "audit_python_sha256": "9b0e33f0fa49ccb02e2b0e88a9e13fdae3b636ceeebe47e8ee0635ab3da34aad",
+      "identity_note": "Statistical profile hashes PATH launcher; verified real ELF hash is explicitly separate and embedded in the immutable launcher comment."
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2l.tar.gz",
+      "source_member": "./tool-identities.jsonl",
+      "variant": "candidate",
+      "real_tool_path": "/opt/p1-test/candidate/masscan",
+      "real_tool_sha256": "2ee12f51003d127996b49c98771d118d713a9fc5d16ff623de864e1ac9bb0c3d",
+      "PATH_launcher_path": "/opt/p1-test/candidate/auditbin/masscan",
+      "PATH_launcher_sha256": "68064d8f72edf74cd646cc92a3c41fe9676ade9eb67ecf8450be5c78b70cdb32",
+      "expected_port_cost_profile": "masscan-sha256:68064d8f72edf74cd646cc92a3c41fe9676ade9eb67ecf8450be5c78b70cdb32",
+      "audit_python_sha256": "9b0e33f0fa49ccb02e2b0e88a9e13fdae3b636ceeebe47e8ee0635ab3da34aad",
+      "identity_note": "Statistical profile hashes PATH launcher; verified real ELF hash is explicitly separate and embedded in the immutable launcher comment."
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2m.tar.gz",
+      "source_member": "./tool-identities.jsonl",
+      "variant": "candidate",
+      "real_tool_path": "/opt/p1-test/candidate/masscan",
+      "real_tool_sha256": "2ee12f51003d127996b49c98771d118d713a9fc5d16ff623de864e1ac9bb0c3d",
+      "PATH_launcher_path": "/opt/p1-test/candidate/auditbin/masscan",
+      "PATH_launcher_sha256": "68064d8f72edf74cd646cc92a3c41fe9676ade9eb67ecf8450be5c78b70cdb32",
+      "expected_port_cost_profile": "masscan-sha256:68064d8f72edf74cd646cc92a3c41fe9676ade9eb67ecf8450be5c78b70cdb32",
+      "audit_python_sha256": "9b0e33f0fa49ccb02e2b0e88a9e13fdae3b636ceeebe47e8ee0635ab3da34aad",
+      "identity_note": "Statistical profile hashes PATH launcher; verified real ELF hash is explicitly separate and embedded in the immutable launcher comment."
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2n.tar.gz",
+      "source_member": "./tool-identities.jsonl",
+      "variant": "candidate",
+      "real_tool_path": "/opt/p1-test/candidate/masscan",
+      "real_tool_sha256": "2ee12f51003d127996b49c98771d118d713a9fc5d16ff623de864e1ac9bb0c3d",
+      "PATH_launcher_path": "/opt/p1-test/candidate/auditbin/masscan",
+      "PATH_launcher_sha256": "68064d8f72edf74cd646cc92a3c41fe9676ade9eb67ecf8450be5c78b70cdb32",
+      "expected_port_cost_profile": "masscan-sha256:68064d8f72edf74cd646cc92a3c41fe9676ade9eb67ecf8450be5c78b70cdb32",
+      "audit_python_sha256": "9b0e33f0fa49ccb02e2b0e88a9e13fdae3b636ceeebe47e8ee0635ab3da34aad",
+      "identity_note": "Statistical profile hashes PATH launcher; verified real ELF hash is explicitly separate and embedded in the immutable launcher comment."
+    },
+    {
+      "node": "i-bp19xetim6x4upkm2m2o.tar.gz",
+      "source_member": "./tool-identities.jsonl",
+      "variant": "candidate",
+      "real_tool_path": "/opt/p1-test/candidate/masscan",
+      "real_tool_sha256": "2ee12f51003d127996b49c98771d118d713a9fc5d16ff623de864e1ac9bb0c3d",
+      "PATH_launcher_path": "/opt/p1-test/candidate/auditbin/masscan",
+      "PATH_launcher_sha256": "68064d8f72edf74cd646cc92a3c41fe9676ade9eb67ecf8450be5c78b70cdb32",
+      "expected_port_cost_profile": "masscan-sha256:68064d8f72edf74cd646cc92a3c41fe9676ade9eb67ecf8450be5c78b70cdb32",
+      "audit_python_sha256": "9b0e33f0fa49ccb02e2b0e88a9e13fdae3b636ceeebe47e8ee0635ab3da34aad",
+      "identity_note": "Statistical profile hashes PATH launcher; verified real ELF hash is explicitly separate and embedded in the immutable launcher comment."
+    }
+  ],
+  "scope": "5actualWorkers; launcher profile SHA and real ELF SHA separate; immutable launcher embeds verified ELF SHA"
+}

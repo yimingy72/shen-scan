@@ -1,0 +1,67 @@
++ out=/shen/work/masscan-send-diagnostic
++ cc -O2 -Wall -Wextra /shen/work/masscan-send-diagnostic/micro-fixture.c -o /shen/work/masscan-send-diagnostic/micro-fixture
++ cc -O2 -Wall -Wextra -shared -fPIC /shen/work/masscan-send-diagnostic/inject-send.c -o /shen/work/masscan-send-diagnostic/inject-send.so -ldl
++ case=transient-fixed
++ binary=/shen/work/masscan-send-diagnostic/bin/masscan
++ mode=transient
++ ports=8000-8255
++ rate=10000
++ trap cleanup EXIT INT TERM
++ ip netns add send-src
++ ip netns add send-dst
++ ip link add underS netns send-src type veth peer name underT netns send-dst
++ ip -n send-src addr add 192.0.2.1/30 dev underS
++ ip -n send-dst addr add 192.0.2.2/30 dev underT
++ ip -n send-src link set lo up
++ ip -n send-dst link set lo up
++ ip -n send-src link set underS up
++ ip -n send-dst link set underT up
++ ip -n send-src link add vxlan42 type vxlan id 42 local 192.0.2.1 remote 192.0.2.2 dstport 4789
++ ip -n send-dst link add vxlan42 type vxlan id 42 local 192.0.2.2 remote 192.0.2.1 dstport 4789
++ ip -n send-src link set vxlan42 addrgenmode none address 02:00:00:00:00:11 mtu 1400 up
++ ip -n send-dst link set vxlan42 addrgenmode none address 02:00:00:00:00:12 mtu 1400 up
++ ip -n send-src addr add 198.18.0.1/24 dev vxlan42
++ ip -n send-dst addr add 198.18.0.2/24 dev vxlan42
++ server=32
++ sourcecap=33
++ ip netns exec send-dst /shen/work/masscan-send-diagnostic/micro-fixture serve
++ targetcap=34
++ sleep 1
++ ip netns exec send-dst /shen/work/masscan-send-diagnostic/micro-fixture capture vxlan42 /shen/work/masscan-send-diagnostic/transient-fixed-target.pcap
++ ip netns exec send-src /shen/work/masscan-send-diagnostic/micro-fixture capture vxlan42 /shen/work/masscan-send-diagnostic/transient-fixed-source.pcap
++ status=0
++ [ -n transient ]
++ ip netns exec send-src /usr/bin/time -f elapsed=%e user=%U sys=%S exit=%x -o /shen/work/masscan-send-diagnostic/transient-fixed.time timeout -k 1 15 env LD_PRELOAD=/shen/work/masscan-send-diagnostic/inject-send.so SEND_INJECT_INTERFACE=vxlan42 SEND_INJECT_MODE=transient /shen/work/masscan-send-diagnostic/bin/masscan --adapter vxlan42 --adapter-ip 198.18.0.3 --adapter-mac 02:00:00:00:00:11 --router-mac 02:00:00:00:00:12 --rate 10000 --wait 1 --seed 42 -p8000-8255 -oL /shen/work/masscan-send-diagnostic/transient-fixed.list 198.18.0.2
++ printf %s\n 0
++ kill 33 34 32
++ wait 33
++ wait 34
++ wait 32
++ printf case=%s exit=%s\n transient-fixed 0
+case=transient-fixed exit=0
++ cat /shen/work/masscan-send-diagnostic/transient-fixed.time /shen/work/masscan-send-diagnostic/transient-fixed-source-capture.log /shen/work/masscan-send-diagnostic/transient-fixed-target-capture.log
+elapsed=1.97 user=0.08 sys=0.08 exit=0
+captured=530 kernel_packets=530 kernel_drops=0
+captured=530 kernel_packets=530 kernel_drops=0
++ grep -E scan_send:|send_inject:|scan_capture: /shen/work/masscan-send-diagnostic/transient-fixed.stderr
+send_inject: call=1 same_as_first=1 length=54
+scan_send: retry failed_calls=1 retries=1 attempt=1 errno=11 pcaperr=send: Resource temporarily unavailable
+send_inject: call=2 same_as_first=1 length=54
+scan_send: retry failed_calls=2 retries=2 attempt=2 errno=11 pcaperr=send: Resource temporarily unavailable
+send_inject: call=3 same_as_first=1 length=54
+scan_send: retry failed_calls=3 retries=3 attempt=3 errno=11 pcaperr=send: Resource temporarily unavailable
+send_inject: call=4 same_as_first=1 length=54
+scan_send: retry failed_calls=4 retries=4 attempt=4 errno=11 pcaperr=send: Resource temporarily unavailable
+send_inject: call=5 same_as_first=1 length=54
+scan_send: retry failed_calls=5 retries=5 attempt=5 errno=11 pcaperr=send: Resource temporarily unavailable
+send_inject: call=6 same_as_first=1 length=54
+scan_send: retry failed_calls=6 retries=6 attempt=6 errno=11 pcaperr=send: Resource temporarily unavailable
+send_inject: call=7 same_as_first=1 length=54
+scan_send: recovered attempts=7
+send_inject: call=8 same_as_first=0 length=54
+rate:  2.88-kpps, 100.00% done, waiting 0-secs, found=1       rate:  0.00-kpps, 100.00% done, waiting 1-secs, found=1       rate:  0.00-kpps, 100.00% done, waiting 1-secs, found=1       rate:  0.00-kpps, 100.00% done, waiting 0-secs, found=1       scan_send: stats failed_calls=6 retries=6 phase=rx_shutdown
+scan_capture: received=267 dropped=0 if_dropped=0
+rate:  0.00-kpps, 100.00% done, waiting 0-secs, found=1                                                                                    send_inject: summary selected_calls=262 injected_failures=6 forwarded_successes=256 transient_block_ms=40
++ cleanup
++ ip netns del send-src
++ ip netns del send-dst

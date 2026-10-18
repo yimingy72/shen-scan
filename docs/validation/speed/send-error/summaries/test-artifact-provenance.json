@@ -1,0 +1,32 @@
+{
+  "tested_final_ELF_sha256": "2ee12f51003d127996b49c98771d118d713a9fc5d16ff623de864e1ac9bb0c3d",
+  "tested_source_archive_sha256": "c644521abff78949a8d511d80237e97d1e33af6f142080268895cc0318cebf8f",
+  "later_release_source_archive_sha256": "88fd72494c8b98488b9984e902bf26758de413e4e2f75c7e85a6bd19193d1c73",
+  "code_patch_sha256": "120d4317aeb3f8f2605443764dc077fac52d4009b82ac89212be5c1404968e17",
+  "send_bound": {
+    "attempts_total": 8,
+    "retries_max": 7,
+    "sleep_ms": [
+      1,
+      2,
+      4,
+      8,
+      16,
+      32,
+      64
+    ],
+    "requested_backoff_ms_total": 127,
+    "transient_errno": [
+      "EINTR",
+      "EAGAIN",
+      "ENOBUFS"
+    ],
+    "persistent_or_other_error": "log errno/pcaperr/counts thenexit1"
+  },
+  "original_false_success_hook_version": "reproduce/inject-send-original-proof-v1.c; persistentENOBUFS semantics unchanged in final hook",
+  "final_fault_hook_version": "reproduce/inject-send.c; continuous40msEAGAIN; final8attempt candidate",
+  "old4attempt_candidate": "Historical only, not copied here as an accepted candidate; original proof hook source retained for reproducibility",
+  "Agent_path": "Source review only; no Agent/Control integration executed in these local tests.",
+  "R5_cause_proved": false,
+  "HTTP": "Not applicable to rawTCP send-failure microtest; no inventedHTTP or screenshots."
+}

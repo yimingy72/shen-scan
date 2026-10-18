@@ -1,0 +1,34 @@
+{
+  "draft": true,
+  "pending": [
+    {
+      "item": "Historical correctly labeled R4/R5/rawTCP screenshots",
+      "owner": "root",
+      "status": "R6two actualimagesdelivered; historicalsame-roundimagesabsent, do notsubstitute"
+    },
+    {
+      "item": "R5 discrepancy cause",
+      "owner": "root plus cloudowner",
+      "status": "Stillunknown; R6successfulretries donot retroactivelyestablish errno"
+    }
+  ],
+  "known_unrecoverable": [
+    {
+      "item": "R1 failed readiness rawAPI responses/journal before cleanup",
+      "status": "not preserved; explicitly not fabricated"
+    },
+    {
+      "item": "Unique exact binary/source reconstruction of whole historical59m33s run",
+      "status": "not established because rolling artifact changes and worker replacements"
+    },
+    {
+      "item": "R5 senderrno/qdisc/neighbor detail and per-packetPCAP/liveUI screenshot",
+      "status": "not captured in released R5; original counters/bitmaps/fullHTTP/rawDB and cleanup retained"
+    },
+    {
+      "item": "local send failure-chain direct port_range_manifest SQL snapshot",
+      "status": "not retained after finalSQLtable mismatch; actualAPI coverage evidence retained"
+    }
+  ],
+  "R6_main1000": "completed/independentlyaccepted/fullHTTPandcleanup present"
+}

@@ -1,0 +1,70 @@
+{
+  "mixed-default": {
+    "counts": {
+      "scanner_flags_0x2": 1,
+      "target_flags_0x16": 1,
+      "scanner_flags_0x4": 1
+    },
+    "valid_SYN_cookie_echo_and_checksums": true,
+    "no_open_evidence": true,
+    "frames": [
+      {
+        "timestamp": 1792285727.237685,
+        "source": "198.18.0.3:45727",
+        "destination": "198.18.0.2:8080",
+        "flags": "0x2",
+        "sequence": 3684476768,
+        "ack": 0,
+        "full_frame_hex": "02 00 00 00 00 12 02 00 00 00 00 11 08 00 45 00 00 28 b8 f2 00 00 ff 06 76 b3 c6 12 00 03 c6 12 00 02 b2 9f 1f 90 db 9c a7 60 00 00 00 00 50 02 04 00 ca 8b 00 00"
+      },
+      {
+        "timestamp": 1792285727.237797,
+        "source": "198.18.0.2:8080",
+        "destination": "198.18.0.3:45727",
+        "flags": "0x16",
+        "sequence": 42,
+        "ack": 3684476769,
+        "full_frame_hex": "02 00 00 00 00 11 02 00 00 00 00 12 08 00 45 00 00 28 00 01 00 00 40 06 ee a5 c6 12 00 02 c6 12 00 03 1f 90 b2 9f 00 00 00 2a db 9c a7 61 50 16 04 00 ca 4c 00 00"
+      },
+      {
+        "timestamp": 1792285727.338246,
+        "source": "198.18.0.3:45727",
+        "destination": "198.18.0.2:8080",
+        "flags": "0x4",
+        "sequence": 3684476769,
+        "ack": 0,
+        "full_frame_hex": "02 00 00 00 00 12 02 00 00 00 00 11 08 00 45 00 00 28 b8 f3 00 00 ff 06 76 b2 c6 12 00 03 c6 12 00 02 b2 9f 1f 90 db 9c a7 61 00 00 00 00 50 04 04 b0 c9 d8 00 00 00 00 00 00 00 00"
+      }
+    ],
+    "capture": "captured=9 kernel_packets=9 kernel_drops=0"
+  },
+  "mixed-candidate": {
+    "counts": {
+      "scanner_flags_0x2": 1,
+      "target_flags_0x16": 1
+    },
+    "valid_SYN_cookie_echo_and_checksums": true,
+    "no_open_evidence": true,
+    "frames": [
+      {
+        "timestamp": 1792285730.764692,
+        "source": "198.18.0.3:45730",
+        "destination": "198.18.0.2:8080",
+        "flags": "0x2",
+        "sequence": 2425383683,
+        "ack": 0,
+        "full_frame_hex": "02 00 00 00 00 12 02 00 00 00 00 11 08 00 45 00 00 28 74 91 00 00 ff 06 bb 14 c6 12 00 03 c6 12 00 02 b2 a2 1f 90 90 90 6b 03 00 00 00 00 50 02 04 00 51 f2 00 00"
+      },
+      {
+        "timestamp": 1792285730.764755,
+        "source": "198.18.0.2:8080",
+        "destination": "198.18.0.3:45730",
+        "flags": "0x16",
+        "sequence": 42,
+        "ack": 2425383684,
+        "full_frame_hex": "02 00 00 00 00 11 02 00 00 00 00 12 08 00 45 00 00 28 00 01 00 00 40 06 ee a5 c6 12 00 02 c6 12 00 03 1f 90 b2 a2 00 00 00 2a 90 90 6b 04 50 16 04 00 51 b3 00 00"
+      }
+    ],
+    "capture": "captured=6 kernel_packets=6 kernel_drops=0"
+  }
+}

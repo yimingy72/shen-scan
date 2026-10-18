@@ -1,0 +1,5 @@
+Starting masscan 1.3.2 (http://bit.ly/14GZzcT) at 2026-10-18 01:08:04 GMT
+Initiating SYN Stealth Scan
+Scanning 1 hosts [12000 ports/host]
+rate:  4.98-kpps,  4.12% done,1745:42:30 remaining, found=0       rate:  5.00-kpps, 35.77% done,   0:00:12 remaining, found=1       rate:  4.99-kpps, 67.26% done,   0:00:03 remaining, found=1       rate:  4.98-kpps, 98.97% done,   0:00:00 remaining, found=1       rate:  0.00-kpps, 100.00% done, waiting 0-secs, found=1       rate:  0.00-kpps, 100.00% done, waiting 2-secs, found=1       rate:  0.00-kpps, 100.00% done, waiting 2-secs, found=1       rate:  0.00-kpps, 100.00% done, waiting 1-secs, found=1       rate:  0.00-kpps, 100.00% done, waiting 1-secs, found=1       rate:  0.00-kpps, 100.00% done, waiting 1-secs, found=1       rate:  0.00-kpps, 100.00% done, waiting 1-secs, found=1       rate:  0.00-kpps, 100.00% done, waiting 0-secs, found=1       scan_capture: received=12013 dropped=0 if_dropped=0
+rate:  0.00-kpps, 100.00% done, waiting 0-secs, found=1                                                                                    

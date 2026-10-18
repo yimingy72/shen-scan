@@ -1,0 +1,21 @@
+{
+  "baseline": {
+    "elapsed_seconds": 502.720990208,
+    "quality_passed": true,
+    "worker_captures": 5,
+    "actual_masscan_syn": 6553500,
+    "actual_masscan_rst": 3276467,
+    "capture_drops": 0,
+    "full_tcp_targets": 100
+  },
+  "candidate": {
+    "elapsed_seconds": 354.99947770800003,
+    "quality_passed": true,
+    "worker_captures": 5,
+    "actual_masscan_syn": 6553500,
+    "actual_masscan_rst": 300,
+    "capture_drops": 0,
+    "full_tcp_targets": 100
+  },
+  "elapsed_reduction_percent": 29.384393207628033
+}

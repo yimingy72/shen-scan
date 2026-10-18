@@ -1,0 +1,140 @@
+/shen/work/masscan-send-diagnostic/candidate-build/masscan-1.3.2-recv-buffer.patch: OK
+/shen/work/masscan-send-diagnostic/candidate-build/masscan-06902c40d1494881c17b7968ef530e1d6bbd320c.tar.gz: OK
+/shen/work/masscan-send-diagnostic/candidate-build/AGPL-3.0.txt: OK
+patching file src/main.c
+patching file src/out-text.c
+patching file src/rawsock.c
+patching file src/rawsock.h
+patching file src/stub-pcap.c
+patching file src/stub-pcap.h
+patching file src/main.c
+patching file src/rawsock-adapter.h
+patching file src/rawsock.c
+make: Entering directory '/shen/work/masscan-send-diagnostic/cache/build.fImeqx/masscan-06902c40d1494881c17b7968ef530e1d6bbd320c'
+make: git: No such file or directory
+rm -f tmp/*.o
+rm -f bin/masscan
+make: Leaving directory '/shen/work/masscan-send-diagnostic/cache/build.fImeqx/masscan-06902c40d1494881c17b7968ef530e1d6bbd320c'
+make: Entering directory '/shen/work/masscan-send-diagnostic/cache/build.fImeqx/masscan-06902c40d1494881c17b7968ef530e1d6bbd320c'
+make: git: No such file or directory
+gcc -g -ggdb    -Wall -O2 -c src/crypto-base64.c -o tmp/crypto-base64.o
+gcc -g -ggdb    -Wall -O2 -c src/crypto-blackrock2.c -o tmp/crypto-blackrock2.o
+gcc -g -ggdb    -Wall -O2 -c src/event-timeout.c -o tmp/event-timeout.o
+gcc -g -ggdb    -Wall -O2 -c src/in-binary.c -o tmp/in-binary.o
+gcc -g -ggdb    -Wall -O2 -c src/in-filter.c -o tmp/in-filter.o
+gcc -g -ggdb    -Wall -O2 -c src/in-report.c -o tmp/in-report.o
+gcc -g -ggdb    -Wall -O2 -c src/logger.c -o tmp/logger.o
+gcc -g -ggdb    -Wall -O2 -c src/main-conf.c -o tmp/main-conf.o -DGIT=\"1.3.2-scan-platform\"
+gcc -g -ggdb    -Wall -O2 -c src/main-dedup.c -o tmp/main-dedup.o
+src/main-conf.c: In function 'masscan_read_config_file':
+src/main-conf.c:3087:9: warning: ignoring return value of 'getcwd' declared with attribute 'warn_unused_result' [-Wunused-result]
+ 3087 |         getcwd(dir, sizeof(dir));
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~
+gcc -g -ggdb    -Wall -O2 -c src/main-initadapter.c -o tmp/main-initadapter.o
+gcc -g -ggdb    -Wall -O2 -c src/main-listscan.c -o tmp/main-listscan.o
+gcc -g -ggdb    -Wall -O2 -c src/main-ptrace.c -o tmp/main-ptrace.o
+gcc -g -ggdb    -Wall -O2 -c src/main-readrange.c -o tmp/main-readrange.o
+gcc -g -ggdb    -Wall -O2 -c src/main-status.c -o tmp/main-status.o
+gcc -g -ggdb    -Wall -O2 -c src/main-throttle.c -o tmp/main-throttle.o
+gcc -g -ggdb    -Wall -O2 -c src/main.c -o tmp/main.o
+gcc -g -ggdb    -Wall -O2 -c src/masscan-app.c -o tmp/masscan-app.o
+gcc -g -ggdb    -Wall -O2 -c src/massip-addr.c -o tmp/massip-addr.o
+gcc -g -ggdb    -Wall -O2 -c src/massip-parse.c -o tmp/massip-parse.o
+gcc -g -ggdb    -Wall -O2 -c src/massip-rangesv4.c -o tmp/massip-rangesv4.o
+gcc -g -ggdb    -Wall -O2 -c src/massip-rangesv6.c -o tmp/massip-rangesv6.o
+gcc -g -ggdb    -Wall -O2 -c src/massip.c -o tmp/massip.o
+gcc -g -ggdb    -Wall -O2 -c src/misc-rstfilter.c -o tmp/misc-rstfilter.o
+gcc -g -ggdb    -Wall -O2 -c src/out-binary.c -o tmp/out-binary.o
+gcc -g -ggdb    -Wall -O2 -c src/out-certs.c -o tmp/out-certs.o
+gcc -g -ggdb    -Wall -O2 -c src/out-grepable.c -o tmp/out-grepable.o
+gcc -g -ggdb    -Wall -O2 -c src/out-hostonly.c -o tmp/out-hostonly.o
+gcc -g -ggdb    -Wall -O2 -c src/out-json.c -o tmp/out-json.o
+gcc -g -ggdb    -Wall -O2 -c src/out-ndjson.c -o tmp/out-ndjson.o
+gcc -g -ggdb    -Wall -O2 -c src/out-null.c -o tmp/out-null.o
+gcc -g -ggdb    -Wall -O2 -c src/out-redis.c -o tmp/out-redis.o
+gcc -g -ggdb    -Wall -O2 -c src/out-tcp-services.c -o tmp/out-tcp-services.o
+gcc -g -ggdb    -Wall -O2 -c src/out-text.c -o tmp/out-text.o
+gcc -g -ggdb    -Wall -O2 -c src/out-unicornscan.c -o tmp/out-unicornscan.o
+gcc -g -ggdb    -Wall -O2 -c src/out-xml.c -o tmp/out-xml.o
+gcc -g -ggdb    -Wall -O2 -c src/output.c -o tmp/output.o
+gcc -g -ggdb    -Wall -O2 -c src/pixie-backtrace.c -o tmp/pixie-backtrace.o
+gcc -g -ggdb    -Wall -O2 -c src/pixie-file.c -o tmp/pixie-file.o
+gcc -g -ggdb    -Wall -O2 -c src/pixie-threads.c -o tmp/pixie-threads.o
+gcc -g -ggdb    -Wall -O2 -c src/pixie-timer.c -o tmp/pixie-timer.o
+gcc -g -ggdb    -Wall -O2 -c src/proto-arp.c -o tmp/proto-arp.o
+gcc -g -ggdb    -Wall -O2 -c src/proto-banner1.c -o tmp/proto-banner1.o
+gcc -g -ggdb    -Wall -O2 -c src/proto-banout.c -o tmp/proto-banout.o
+gcc -g -ggdb    -Wall -O2 -c src/proto-coap.c -o tmp/proto-coap.o
+gcc -g -ggdb    -Wall -O2 -c src/proto-dns.c -o tmp/proto-dns.o
+gcc -g -ggdb    -Wall -O2 -c src/proto-ftp.c -o tmp/proto-ftp.o
+gcc -g -ggdb    -Wall -O2 -c src/proto-http.c -o tmp/proto-http.o
+gcc -g -ggdb    -Wall -O2 -c src/proto-icmp.c -o tmp/proto-icmp.o
+gcc -g -ggdb    -Wall -O2 -c src/proto-imap4.c -o tmp/proto-imap4.o
+gcc -g -ggdb    -Wall -O2 -c src/proto-interactive.c -o tmp/proto-interactive.o
+gcc -g -ggdb    -Wall -O2 -c src/proto-memcached.c -o tmp/proto-memcached.o
+gcc -g -ggdb    -Wall -O2 -c src/proto-netbios.c -o tmp/proto-netbios.o
+gcc -g -ggdb    -Wall -O2 -c src/proto-ntlmssp.c -o tmp/proto-ntlmssp.o
+gcc -g -ggdb    -Wall -O2 -c src/proto-ntp.c -o tmp/proto-ntp.o
+gcc -g -ggdb    -Wall -O2 -c src/proto-oproto.c -o tmp/proto-oproto.o
+gcc -g -ggdb    -Wall -O2 -c src/proto-pop3.c -o tmp/proto-pop3.o
+gcc -g -ggdb    -Wall -O2 -c src/proto-preprocess.c -o tmp/proto-preprocess.o
+gcc -g -ggdb    -Wall -O2 -c src/proto-sctp.c -o tmp/proto-sctp.o
+gcc -g -ggdb    -Wall -O2 -c src/proto-smb.c -o tmp/proto-smb.o
+gcc -g -ggdb    -Wall -O2 -c src/proto-smtp.c -o tmp/proto-smtp.o
+gcc -g -ggdb    -Wall -O2 -c src/proto-snmp.c -o tmp/proto-snmp.o
+gcc -g -ggdb    -Wall -O2 -c src/proto-ssh.c -o tmp/proto-ssh.o
+gcc -g -ggdb    -Wall -O2 -c src/proto-ssl-test.c -o tmp/proto-ssl-test.o
+gcc -g -ggdb    -Wall -O2 -c src/proto-ssl.c -o tmp/proto-ssl.o
+gcc -g -ggdb    -Wall -O2 -c src/proto-tcp-rdp.c -o tmp/proto-tcp-rdp.o
+gcc -g -ggdb    -Wall -O2 -c src/proto-tcp-telnet.c -o tmp/proto-tcp-telnet.o
+gcc -g -ggdb    -Wall -O2 -c src/proto-tcp.c -o tmp/proto-tcp.o
+gcc -g -ggdb    -Wall -O2 -c src/proto-udp.c -o tmp/proto-udp.o
+gcc -g -ggdb    -Wall -O2 -c src/proto-vnc.c -o tmp/proto-vnc.o
+gcc -g -ggdb    -Wall -O2 -c src/proto-x509.c -o tmp/proto-x509.o
+gcc -g -ggdb    -Wall -O2 -c src/proto-zeroaccess.c -o tmp/proto-zeroaccess.o
+gcc -g -ggdb    -Wall -O2 -c src/rand-blackrock.c -o tmp/rand-blackrock.o
+gcc -g -ggdb    -Wall -O2 -c src/rand-lcg.c -o tmp/rand-lcg.o
+gcc -g -ggdb    -Wall -O2 -c src/rand-primegen.c -o tmp/rand-primegen.o
+gcc -g -ggdb    -Wall -O2 -c src/rawsock-getif.c -o tmp/rawsock-getif.o
+gcc -g -ggdb    -Wall -O2 -c src/rawsock-getip.c -o tmp/rawsock-getip.o
+gcc -g -ggdb    -Wall -O2 -c src/rawsock-getip6.c -o tmp/rawsock-getip6.o
+gcc -g -ggdb    -Wall -O2 -c src/rawsock-getmac.c -o tmp/rawsock-getmac.o
+gcc -g -ggdb    -Wall -O2 -c src/rawsock-getroute.c -o tmp/rawsock-getroute.o
+gcc -g -ggdb    -Wall -O2 -c src/rawsock-pcapfile.c -o tmp/rawsock-pcapfile.o
+gcc -g -ggdb    -Wall -O2 -c src/rawsock.c -o tmp/rawsock.o
+gcc -g -ggdb    -Wall -O2 -c src/read-service-probes.c -o tmp/read-service-probes.o
+gcc -g -ggdb    -Wall -O2 -c src/rte-ring.c -o tmp/rte-ring.o
+gcc -g -ggdb    -Wall -O2 -c src/scripting-banner.c -o tmp/scripting-banner.o
+gcc -g -ggdb    -Wall -O2 -c src/scripting-masscan.c -o tmp/scripting-masscan.o
+gcc -g -ggdb    -Wall -O2 -c src/scripting.c -o tmp/scripting.o
+gcc -g -ggdb    -Wall -O2 -c src/siphash24.c -o tmp/siphash24.o
+gcc -g -ggdb    -Wall -O2 -c src/smack1.c -o tmp/smack1.o
+gcc -g -ggdb    -Wall -O2 -c src/smackqueue.c -o tmp/smackqueue.o
+gcc -g -ggdb    -Wall -O2 -c src/stack-arpv4.c -o tmp/stack-arpv4.o
+gcc -g -ggdb    -Wall -O2 -c src/stack-if.c -o tmp/stack-if.o
+gcc -g -ggdb    -Wall -O2 -c src/stack-ndpv6.c -o tmp/stack-ndpv6.o
+gcc -g -ggdb    -Wall -O2 -c src/stack-queue.c -o tmp/stack-queue.o
+gcc -g -ggdb    -Wall -O2 -c src/stack-src.c -o tmp/stack-src.o
+gcc -g -ggdb    -Wall -O2 -c src/string_s.c -o tmp/string_s.o
+gcc -g -ggdb    -Wall -O2 -c src/stub-lua.c -o tmp/stub-lua.o
+gcc -g -ggdb    -Wall -O2 -c src/stub-pcap.c -o tmp/stub-pcap.o
+gcc -g -ggdb    -Wall -O2 -c src/stub-pfring.c -o tmp/stub-pfring.o
+gcc -g -ggdb    -Wall -O2 -c src/syn-cookie.c -o tmp/syn-cookie.o
+gcc -g -ggdb    -Wall -O2 -c src/templ-payloads.c -o tmp/templ-payloads.o
+gcc -g -ggdb    -Wall -O2 -c src/templ-pkt.c -o tmp/templ-pkt.o
+gcc -g -ggdb    -Wall -O2 -c src/util-checksum.c -o tmp/util-checksum.o
+gcc -g -ggdb    -Wall -O2 -c src/util-malloc.c -o tmp/util-malloc.o
+gcc -g -ggdb    -Wall -O2 -c src/versioning.c -o tmp/versioning.o
+gcc -g -ggdb    -Wall -O2 -c src/vulncheck-heartbleed.c -o tmp/vulncheck-heartbleed.o
+gcc -g -ggdb    -Wall -O2 -c src/vulncheck-ntp-monlist.c -o tmp/vulncheck-ntp-monlist.o
+gcc -g -ggdb    -Wall -O2 -c src/vulncheck-sslv3.c -o tmp/vulncheck-sslv3.o
+gcc -g -ggdb    -Wall -O2 -c src/vulncheck.c -o tmp/vulncheck.o
+gcc -g -ggdb    -Wall -O2 -c src/xring.c -o tmp/xring.o
+gcc -g -ggdb    -Wall -O2 -o bin/masscan tmp/crypto-base64.o tmp/crypto-blackrock2.o tmp/event-timeout.o tmp/in-binary.o tmp/in-filter.o tmp/in-report.o tmp/logger.o tmp/main-conf.o tmp/main-dedup.o tmp/main-initadapter.o tmp/main-listscan.o tmp/main-ptrace.o tmp/main-readrange.o tmp/main-status.o tmp/main-throttle.o tmp/main.o tmp/masscan-app.o tmp/massip-addr.o tmp/massip-parse.o tmp/massip-rangesv4.o tmp/massip-rangesv6.o tmp/massip.o tmp/misc-rstfilter.o tmp/out-binary.o tmp/out-certs.o tmp/out-grepable.o tmp/out-hostonly.o tmp/out-json.o tmp/out-ndjson.o tmp/out-null.o tmp/out-redis.o tmp/out-tcp-services.o tmp/out-text.o tmp/out-unicornscan.o tmp/out-xml.o tmp/output.o tmp/pixie-backtrace.o tmp/pixie-file.o tmp/pixie-threads.o tmp/pixie-timer.o tmp/proto-arp.o tmp/proto-banner1.o tmp/proto-banout.o tmp/proto-coap.o tmp/proto-dns.o tmp/proto-ftp.o tmp/proto-http.o tmp/proto-icmp.o tmp/proto-imap4.o tmp/proto-interactive.o tmp/proto-memcached.o tmp/proto-netbios.o tmp/proto-ntlmssp.o tmp/proto-ntp.o tmp/proto-oproto.o tmp/proto-pop3.o tmp/proto-preprocess.o tmp/proto-sctp.o tmp/proto-smb.o tmp/proto-smtp.o tmp/proto-snmp.o tmp/proto-ssh.o tmp/proto-ssl-test.o tmp/proto-ssl.o tmp/proto-tcp-rdp.o tmp/proto-tcp-telnet.o tmp/proto-tcp.o tmp/proto-udp.o tmp/proto-vnc.o tmp/proto-x509.o tmp/proto-zeroaccess.o tmp/rand-blackrock.o tmp/rand-lcg.o tmp/rand-primegen.o tmp/rawsock-getif.o tmp/rawsock-getip.o tmp/rawsock-getip6.o tmp/rawsock-getmac.o tmp/rawsock-getroute.o tmp/rawsock-pcapfile.o tmp/rawsock.o tmp/read-service-probes.o tmp/rte-ring.o tmp/scripting-banner.o tmp/scripting-masscan.o tmp/scripting.o tmp/siphash24.o tmp/smack1.o tmp/smackqueue.o tmp/stack-arpv4.o tmp/stack-if.o tmp/stack-ndpv6.o tmp/stack-queue.o tmp/stack-src.o tmp/string_s.o tmp/stub-lua.o tmp/stub-pcap.o tmp/stub-pfring.o tmp/syn-cookie.o tmp/templ-payloads.o tmp/templ-pkt.o tmp/util-checksum.o tmp/util-malloc.o tmp/versioning.o tmp/vulncheck-heartbleed.o tmp/vulncheck-ntp-monlist.o tmp/vulncheck-sslv3.o tmp/vulncheck.o tmp/xring.o   -lm -lrt -ldl -lpthread
+make: Leaving directory '/shen/work/masscan-send-diagnostic/cache/build.fImeqx/masscan-06902c40d1494881c17b7968ef530e1d6bbd320c'
+regression test: success!
+Masscan version 1.3.2 ( https://github.com/robertdavidgraham/masscan )
+scan_capture: received=%u dropped=%u if_dropped=%u
+[-] if(%s): setnonblock: %s
+binary: /shen/work/masscan-send-diagnostic/bin/masscan
+source: /shen/work/masscan-send-diagnostic/bin/masscan-source-1.3.2-scan-platform.tar.gz
