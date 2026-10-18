@@ -1,0 +1,3 @@
+Web helpers ready: /Users/yym1ng/Documents/Codex/2026-10-16/shen/work/p2-web-enrichment/release/.agent.LH407t
+d4b7bdb7d92287ce49473c49d36128de5c069aec535e3ad75f086c6c2a2e6322  /Users/yym1ng/Documents/Codex/2026-10-16/shen/work/p2-web-enrichment/release/scan-agent-linux-amd64.tar.gz
+Release files: /Users/yym1ng/Documents/Codex/2026-10-16/shen/work/p2-web-enrichment/release

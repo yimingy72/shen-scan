@@ -1,0 +1,22 @@
+{
+  "owned_local_processes": [
+    {
+      "name": "agent",
+      "pid": 83323,
+      "term_sent": true
+    },
+    {
+      "name": "fixture",
+      "pid": 78503,
+      "term_sent": true
+    },
+    {
+      "name": "server",
+      "pid": 78502,
+      "term_sent": true
+    }
+  ],
+  "temporary_database_dropped": "p2_web_enrichment_smoke",
+  "shared_test_container_stopped": true,
+  "cloud_instances_created_this_increment": 0
+}

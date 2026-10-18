@@ -1,0 +1,13 @@
+{
+  "checked_at": "2026-10-18T00:50:15.685372+00:00",
+  "health_ok": true,
+  "package_https_head_status": 200,
+  "server_and_package_hashes_match": true,
+  "worker_pool_enabled": false,
+  "desired_workers": 10,
+  "active_workers_before_deployment": 0,
+  "leased_tasks": 0,
+  "existing_user_run_unchanged": true,
+  "http_collection_rules": 6,
+  "runtime_scope": "Controller and bundled Linux helper capabilities only; no new cloud Worker scan."
+}

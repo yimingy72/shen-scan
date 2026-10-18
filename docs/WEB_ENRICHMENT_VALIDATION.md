@@ -40,3 +40,15 @@ Agent 整包检查存在一项旧的时间边界失败：`TestHTTPProtocolFallba
 | 本地 PostgreSQL 临时库 | 任务与规则持久化检查 | 未利用 |
 
 所有截图、完整报文和检查记录在 `validation/web-enrichment/`；[SHA256SUMS](validation/web-enrichment/SHA256SUMS)供完整性核对。截图为实际页面，不是效果图。TCP 1–65535、端口分片与发包策略未改变，本批没有重跑全端口云压测；以往性能结果见 [P1 验证](P1_VALIDATION.md)，不能当成本批性能收益。
+
+## 发布记录
+
+实现提交 `7e0bfbb2f9ac65e75bc1365f8e8ba9c89307d2fe`，Linux 发布包 `bundle-d4b7bdb7d922`。完整包由干净提交构建，检查 Agent/Web/fingers 的 Go VCS 元数据和组件摘要。服务器已安装新控制面和前端，现有 CA 保持不变；包下载 HEAD 为 200，服务健康，6 条 HTTP collection 可查询。服务器上解包后的 Web helper 能力明确返回 `bounded-enrichment-v1`，此项仅验证 Linux 二进制启动和能力声明，没有对目标发请求。
+
+发布时没有在线 Worker，池保持停止、期望数量 10，已有待执行用户任务保持原状态。因此本批不存在逐台滚动升级；之后启动的 Worker 使用新版包。没有把本地功能验收或 Linux 能力检查表述为云上扫描验收。
+
+![发布后真实 HTTPS 与包摘要检查记录](validation/web-enrichment/screenshots/deployment-verification.png)
+
+[构建来源与摘要](validation/web-enrichment/data/release.json) · [部署检查](validation/web-enrichment/data/deployment-check.json) · [Linux helper 与规则检查](validation/web-enrichment/data/enrichment-verification.json) · [完整健康 HTTP](validation/web-enrichment/http/production-health.json) · [完整库查询 HTTP](validation/web-enrichment/http/production-http-collection-library.json)。截图为实际检查记录的浏览器渲染，不是在线扫描结果。发布资产为现有控制面及其 `/api/health`、`/api/library` 和包下载接口，状态均为**未利用**。
+
+本地验收进程已停止、临时数据库已删除、测试容器已停止；[清理记录](validation/web-enrichment/data/cleanup.json)。

@@ -1,0 +1,23 @@
+{
+  "http_collection_rules": 6,
+  "rule_ids": [
+    "http-collect-django-admin-login",
+    "http-collect-gitea-version-api",
+    "http-collect-gitlab-health",
+    "http-collect-joomla-version-manifest",
+    "http-collect-swagger-ui-interface",
+    "http-collect-wordpress-readme"
+  ],
+  "linux_helper": {
+    "binary_sha256": "157210f96baf198fcc9f0fcf8bca282cc773be6a408c8a9a7eeb5099fe18ac22",
+    "capabilities": {
+      "engine": "httpx-sdk-v1.12.0/bounded-transport+wappalyzergo-v0.2.96",
+      "enrichment_profile": "bounded-enrichment-v1",
+      "profile": "bounded-passive-v1",
+      "protocol": "shen-web-v1",
+      "request_admission": "loopback-v2",
+      "stream_protocol": "jsonl-item-v1"
+    },
+    "scope": "Linux package capability check only; no HTTP target contacted"
+  }
+}

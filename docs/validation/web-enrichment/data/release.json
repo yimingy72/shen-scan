@@ -1,0 +1,29 @@
+{
+  "commit": "7e0bfbb2f9ac65e75bc1365f8e8ba9c89307d2fe",
+  "package": "scan-agent-linux-amd64-web-d4b7bdb7d922.tar.gz",
+  "package_sha256": "d4b7bdb7d92287ce49473c49d36128de5c069aec535e3ad75f086c6c2a2e6322",
+  "version": "bundle-d4b7bdb7d922",
+  "server_sha256": "f60844e19109366365768170286c6a07e97a2a2d708089f4d637e65bb4da625e",
+  "server_download": "scan-server-web-f60844e19109",
+  "checker_sha256": "20a9ff203b9d8add1db218e5f23ac2bbcf88a7e7c81df869e05cbcf0f506abb3",
+  "web_sha256": "89ddeb76aa6b365aa60d13f9f0d0c96a941222be82a7d850e367a04d104edaf4",
+  "ca_sha256": "66ca56b4066d979e6c07abe9251c1212868ff462a22040388c2189b1aa803f77",
+  "masscan_sha256": "6882bfaafb68e98974aba5159056867563652dfd0188be82f06bf2e380830ab9",
+  "masscan_source_sha256": "dfeeeae6d0abeebaa1224c1c38cc776e4bba7a819cbb41fe060f8e366bcf23c7",
+  "component_sha256": {
+    "scan-agent": "67b3d83be7a2239496df8c0fa5ec0035e765b635bf7d9b884aa27382180d3c2b",
+    "web-probe-worker": "157210f96baf198fcc9f0fcf8bca282cc773be6a408c8a9a7eeb5099fe18ac22",
+    "fingerprint-worker": "20a9ff203b9d8add1db218e5f23ac2bbcf88a7e7c81df869e05cbcf0f506abb3",
+    "httpx": "6d78b83b4da452a7e0bd3613c4fae04cbf523209f083904b563f4d4406a680b0",
+    "nuclei": "c49588140f357cbdddd5436dec11201953a4c5390faeec90777f9ee2cfd70251"
+  },
+  "agent_go_build_commit": "7e0bfbb2f9ac65e75bc1365f8e8ba9c89307d2fe",
+  "server_source_commit": "7e0bfbb2f9ac65e75bc1365f8e8ba9c89307d2fe",
+  "web_helper_source_commit": "7e0bfbb2f9ac65e75bc1365f8e8ba9c89307d2fe",
+  "verification_scope": {
+    "native_local_smoke": "Control + PostgreSQL + Agent + actual Web/fingers helpers against owned synthetic HTTP target; 4 target requests, PoC disabled",
+    "targeted_checks": "Helper race, Agent enrichment, Control/PG, rulelib and frontend build; final evidence-termination repair checked separately",
+    "linux_release": "Cross-built from clean source revision; component hashes and Go VCS metadata verified; no cloud Worker installed in this increment",
+    "known_limit": "Legacy HTTP fallback timing test also fails on untouched dc1cf0b baseline; no full-suite pass claimed"
+  }
+}
