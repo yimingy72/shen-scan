@@ -1,0 +1,7 @@
+HTTP/1.1 200 OK
+Content-Type: application/json
+Date: Thu, 22 Oct 2026 10:21:52 GMT
+Content-Length: 725
+Connection: close
+
+{"web_scan_options":{"passive":true,"active":false,"js_dom":true,"screenshot":false},"id":"7065eee6-4495-45a7-8124-3ccee13616bc","name":"自建验证-未利用-API复制复现-非浏览器原请求","targets":["192.0.2.10","192.0.2.11","ui-fixture.example","http://second-fixture.example:8080/path"],"modes":["port","http"],"status":"pending","created_at":"2026-10-22T10:21:52.915091Z","updated_at":"2026-10-22T10:21:52.915091Z","task_total":5,"task_done":0,"task_failed":0,"asset_count":0,"target_count":4,"target_done":0,"open_port_count":0,"http_count":0,"input_count":4,"poc_enabled":false,"finding_count":0,"verification_finding_count":0,"check_match_count":0,"discovery_match_count":0,"poc_checked_count":0,"error":""}

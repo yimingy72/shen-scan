@@ -4,10 +4,11 @@ import { ArrowRightOutlined, CloudServerOutlined, DatabaseOutlined, FileSearchOu
 import { ApiClient, type Run, type WebScanOptions, formatTime } from './api'
 import { Brand, LoadError, NoData, PageActivity, Refresh, Status, clearLoadCache, number, shortTime, useLoad } from './ui'
 import type { LibraryPageData } from './Library'
+import { TaskTools } from './TaskTools'
 
 const ResultsPage = memo(lazy(() => import('./Results').then(module => ({ default: module.ResultsPage }))), (previous, next) => {
-  if (previous.active || next.active) return previous.api === next.api && previous.runs === next.runs && previous.runId === next.runId && previous.active === next.active && previous.selectRun === next.selectRun && previous.reloadRuns === next.reloadRuns
-  return previous.api === next.api && previous.runId === next.runId && previous.active === next.active
+  if (previous.active || next.active) return previous.api === next.api && previous.runs === next.runs && previous.runId === next.runId && previous.active === next.active && previous.selectRun === next.selectRun && previous.reloadRuns === next.reloadRuns && previous.copyRun === next.copyRun && previous.deletedRun === next.deletedRun
+  return previous.api === next.api && previous.runId === next.runId && previous.active === next.active && previous.copyRun === next.copyRun && previous.deletedRun === next.deletedRun
 })
 function prefetchPage(page: Route['page']) {
   if (page === 'results') void import('./Results')
@@ -56,7 +57,7 @@ export function parseTargets(text: string) {
 
 type CreateRunValues = { name: string; targets: string; modes: string[]; poc_enabled: boolean; poc_rule_ids: string[]; web_scan_options: WebScanOptions }
 
-function CreateRun({ open, api, close, created }: { open: boolean; api: ApiClient; close: () => void; created: (run: Run) => void }) {
+function CreateRun({ open, api, close, created, source }: { open: boolean; api: ApiClient; close: () => void; created: (run: Run) => void; source?: Run }) {
   const [form] = Form.useForm<CreateRunValues>()
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -81,7 +82,7 @@ function CreateRun({ open, api, close, created }: { open: boolean; api: ApiClien
     try { form.setFieldValue('targets', await file.text()); setError('') } catch { setError('读取文件失败') }
     return false
   }
-  return <Drawer title="新建扫描任务" open={open} onClose={close} size={480} destroyOnHidden><LoadError error={error} /><Form form={form} layout="vertical" onFinish={submit} initialValues={{ modes: ['port', 'http'], poc_enabled: false, poc_rule_ids: [], web_scan_options: { passive: true, active: true, js_dom: false, screenshot: false } }} onValuesChange={changed => { if (changed.modes && !changed.modes.includes('http')) form.setFieldsValue({ poc_enabled: false, poc_rule_ids: [] }) }} requiredMark={false}><Form.Item name="name" label="任务名称" rules={[{ required: true, whitespace: true, message: '请输入任务名称' }]}><Input maxLength={120} placeholder="例如：生产环境巡检" /></Form.Item><div className="field-heading"><span>扫描目标</span><Upload accept=".txt,.csv" showUploadList={false} beforeUpload={importFile}><Button type="text" size="small" icon={<ImportOutlined />}>导入 TXT / CSV</Button></Upload></div><Form.Item name="targets" rules={[{ required: true, whitespace: true, message: '请输入扫描目标' }]}><Input.TextArea className="mono" rows={6} placeholder={'192.0.2.10\n192.0.2.0/24\nexample.com\nhttps://example.com:8443/'} /></Form.Item><div className="form-summary">{targets.length ? `${number(targets.length)} 条输入 · ${number(domainCount)} 个域名 / URL` : '支持 IP、CIDR、域名和 URL，每行一个'}</div><Form.Item name="modes" label="扫描模式" rules={[{ required: true, message: '请选择至少一种扫描模式' }]}><Checkbox.Group className="mode-options"><Checkbox value="port"><strong>端口扫描</strong><span>TCP 1–65535 · 包含服务指纹</span></Checkbox><Checkbox value="http"><strong>HTTP 指纹</strong><span>包含 CMS / 框架识别</span></Checkbox></Checkbox.Group></Form.Item>{modes.includes('http') && <div className="web-scan-options"><div className="field-heading"><span>HTTP 扫描方式</span><span className="muted">基础采集始终执行</span></div><div className="web-scan-grid">{([
+  return <Drawer title={source ? "复制为新任务" : "新建扫描任务"} open={open} onClose={close} size={480} destroyOnHidden><LoadError error={error} /><Form form={form} layout="vertical" onFinish={submit} initialValues={{ name: source ? `${source.name} · 复扫`.slice(0, 120) : '', targets: source?.targets.join('\n') || '', modes: source?.modes || ['port', 'http'], poc_enabled: false, poc_rule_ids: [], web_scan_options: source?.web_scan_options || { passive: true, active: true, js_dom: false, screenshot: false } }} onValuesChange={changed => { if (changed.modes && !changed.modes.includes('http')) form.setFieldsValue({ poc_enabled: false, poc_rule_ids: [] }) }} requiredMark={false}>{source && <div className="compact-note">复制自 {source.name} · 新任务使用当前规则，请核对扫描方式。</div>}<Form.Item name="name" label="任务名称" rules={[{ required: true, whitespace: true, message: '请输入任务名称' }]}><Input maxLength={120} placeholder="例如：生产环境巡检" /></Form.Item><div className="field-heading"><span>扫描目标</span><Upload accept=".txt,.csv" showUploadList={false} beforeUpload={importFile}><Button type="text" size="small" icon={<ImportOutlined />}>导入 TXT / CSV</Button></Upload></div><Form.Item name="targets" rules={[{ required: true, whitespace: true, message: '请输入扫描目标' }]}><Input.TextArea className="mono" rows={6} placeholder={'192.0.2.10\n192.0.2.0/24\nexample.com\nhttps://example.com:8443/'} /></Form.Item><div className="form-summary">{targets.length ? `${number(targets.length)} 条输入 · ${number(domainCount)} 个域名 / URL` : '支持 IP、CIDR、域名和 URL，每行一个'}</div><Form.Item name="modes" label="扫描模式" rules={[{ required: true, message: '请选择至少一种扫描模式' }]}><Checkbox.Group className="mode-options"><Checkbox value="port"><strong>端口扫描</strong><span>TCP 1–65535 · 包含服务指纹</span></Checkbox><Checkbox value="http"><strong>HTTP 指纹</strong><span>包含 CMS / 框架识别</span></Checkbox></Checkbox.Group></Form.Item>{modes.includes('http') && <div className="web-scan-options"><div className="field-heading"><span>HTTP 扫描方式</span><span className="muted">基础采集始终执行</span></div><div className="web-scan-grid">{([
     ['passive', '被动指纹', '匹配响应头、HTML 和图标'],
     ['active', '主动指纹', '按规则请求特定路径'],
     ['js_dom', 'JS / DOM', '浏览器运行时识别'],
@@ -99,7 +100,7 @@ export function RunActions({ api, run, changed }: { api: ApiClient; run: Run; ch
   return <Space size={6}>{['running', 'pending'].includes(run.status) && <Button size="small" disabled={busy} onClick={() => void act('pause')}>暂停</Button>}{run.status === 'paused' && <Button type="primary" size="small" disabled={busy} onClick={() => void act('resume')}>恢复</Button>}{['running', 'pending', 'paused'].includes(run.status) && <Button size="small" danger disabled={busy} onClick={() => modal.confirm({ title: '取消这个扫描任务？', content: '停止后续扫描，已收到的结果会保留。', okText: '取消任务', cancelText: '返回', okButtonProps: { danger: true }, onOk: () => act('cancel') })}>取消任务</Button>}</Space>
 }
 
-function RunsPage({ runs, loading, reload, openCreate }: { runs: Run[]; loading: boolean; reload: () => void; openCreate: () => void }) {
+function RunsPage({ api, runs, loading, reload, openCreate, copyRun, deletedRun }: { api: ApiClient; runs: Run[]; loading: boolean; reload: () => void; openCreate: () => void; copyRun: (id: string) => void; deletedRun: (id: string) => void }) {
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState('all')
   const visible = runs.filter(run => `${run.name} ${run.id}`.toLowerCase().includes(query.toLowerCase()) && (filter === 'all' || (filter === 'active' ? ['pending', 'running', 'paused'].includes(run.status) : ['completed', 'cancelled', 'partial', 'failed'].includes(run.status))))
@@ -112,24 +113,28 @@ function RunsPage({ runs, loading, reload, openCreate }: { runs: Run[]; loading:
     { title: 'HTTP 端点', dataIndex: 'http_count', width: 90, align: 'right' as const, render: number },
     { title: '目标进度', key: 'progress', width: 135, render: (_: unknown, r: Run) => <div><div className="step-progress"><span>{number(r.target_done)} / {number(r.target_count)}</span><span className="progress-track"><i style={{ width: `${r.target_count ? (r.target_done / r.target_count) * 100 : 0}%` }} /></span></div>{r.task_failed > 0 && <span className="cell-secondary error-text">{r.task_failed} 步失败</span>}</div> },
     { title: '创建时间', dataIndex: 'created_at', width: 125, render: (time: string) => <Tooltip title={formatTime(time)}><span className="muted">{shortTime(time)}</span></Tooltip> },
-    { title: '', key: 'actions', width: 65, render: (_: unknown, run: Run) => <Button type="link" size="small" onClick={() => go('results', run.id)}>结果</Button> },
+    { title: '', key: 'actions', width: 110, render: (_: unknown, run: Run) => <Space size={0}><Button type="link" size="small" onClick={() => go('results', run.id)}>结果</Button><TaskTools api={api} run={run} copy={copyRun} deleted={deletedRun} compact /></Space> },
   ]
   return <><div className="page-bar"><h1>扫描任务</h1><span className="count-badge">{number(runs.length)}</span><span className="bar-spacer" /><Refresh onClick={reload} loading={loading} /><Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新建任务</Button></div><section className="table-panel"><div className="filter-bar"><Segmented value={filter} onChange={setFilter} options={[{ label: '全部', value: 'all' }, { label: `未结束 ${runs.filter(r => ['pending', 'running', 'paused'].includes(r.status)).length}`, value: 'active' }, { label: '已结束', value: 'ended' }]} /><Input prefix={<SearchOutlined />} aria-label="搜索任务" placeholder="搜索任务名称" allowClear value={query} onChange={e => setQuery(e.target.value)} className="search-input" /></div><Table size="small" rowKey="id" columns={columns} dataSource={visible} loading={loading && !runs.length} pagination={{ defaultPageSize: 50, showSizeChanger: true, pageSizeOptions: [20, 50, 100], showTotal: total => `${total} 个任务` }} scroll={{ x: 1060 }} locale={{ emptyText: <NoData text="还没有扫描任务" /> }} /></section></>
 }
 
 function Workspace({ connection, logout }: { connection: Connection; logout: () => void }) {
+  const { message } = AntApp.useApp()
   const api = useMemo(() => new ApiClient(connection.base, connection.token), [connection])
   const [route, setRoute] = useState<Route>(readRoute)
   const [mounted, setMounted] = useState<Set<Route['page']>>(() => new Set([route.page]))
   const currentPage = useRef(route.page)
   const lastRunId = useRef(route.runId || sessionStorage.getItem(LAST_RUN_KEY) || '')
   const [createOpen, setCreateOpen] = useState(false)
+  const [createSource, setCreateSource] = useState<Run>()
+  const [createKey, setCreateKey] = useState(0)
+  const [deletedIDs, setDeletedIDs] = useState<Set<string>>(() => new Set())
   const [runPoll, setRunPoll] = useState(10000)
   const runsData = useLoad<{ items: Run[] }>(api, ['workers', 'library'].includes(route.page) ? null : '/runs?summary=true', runPoll)
-  const loadedRuns = runsData.data?.items || []
+  const loadedRuns = useMemo(() => (runsData.data?.items || []).filter(run => !deletedIDs.has(run.id)), [runsData.data, deletedIDs])
   const lastRuns = useRef<Run[]>([])
-  if (loadedRuns.length) lastRuns.current = loadedRuns
-  const runs = loadedRuns.length ? loadedRuns : lastRuns.current
+  if (runsData.data) lastRuns.current = loadedRuns
+  const runs = runsData.data ? loadedRuns : lastRuns.current
   useEffect(() => {
     if (runsData.data) setRunPoll(runsData.data.items.some(r => ['pending', 'running', 'paused'].includes(r.status)) ? 10000 : 60000)
   }, [runsData.data])
@@ -155,7 +160,21 @@ function Workspace({ connection, logout }: { connection: Connection; logout: () 
   useLayoutEffect(() => { window.scrollTo(0, pageScroll.get(route.page) ?? 0) }, [route.page])
   const reloadRuns = useCallback(() => void runsData.reload(), [runsData.reload])
   const selectRun = useCallback((id: string) => go('results', id), [])
-  const openCreate = useCallback(() => setCreateOpen(true), [])
+  const openCreate = useCallback(() => { setCreateSource(undefined); setCreateKey(n => n + 1); setCreateOpen(true) }, [])
+  const copyRun = useCallback(async (id: string) => {
+    try {
+      const source = await api.request<Run>(`/runs/${encodeURIComponent(id)}`)
+      setCreateSource(source); setCreateKey(n => n + 1); setCreateOpen(true)
+    } catch (e) { message.error(e instanceof Error ? e.message : '无法读取原任务') }
+  }, [api, message])
+  const deletedRun = useCallback((id: string) => {
+    clearLoadCache()
+    setDeletedIDs(ids => new Set(ids).add(id))
+    lastRuns.current = lastRuns.current.filter(run => run.id !== id)
+    if (lastRunId.current === id) { lastRunId.current = ''; sessionStorage.removeItem(LAST_RUN_KEY) }
+    if (readRoute().runId === id) go('runs')
+    reloadRuns()
+  }, [reloadRuns])
   const pageActive = (page: Route['page']) => route.page === page
 
   return <div className="app-shell">
@@ -176,13 +195,13 @@ function Workspace({ connection, logout }: { connection: Connection; logout: () 
       <LoadError error={runsData.error} retry={reloadRuns} />
       {mounted.has('runs') && <PageSlot active={pageActive('runs')}>
         <PageActivity active={pageActive('runs')}>
-          <RunsPage runs={runs} loading={runsData.loading} reload={reloadRuns} openCreate={openCreate} />
+          <RunsPage api={api} runs={runs} loading={runsData.loading} reload={reloadRuns} openCreate={openCreate} copyRun={copyRun} deletedRun={deletedRun} />
         </PageActivity>
       </PageSlot>}
       {mounted.has('results') && <PageSlot active={pageActive('results')}>
         <PageActivity active={pageActive('results')}>
           <Suspense fallback={<div className="page-loading">正在载入扫描结果…</div>}>
-            <ResultsPage api={api} runs={runs} runId={route.runId || lastRunId.current} selectRun={selectRun} reloadRuns={reloadRuns} active={pageActive('results')} />
+            <ResultsPage api={api} runs={runs} runId={route.runId || lastRunId.current} selectRun={selectRun} reloadRuns={reloadRuns} copyRun={copyRun} deletedRun={deletedRun} active={pageActive('results')} />
           </Suspense>
         </PageActivity>
       </PageSlot>}
@@ -201,7 +220,7 @@ function Workspace({ connection, logout }: { connection: Connection; logout: () 
         </PageActivity>
       </PageSlot>}
     </main>
-    <CreateRun api={api} open={createOpen} close={() => setCreateOpen(false)} created={run => { setCreateOpen(false); void runsData.reload(); go('results', run.id) }} />
+    <CreateRun key={createKey} api={api} source={createSource} open={createOpen} close={() => setCreateOpen(false)} created={run => { setCreateOpen(false); void runsData.reload(); go('results', run.id) }} />
   </div>
 }
 

@@ -11,6 +11,9 @@ API 前缀为 `/api`，请求及响应使用 JSON。除健康检查外，管理�
 | `POST /api/runs` | 创建扫描任务 |
 | `GET /api/runs?summary=true` | 列表摘要，仅含前 2 条输入和真实 `input_count` |
 | `GET /api/runs/{id}` | 完整任务与原始输入 |
+| `GET /api/runs/{id}/export?format=csv&kind=targets` | 全量结果快照导出；format为csv/json，kind为targets/ports/http/findings |
+| `DELETE /api/runs/{id}` | 管理员显式删除终态任务及关联结果，有活跃或未确认停止执行时拒绝 |
+| `GET /api/storage/status` | 数据库大小、表估算体量及采样时点；缓存60秒，磁盘剩余未知 |
 | `POST /api/runs/{id}/pause` | 暂停 |
 | `POST /api/runs/{id}/resume` | 恢复 |
 | `POST /api/runs/{id}/cancel` | 取消，保留已收到的结果 |
@@ -64,6 +67,12 @@ API 前缀为 `/api`，请求及响应使用 JSON。除健康检查外，管理�
 创建 HTTP 任务可传 `web_scan_options:{"passive":true,"active":true,"js_dom":false,"screenshot":false}`。省略该对象采用上述默认；显式全 false 表示仅采集。四项互不依赖，截图不要求开启 JS/DOM 指纹。策略冻结在任务中，Run 与 HTTP 结果均返回选择范围；历史快照保留原执行。列表的 `screenshot` 只含状态、尺寸、摘要和标识，不含图像字节；详情和图像地址都按接受的执行凭证鉴权。见 [HTTP 浏览器能力](HTTP_BROWSER.md)。
 
 列表使用 `limit`、`offset` 分页。完整端口覆盖按被接受的完成版本计算。P1新增独立的阳性端口凭证及Nuclei逐模板凭证：在有效执行中确认收到的这些证据可跨attempt保留；它们不替代完整端口区间覆盖。目标结果增加 `port_coverage`，端口列表增加 `port_observation_id/positive_port_receipt_id`，端口观测详情的 `positive_port_receipt` 包含来源task、attempt、batch和完整摘要。`task_total` 是内部执行批次数，派生任务后会增加；目标完成进度使用 `target_done / target_count`。
+
+## 任务导出与清理
+
+结果导出沿用列表的有效观测与独立阳性凭证语义，在一个只读数据库快照内读取全部分页。JSON 的 `target_quality` 保存全部目标质量，`items` 保存所选结果；CSV 的 `record_type` 区分质量行与结果行，`details_json` 保存结构化摘要。`complete:true` / `export_complete:true` 仅表示导出文件生成完整，扫描质量看目标的 `port_coverage`、状态和错误。导出不含原始 HTTP 报文、截图字节或凭据。生成失败不返回成功附件。
+
+删除请求体为空。`completed/partial/failed/cancelled` 且所有关联执行已停止才允许删除；`paused`、queued/leased 工作、有效许可或任何未释放配额返回409。成功返回 `{"deleted":true,"run_id":"..."}`；不存在返回404。共享规则库和指纹包保留。删除不会立即压缩数据库文件，也没有默认自动保留期。复制任务通过读取完整 `GET /api/runs/{id}` 后新建实现，不修改或重启原run。
 
 ## Worker 维护
 

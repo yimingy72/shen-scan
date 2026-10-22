@@ -1,0 +1,6 @@
+DELETE http://127.0.0.1:19890/api/runs/66df6212-2718-4892-9f20-435637294ceb HTTP/1.1
+Host: 127.0.0.1:19890
+Accept-Encoding: identity
+Connection: close
+Authorization: Bearer LOCAL_TEST_ADMIN_TOKEN
+

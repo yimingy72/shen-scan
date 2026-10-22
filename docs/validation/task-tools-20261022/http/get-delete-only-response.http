@@ -1,0 +1,7 @@
+HTTP/1.1 200 OK
+Content-Type: application/json
+Date: Thu, 22 Oct 2026 10:02:29 GMT
+Content-Length: 628
+Connection: close
+
+{"web_scan_options":{"passive":true,"active":false,"js_dom":true,"screenshot":false},"id":"045c1054-d4fc-4e54-8b25-ff1f94bf1fba","name":"自建验证-未利用-delete-only","targets":["198.51.100.90"],"modes":["port","http"],"status":"completed","created_at":"2026-10-22T10:02:29.054761Z","updated_at":"2026-10-22T10:02:29.054761Z","task_total":1,"task_done":1,"task_failed":0,"asset_count":1,"target_count":1,"target_done":1,"open_port_count":1,"http_count":0,"input_count":1,"poc_enabled":false,"finding_count":0,"verification_finding_count":0,"check_match_count":0,"discovery_match_count":0,"poc_checked_count":0,"error":""}

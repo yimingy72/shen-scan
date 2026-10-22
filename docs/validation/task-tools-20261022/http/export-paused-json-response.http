@@ -1,0 +1,12 @@
+HTTP/1.1 200 OK
+Accept-Ranges: bytes
+Cache-Control: no-store
+Content-Disposition: attachment; filename=scan-c5db7df2-1347-418f-ba35-3d86abbda5f2-targets-20261022T100259Z.json
+Content-Length: 1955
+Content-Type: application/json; charset=utf-8
+X-Content-Type-Options: nosniff
+X-Export-Snapshot-At: 2026-10-22T10:02:59.25392Z
+Date: Thu, 22 Oct 2026 10:02:59 GMT
+Connection: close
+
+{"snapshot_at":"2026-10-22T10:02:59.25392Z","complete":true,"kind":"targets","run":{"asset_count":0,"check_match_count":0,"created_at":"2026-10-22T10:02:28.935911Z","discovery_match_count":0,"error":"","finding_count":0,"http_count":0,"id":"c5db7df2-1347-418f-ba35-3d86abbda5f2","input_count":3,"modes":["port","http"],"name":"自建验证-未利用-paused","open_port_count":0,"poc_checked_count":0,"poc_enabled":false,"status":"paused","target_count":3,"target_done":0,"task_done":0,"task_failed":0,"task_total":5,"updated_at":"2026-10-22T10:02:28.935911Z","verification_finding_count":0,"web_scan_options":{"passive":true,"active":false,"js_dom":true,"screenshot":false}},"target_quality":[{"error_count":0,"failure_reason":"","fingerprint_count":0,"fingerprint_limited":false,"http_count":0,"ips":[],"open_flood":false,"open_port_count":0,"port_coverage":"unconfirmed","port_state":"pending","ports":[],"products":[],"services":[],"state":"pending","target":"192.0.2.20","task_done":0,"task_failed":0,"task_total":1,"technologies":[],"titles":[],"updated_at":"2026-10-22T10:02:28.935911+00:00"},{"error_count":0,"failure_reason":"","fingerprint_count":0,"fingerprint_limited":false,"http_count":0,"ips":[],"open_flood":false,"open_port_count":0,"port_coverage":"not_scanned","port_state":"not_scanned","ports":[],"products":[],"services":[],"state":"pending","target":"paused-fixture.example","task_done":0,"task_failed":0,"task_total":2,"technologies":[],"titles":[],"updated_at":"2026-10-22T10:02:28.935911+00:00"},{"error_count":0,"failure_reason":"","fingerprint_count":0,"fingerprint_limited":false,"http_count":0,"ips":[],"open_flood":false,"open_port_count":0,"port_coverage":"not_scanned","port_state":"not_scanned","ports":[],"products":[],"services":[],"state":"pending","target":"second-paused.example","task_done":0,"task_failed":0,"task_total":2,"technologies":[],"titles":[],"updated_at":"2026-10-22T10:02:28.935911+00:00"}],"items":[]}

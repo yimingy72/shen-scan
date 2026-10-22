@@ -107,6 +107,59 @@ const targetResults = currentResults + `,
  ($3='' OR ($3='ports' AND open_port_count>0) OR ($3='http' AND http_count>0) OR
  ($3='errors' AND task_failed>0) OR ($3='limited' AND fingerprint_limited) OR ($3='empty' AND open_port_count=0 AND port_state='completed')))`
 
+const portResultBase = `WITH latest AS (SELECT DISTINCT ON(a.observation->>'kind',a.observation->>'port') a.id,a.observed_at,a.observation,receipt.id positive_port_receipt_id
+	 FROM assets a JOIN tasks t ON t.id=a.task_id LEFT JOIN port_positive_receipts receipt ON receipt.observation_id=a.id
+	 WHERE a.run_id=$1 AND a.target_key=$2 AND a.observation->>'kind' IN('port','service')
+ AND ((COALESCE(t.accepted_attempt_no,t.attempt_no)=a.attempt_no AND t.state='completed') OR EXISTS(SELECT 1 FROM port_positive_receipts p WHERE p.observation_id=a.id) OR EXISTS(SELECT 1 FROM poc_template_receipts p WHERE p.observation_id=a.id))
+	 ORDER BY a.observation->>'kind',a.observation->>'port',(COALESCE(a.observation->>'error','')='') DESC,(receipt.id IS NOT NULL) DESC,a.observed_at DESC,a.id DESC),
+ ports AS (SELECT (observation->>'port')::int port,bool_or(observation->>'kind'='port') is_open,
+ max(observation->>'service') service,max(observation->>'product') product,max(observation->>'version') version,
+ max(observation->>'error') error,max(observed_at) observed_at,max(id) FILTER(WHERE observation->>'kind'='service') service_observation_id,
+ max(id) FILTER(WHERE observation->>'kind'='port') port_observation_id,max(positive_port_receipt_id) positive_port_receipt_id
+ FROM latest GROUP BY (observation->>'port')::int)`
+
+const httpResultBase = currentResults + `, latest AS(SELECT DISTINCT ON(target_key,COALESCE(observation->>'url',observation->>'target')) * FROM ob WHERE observation->>'kind'='http' AND ($2='' OR target_key=$2)
+ ORDER BY target_key,COALESCE(observation->>'url',observation->>'target'),(COALESCE((observation->>'status_code')::int,0)>0) DESC,observed_at DESC,id DESC), filtered AS(SELECT * FROM latest WHERE ($3='' OR (observation-'request_raw'-'response_raw'-'body_excerpt'-'headers'-'evidence'-'http_progress')::text ILIKE '%'||$3||'%' OR target_key ILIKE '%'||$3||'%') AND ($4='' OR $4='all' OR ($4='responded' AND COALESCE((observation->>'status_code')::int,0)>0) OR ($4='no_response' AND COALESCE((observation->>'status_code')::int,0)=0)))`
+
+const findingResultBase = currentResults + `, findings AS (SELECT * FROM ob WHERE observation->>'kind'='poc'),
+	 filtered AS (SELECT * FROM findings WHERE ($2='all' OR observation->>'finding_status'=$2)
+	 AND ($3='' OR observation->>'severity'=$3) AND ($4='' OR
+	 (observation-'request_raw'-'response_raw'-'body_excerpt'-'headers')::text ILIKE '%'||$4||'%' OR target_key ILIKE '%'||$4||'%')
+	 AND ($5='' OR COALESCE(NULLIF(observation->>'purpose',''),'discovery')=$5))`
+
+const targetResultPageQuery = targetResults + `, page AS (SELECT * FROM filtered
+ ORDER BY open_port_count DESC,http_count DESC,CASE WHEN target ~ '^[0-9]{1,3}(\.[0-9]{1,3}){3}$' THEN string_to_array(target,'.')::int[] END NULLS LAST,target LIMIT $4 OFFSET $5)
+ SELECT (SELECT count(*) FROM filtered),count(*),COALESCE(sum(open_port_count),0),COALESCE(sum(http_count),0),count(*) FILTER(WHERE task_failed>0),count(*) FILTER(WHERE fingerprint_limited),
+ COALESCE((SELECT jsonb_agg(to_jsonb(p) ORDER BY open_port_count DESC,http_count DESC,CASE WHEN target ~ '^[0-9]{1,3}(\.[0-9]{1,3}){3}$' THEN string_to_array(target,'.')::int[] END NULLS LAST,target) FROM page p),'[]'::jsonb) FROM results`
+
+const portResultPageQuery = portResultBase + `, page AS (SELECT * FROM ports WHERE is_open ORDER BY port LIMIT $3 OFFSET $4),
+	 http_latest AS (SELECT DISTINCT ON((a.observation->>'port')::int,a.observation->>'url')
+	  (a.observation->>'port')::int port,a.observation->>'url' url,
+	  jsonb_build_object('id',a.id,'url',a.observation->>'url','status_code',a.observation->'status_code','title',a.observation->>'title','technologies',a.observation->'technologies') item
+	 FROM assets a JOIN tasks t ON t.id=a.task_id AND COALESCE(t.accepted_attempt_no,t.attempt_no)=a.attempt_no AND t.state='completed'
+	 WHERE a.run_id=$1 AND a.target_key=$2 AND a.observation->>'kind'='http' AND a.observation->>'ip'=$2 AND COALESCE((a.observation->>'status_code')::int,0)>0
+	 ORDER BY (a.observation->>'port')::int,a.observation->>'url',a.observed_at DESC,a.id DESC),
+	 http_by_port AS (SELECT port,jsonb_agg(item ORDER BY url) http FROM (
+	  SELECT *,row_number() OVER(PARTITION BY port ORDER BY url) item_no FROM http_latest) ranked WHERE item_no<=8 GROUP BY port),
+	 items AS (SELECT to_jsonb(p)||jsonb_build_object('http',COALESCE(h.http,'[]'::jsonb)) item,p.port
+	 FROM page p LEFT JOIN http_by_port h ON h.port=p.port)
+ SELECT count(*) FILTER(WHERE is_open),COALESCE((SELECT jsonb_agg(item ORDER BY port) FROM items),'[]'::jsonb) FROM ports`
+
+const httpResultPageQuery = httpResultBase + `, page AS (SELECT * FROM filtered ORDER BY target_key,observation->>'url',id LIMIT $5 OFFSET $6)
+ SELECT count(*),COALESCE((SELECT jsonb_agg((observation-'request_raw'-'response_raw'-'body_excerpt'-'headers'-'evidence'-'http_progress') || jsonb_build_object('id',id,'source_target',target_key,'observed_at',observed_at) ORDER BY target_key,observation->>'url',id) FROM page),'[]'::jsonb) FROM filtered`
+
+const findingResultPageQuery = findingResultBase + `, page AS (SELECT * FROM filtered ORDER BY observed_at DESC,id DESC LIMIT $6 OFFSET $7)
+	 SELECT (SELECT count(*) FROM filtered),count(*) FILTER(WHERE observation->>'finding_status'='matched'),
+	 count(*) FILTER(WHERE observation->>'finding_status'='not_matched'),count(*) FILTER(WHERE observation->>'finding_status'='error'),count(*) FILTER(WHERE observation->>'finding_status'='incomplete'),
+	 count(*) FILTER(WHERE observation->>'finding_status'='matched' AND COALESCE(NULLIF(observation->>'purpose',''),'discovery')='verification'),
+	 count(*) FILTER(WHERE observation->>'finding_status'='matched' AND COALESCE(NULLIF(observation->>'purpose',''),'discovery')='check'),
+	 count(*) FILTER(WHERE observation->>'finding_status'='matched' AND COALESCE(NULLIF(observation->>'purpose',''),'discovery')='discovery'),
+	 COALESCE((SELECT jsonb_agg((observation-'request_raw'-'response_raw'-'body_excerpt'-'headers') ||
+	 jsonb_build_object('id',id,'run_id',$1::text,'source_target',target_key,'observed_at',observed_at,
+	 'matched_products',COALESCE(task_payload->'rule_triggers'->(observation->>'rule_id')->'matched_products',task_payload->'matched_products','[]'::jsonb),'trigger_reason',COALESCE(task_payload->'rule_triggers'->(observation->>'rule_id')->>'trigger_reason',task_payload->>'trigger_reason',''))
+	 ORDER BY observed_at DESC,id DESC) FROM page),'[]'::jsonb)
+	 FROM findings`
+
 func (s *Server) requireResultRun(w http.ResponseWriter, r *http.Request) bool {
 	var exists bool
 	err := s.db.QueryRow(r.Context(), `SELECT EXISTS(SELECT 1 FROM runs WHERE id=$1)`, r.PathValue("id")).Scan(&exists)
@@ -138,10 +191,7 @@ func (s *Server) listTargetResults(w http.ResponseWriter, r *http.Request) {
 	args := []any{r.PathValue("id"), strings.TrimSpace(r.URL.Query().Get("q")), filter, limit, offset}
 	var total, targets, ports, httpCount, withErrors, limited int64
 	var items json.RawMessage
-	err = s.db.QueryRow(r.Context(), targetResults+`, page AS (SELECT * FROM filtered
- ORDER BY open_port_count DESC,http_count DESC,CASE WHEN target ~ '^[0-9]{1,3}(\.[0-9]{1,3}){3}$' THEN string_to_array(target,'.')::int[] END NULLS LAST,target LIMIT $4 OFFSET $5)
- SELECT (SELECT count(*) FROM filtered),count(*),COALESCE(sum(open_port_count),0),COALESCE(sum(http_count),0),count(*) FILTER(WHERE task_failed>0),count(*) FILTER(WHERE fingerprint_limited),
- COALESCE((SELECT jsonb_agg(to_jsonb(p) ORDER BY open_port_count DESC,http_count DESC,CASE WHEN target ~ '^[0-9]{1,3}(\.[0-9]{1,3}){3}$' THEN string_to_array(target,'.')::int[] END NULLS LAST,target) FROM page p),'[]'::jsonb) FROM results`, args...).Scan(&total, &targets, &ports, &httpCount, &withErrors, &limited, &items)
+	err = s.db.QueryRow(r.Context(), targetResultPageQuery, args...).Scan(&total, &targets, &ports, &httpCount, &withErrors, &limited, &items)
 	if err != nil {
 		writeError(w, 500, "汇总扫描结果失败")
 		return
@@ -163,30 +213,9 @@ func (s *Server) listPortResults(w http.ResponseWriter, r *http.Request) {
 		writeError(w, 400, "请选择目标")
 		return
 	}
-	const grouped = `WITH latest AS (SELECT DISTINCT ON(a.observation->>'kind',a.observation->>'port') a.id,a.observed_at,a.observation,receipt.id positive_port_receipt_id
-	 FROM assets a JOIN tasks t ON t.id=a.task_id LEFT JOIN port_positive_receipts receipt ON receipt.observation_id=a.id
-	 WHERE a.run_id=$1 AND a.target_key=$2 AND a.observation->>'kind' IN('port','service')
- AND ((COALESCE(t.accepted_attempt_no,t.attempt_no)=a.attempt_no AND t.state='completed') OR EXISTS(SELECT 1 FROM port_positive_receipts p WHERE p.observation_id=a.id) OR EXISTS(SELECT 1 FROM poc_template_receipts p WHERE p.observation_id=a.id))
-	 ORDER BY a.observation->>'kind',a.observation->>'port',(COALESCE(a.observation->>'error','')='') DESC,(receipt.id IS NOT NULL) DESC,a.observed_at DESC,a.id DESC),
- ports AS (SELECT (observation->>'port')::int port,bool_or(observation->>'kind'='port') is_open,
- max(observation->>'service') service,max(observation->>'product') product,max(observation->>'version') version,
- max(observation->>'error') error,max(id) FILTER(WHERE observation->>'kind'='service') service_observation_id,
- max(id) FILTER(WHERE observation->>'kind'='port') port_observation_id,max(positive_port_receipt_id) positive_port_receipt_id
- FROM latest GROUP BY (observation->>'port')::int)`
 	var total int64
 	var items json.RawMessage
-	err = s.db.QueryRow(r.Context(), grouped+`, page AS (SELECT * FROM ports WHERE is_open ORDER BY port LIMIT $3 OFFSET $4),
-	 http_latest AS (SELECT DISTINCT ON((a.observation->>'port')::int,a.observation->>'url')
-	  (a.observation->>'port')::int port,a.observation->>'url' url,
-	  jsonb_build_object('id',a.id,'url',a.observation->>'url','status_code',a.observation->'status_code','title',a.observation->>'title','technologies',a.observation->'technologies') item
-	 FROM assets a JOIN tasks t ON t.id=a.task_id AND COALESCE(t.accepted_attempt_no,t.attempt_no)=a.attempt_no AND t.state='completed'
-	 WHERE a.run_id=$1 AND a.target_key=$2 AND a.observation->>'kind'='http' AND a.observation->>'ip'=$2 AND COALESCE((a.observation->>'status_code')::int,0)>0
-	 ORDER BY (a.observation->>'port')::int,a.observation->>'url',a.observed_at DESC,a.id DESC),
-	 http_by_port AS (SELECT port,jsonb_agg(item ORDER BY url) http FROM (
-	  SELECT *,row_number() OVER(PARTITION BY port ORDER BY url) item_no FROM http_latest) ranked WHERE item_no<=8 GROUP BY port),
-	 items AS (SELECT to_jsonb(p)||jsonb_build_object('http',COALESCE(h.http,'[]'::jsonb)) item,p.port
-	 FROM page p LEFT JOIN http_by_port h ON h.port=p.port)
- SELECT count(*) FILTER(WHERE is_open),COALESCE((SELECT jsonb_agg(item ORDER BY port) FROM items),'[]'::jsonb) FROM ports`, r.PathValue("id"), target, limit, offset).Scan(&total, &items)
+	err = s.db.QueryRow(r.Context(), portResultPageQuery, r.PathValue("id"), target, limit, offset).Scan(&total, &items)
 	if err != nil {
 		writeError(w, 500, "读取端口失败")
 		return
@@ -207,13 +236,10 @@ func (s *Server) listHTTPResults(w http.ResponseWriter, r *http.Request) {
 		writeError(w, 400, "未知 HTTP 响应筛选条件")
 		return
 	}
-	const httpQuery = currentResults + `, latest AS(SELECT DISTINCT ON(target_key,COALESCE(observation->>'url',observation->>'target')) * FROM ob WHERE observation->>'kind'='http' AND ($2='' OR target_key=$2)
- ORDER BY target_key,COALESCE(observation->>'url',observation->>'target'),(COALESCE((observation->>'status_code')::int,0)>0) DESC,observed_at DESC,id DESC), filtered AS(SELECT * FROM latest WHERE ($3='' OR (observation-'request_raw'-'response_raw'-'body_excerpt'-'headers'-'evidence'-'http_progress')::text ILIKE '%'||$3||'%' OR target_key ILIKE '%'||$3||'%') AND ($4='' OR $4='all' OR ($4='responded' AND COALESCE((observation->>'status_code')::int,0)>0) OR ($4='no_response' AND COALESCE((observation->>'status_code')::int,0)=0)))`
 	args := []any{r.PathValue("id"), r.URL.Query().Get("target"), strings.TrimSpace(r.URL.Query().Get("q")), r.URL.Query().Get("status"), limit, offset}
 	var total int64
 	var items json.RawMessage
-	err = s.db.QueryRow(r.Context(), httpQuery+`, page AS (SELECT * FROM filtered ORDER BY target_key,observation->>'url' LIMIT $5 OFFSET $6)
- SELECT count(*),COALESCE((SELECT jsonb_agg((observation-'request_raw'-'response_raw'-'body_excerpt'-'headers'-'evidence'-'http_progress') || jsonb_build_object('id',id,'source_target',target_key,'observed_at',observed_at) ORDER BY target_key,observation->>'url') FROM page),'[]'::jsonb) FROM filtered`, args...).Scan(&total, &items)
+	err = s.db.QueryRow(r.Context(), httpResultPageQuery, args...).Scan(&total, &items)
 	if err != nil {
 		writeError(w, 500, "读取 HTTP 结果失败")
 		return
@@ -249,24 +275,9 @@ func (s *Server) listFindings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	query := strings.TrimSpace(r.URL.Query().Get("q"))
-	const findings = currentResults + `, findings AS (SELECT * FROM ob WHERE observation->>'kind'='poc'),
-	 filtered AS (SELECT * FROM findings WHERE ($2='all' OR observation->>'finding_status'=$2)
-	 AND ($3='' OR observation->>'severity'=$3) AND ($4='' OR
-	 (observation-'request_raw'-'response_raw'-'body_excerpt'-'headers')::text ILIKE '%'||$4||'%' OR target_key ILIKE '%'||$4||'%')
-	 AND ($5='' OR COALESCE(NULLIF(observation->>'purpose',''),'discovery')=$5))`
 	var total, matched, notMatched, failed, incomplete, verificationMatched, checkMatched, discoveryMatched int64
 	var items json.RawMessage
-	err = s.db.QueryRow(r.Context(), findings+`, page AS (SELECT * FROM filtered ORDER BY observed_at DESC,id DESC LIMIT $6 OFFSET $7)
-	 SELECT (SELECT count(*) FROM filtered),count(*) FILTER(WHERE observation->>'finding_status'='matched'),
-	 count(*) FILTER(WHERE observation->>'finding_status'='not_matched'),count(*) FILTER(WHERE observation->>'finding_status'='error'),count(*) FILTER(WHERE observation->>'finding_status'='incomplete'),
-	 count(*) FILTER(WHERE observation->>'finding_status'='matched' AND COALESCE(NULLIF(observation->>'purpose',''),'discovery')='verification'),
-	 count(*) FILTER(WHERE observation->>'finding_status'='matched' AND COALESCE(NULLIF(observation->>'purpose',''),'discovery')='check'),
-	 count(*) FILTER(WHERE observation->>'finding_status'='matched' AND COALESCE(NULLIF(observation->>'purpose',''),'discovery')='discovery'),
-	 COALESCE((SELECT jsonb_agg((observation-'request_raw'-'response_raw'-'body_excerpt'-'headers') ||
-	 jsonb_build_object('id',id,'run_id',$1::text,'source_target',target_key,'observed_at',observed_at,
-	 'matched_products',COALESCE(task_payload->'rule_triggers'->(observation->>'rule_id')->'matched_products',task_payload->'matched_products','[]'::jsonb),'trigger_reason',COALESCE(task_payload->'rule_triggers'->(observation->>'rule_id')->>'trigger_reason',task_payload->>'trigger_reason',''))
-	 ORDER BY observed_at DESC,id DESC) FROM page),'[]'::jsonb)
-	 FROM findings`, r.PathValue("id"), status, severity, query, purpose, limit, offset).Scan(
+	err = s.db.QueryRow(r.Context(), findingResultPageQuery, r.PathValue("id"), status, severity, query, purpose, limit, offset).Scan(
 		&total, &matched, &notMatched, &failed, &incomplete, &verificationMatched, &checkMatched, &discoveryMatched, &items)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "load findings failed")

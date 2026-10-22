@@ -1,0 +1,6 @@
+GET http://127.0.0.1:19890/api/runs/045c1054-d4fc-4e54-8b25-ff1f94bf1fba HTTP/1.1
+Host: 127.0.0.1:19890
+Accept-Encoding: identity
+Connection: close
+Authorization: Bearer LOCAL_TEST_ADMIN_TOKEN
+

@@ -49,6 +49,7 @@ type Server struct {
 	sourceMu        sync.Mutex
 	sourceRunning   map[string]bool
 	servicePressure servicePressureCache
+	storage         storageStatusCache
 }
 
 func New(ctx context.Context, databaseURL, adminToken, joinToken string) (*Server, error) {
@@ -104,6 +105,7 @@ func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/health", s.health)
 	mux.HandleFunc("GET /api/scheduler/status", s.admin(s.schedulerStatus))
+	mux.HandleFunc("GET /api/storage/status", s.admin(s.storageStatus))
 	mux.HandleFunc("GET /api/library/fingerprint-bundles", s.admin(s.getFingerprintBundleStatus))
 	mux.HandleFunc("GET /api/library/http-fingerprints", s.admin(s.listHTTPFingerprints))
 	mux.HandleFunc("GET /api/library/http-fingerprints/{id}", s.admin(s.getHTTPFingerprint))
@@ -130,11 +132,13 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/runs", s.admin(s.createRun))
 	mux.HandleFunc("GET /api/runs", s.admin(s.listRuns))
 	mux.HandleFunc("GET /api/runs/{id}", s.admin(s.getRun))
+	mux.HandleFunc("DELETE /api/runs/{id}", s.admin(s.deleteRun))
 	mux.HandleFunc("POST /api/runs/{id}/cancel", s.admin(s.cancelRun))
 	mux.HandleFunc("POST /api/runs/{id}/pause", s.admin(s.pauseRun))
 	mux.HandleFunc("POST /api/runs/{id}/resume", s.admin(s.resumeRun))
 	mux.HandleFunc("GET /api/observations/{id}/screenshot", s.admin(s.getObservationScreenshot))
 	mux.HandleFunc("GET /api/assets", s.admin(s.listAssets))
+	mux.HandleFunc("GET /api/runs/{id}/export", s.admin(s.exportRun))
 	mux.HandleFunc("GET /api/runs/{id}/results", s.admin(s.listTargetResults))
 	mux.HandleFunc("GET /api/runs/{id}/ports", s.admin(s.listPortResults))
 	mux.HandleFunc("GET /api/runs/{id}/http", s.admin(s.listHTTPResults))
@@ -187,6 +191,9 @@ func gzipJSON(next http.Handler) http.Handler {
 }
 
 func binaryResponsePath(value string) bool {
+	if strings.HasPrefix(value, "/api/runs/") && strings.HasSuffix(value, "/export") {
+		return true
+	}
 	if strings.HasPrefix(value, "/api/observations/") && strings.HasSuffix(value, "/screenshot") {
 		return true
 	}

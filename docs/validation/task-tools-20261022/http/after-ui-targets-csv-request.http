@@ -1,0 +1,6 @@
+GET http://127.0.0.1:19890/api/runs/e157b86f-34aa-4000-b377-876dcb044dfb/export?format=csv&kind=targets HTTP/1.1
+Host: 127.0.0.1:19890
+Accept-Encoding: identity
+Connection: close
+Authorization: Bearer LOCAL_TEST_ADMIN_TOKEN
+

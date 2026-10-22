@@ -1,0 +1,7 @@
+HTTP/1.1 200 OK
+Content-Type: application/json
+Date: Thu, 22 Oct 2026 10:02:29 GMT
+Content-Length: 666
+Connection: close
+
+{"web_scan_options":{"passive":true,"active":false,"js_dom":true,"screenshot":false},"id":"c5db7df2-1347-418f-ba35-3d86abbda5f2","name":"自建验证-未利用-paused","targets":["paused-fixture.example","second-paused.example","192.0.2.20"],"modes":["port","http"],"status":"paused","created_at":"2026-10-22T10:02:28.935911Z","updated_at":"2026-10-22T10:02:28.935911Z","task_total":5,"task_done":0,"task_failed":0,"asset_count":0,"target_count":3,"target_done":0,"open_port_count":0,"http_count":0,"input_count":3,"poc_enabled":false,"finding_count":0,"verification_finding_count":0,"check_match_count":0,"discovery_match_count":0,"poc_checked_count":0,"error":""}

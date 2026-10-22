@@ -1,0 +1,7 @@
+HTTP/1.1 200 OK
+Content-Type: application/json
+Date: Thu, 22 Oct 2026 10:02:59 GMT
+Content-Length: 583
+Connection: close
+
+{"items":[{"ips":["192.0.2.30"],"ports":[8443],"state":"failed","target":"192.0.2.30","titles":[],"products":[],"services":[],"task_done":0,"http_count":0,"open_flood":false,"port_state":"failed","task_total":1,"updated_at":"2026-10-22T10:02:28.994935+00:00","error_count":0,"task_failed":1,"technologies":[],"port_coverage":"partial","failure_reason":"synthetic partial fixture; no scan executed","open_port_count":1,"fingerprint_count":0,"fingerprint_limited":false}],"summary":{"http_endpoints":0,"limited_targets":0,"open_ports":1,"targets":1,"targets_with_errors":1},"total":1}

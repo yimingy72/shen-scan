@@ -1,0 +1,8 @@
+{
+  "downloads_directory": "/Users/yym1ng/Downloads",
+  "matching_pattern": "scan-e157*",
+  "browser_file_found": false,
+  "claim": "未校验浏览器落盘文件；只验证另一次真实API CSV响应含4条target_quality记录",
+  "api_csv_response": "after-ui-targets-csv-response.http",
+  "quality_rows": 4
+}

@@ -1,0 +1,7 @@
+HTTP/1.1 409 Conflict
+Content-Type: application/json
+Date: Thu, 22 Oct 2026 10:02:59 GMT
+Content-Length: 46
+Connection: close
+
+{"error":"only terminal runs can be deleted"}

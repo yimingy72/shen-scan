@@ -1,0 +1,200 @@
+[
+  {
+    "label": "results-completed",
+    "method": "GET",
+    "path": "/api/runs/e157b86f-34aa-4000-b377-876dcb044dfb/results",
+    "status": 200,
+    "expected": 200,
+    "passed": true,
+    "response_bytes": 1876
+  },
+  {
+    "label": "ports-completed",
+    "method": "GET",
+    "path": "/api/runs/e157b86f-34aa-4000-b377-876dcb044dfb/ports?target=192.0.2.10",
+    "status": 200,
+    "expected": 200,
+    "passed": true,
+    "response_bytes": 360
+  },
+  {
+    "label": "http-completed",
+    "method": "GET",
+    "path": "/api/runs/e157b86f-34aa-4000-b377-876dcb044dfb/http",
+    "status": 200,
+    "expected": 200,
+    "passed": true,
+    "response_bytes": 472
+  },
+  {
+    "label": "results-partial",
+    "method": "GET",
+    "path": "/api/runs/b010038a-e375-4416-9503-dbb73972f07b/results",
+    "status": 200,
+    "expected": 200,
+    "passed": true,
+    "response_bytes": 583
+  },
+  {
+    "label": "export-targets-json",
+    "method": "GET",
+    "path": "/api/runs/e157b86f-34aa-4000-b377-876dcb044dfb/export?format=json&kind=targets",
+    "status": 200,
+    "expected": 200,
+    "passed": true,
+    "response_bytes": 2465
+  },
+  {
+    "label": "export-targets-csv",
+    "method": "GET",
+    "path": "/api/runs/e157b86f-34aa-4000-b377-876dcb044dfb/export?format=csv&kind=targets",
+    "status": 200,
+    "expected": 200,
+    "passed": true,
+    "response_bytes": 5906
+  },
+  {
+    "label": "export-ports-json",
+    "method": "GET",
+    "path": "/api/runs/e157b86f-34aa-4000-b377-876dcb044dfb/export?format=json&kind=ports",
+    "status": 200,
+    "expected": 200,
+    "passed": true,
+    "response_bytes": 2829
+  },
+  {
+    "label": "export-ports-csv",
+    "method": "GET",
+    "path": "/api/runs/e157b86f-34aa-4000-b377-876dcb044dfb/export?format=csv&kind=ports",
+    "status": 200,
+    "expected": 200,
+    "passed": true,
+    "response_bytes": 7176
+  },
+  {
+    "label": "export-http-json",
+    "method": "GET",
+    "path": "/api/runs/e157b86f-34aa-4000-b377-876dcb044dfb/export?format=json&kind=http",
+    "status": 200,
+    "expected": 200,
+    "passed": true,
+    "response_bytes": 2911
+  },
+  {
+    "label": "export-http-csv",
+    "method": "GET",
+    "path": "/api/runs/e157b86f-34aa-4000-b377-876dcb044dfb/export?format=csv&kind=http",
+    "status": 200,
+    "expected": 200,
+    "passed": true,
+    "response_bytes": 7347
+  },
+  {
+    "label": "export-findings-json",
+    "method": "GET",
+    "path": "/api/runs/e157b86f-34aa-4000-b377-876dcb044dfb/export?format=json&kind=findings",
+    "status": 200,
+    "expected": 200,
+    "passed": true,
+    "response_bytes": 2466
+  },
+  {
+    "label": "export-findings-csv",
+    "method": "GET",
+    "path": "/api/runs/e157b86f-34aa-4000-b377-876dcb044dfb/export?format=csv&kind=findings",
+    "status": 200,
+    "expected": 200,
+    "passed": true,
+    "response_bytes": 5910
+  },
+  {
+    "label": "export-partial-json",
+    "method": "GET",
+    "path": "/api/runs/b010038a-e375-4416-9503-dbb73972f07b/export?format=json&kind=ports",
+    "status": 200,
+    "expected": 200,
+    "passed": true,
+    "response_bytes": 1491
+  },
+  {
+    "label": "export-paused-json",
+    "method": "GET",
+    "path": "/api/runs/c5db7df2-1347-418f-ba35-3d86abbda5f2/export?format=json&kind=targets",
+    "status": 200,
+    "expected": 200,
+    "passed": true,
+    "response_bytes": 1955
+  },
+  {
+    "label": "export-unauthorized",
+    "method": "GET",
+    "path": "/api/runs/e157b86f-34aa-4000-b377-876dcb044dfb/export?format=json&kind=http",
+    "status": 401,
+    "expected": 401,
+    "passed": true,
+    "response_bytes": 40
+  },
+  {
+    "label": "storage-status",
+    "method": "GET",
+    "path": "/api/storage/status",
+    "status": 200,
+    "expected": 200,
+    "passed": true,
+    "response_bytes": 2288
+  },
+  {
+    "label": "delete-paused-blocked",
+    "method": "DELETE",
+    "path": "/api/runs/c5db7df2-1347-418f-ba35-3d86abbda5f2",
+    "status": 409,
+    "expected": 409,
+    "passed": true,
+    "response_bytes": 46
+  },
+  {
+    "label": "delete-terminal-spare",
+    "method": "DELETE",
+    "path": "/api/runs/66df6212-2718-4892-9f20-435637294ceb",
+    "status": 200,
+    "expected": 200,
+    "passed": true,
+    "response_bytes": 65
+  },
+  {
+    "label": "deleted-run-absent",
+    "method": "GET",
+    "path": "/api/runs/66df6212-2718-4892-9f20-435637294ceb",
+    "status": 404,
+    "expected": 404,
+    "passed": true,
+    "response_bytes": 26
+  },
+  {
+    "label": "delete-terminal-again",
+    "method": "DELETE",
+    "path": "/api/runs/66df6212-2718-4892-9f20-435637294ceb",
+    "status": 404,
+    "expected": 404,
+    "passed": true,
+    "response_bytes": 26
+  },
+  {
+    "label": "storage-status-after-delete",
+    "method": "GET",
+    "path": "/api/storage/status",
+    "status": 200,
+    "expected": 200,
+    "passed": true,
+    "response_bytes": 2288
+  },
+  {
+    "label": "worker-pool-final",
+    "method": "GET",
+    "path": "/api/worker-pool",
+    "status": 200,
+    "expected": 200,
+    "passed": true,
+    "response_bytes": 164
+  }
+]

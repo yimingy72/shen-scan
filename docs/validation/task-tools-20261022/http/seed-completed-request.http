@@ -1,0 +1,9 @@
+POST http://127.0.0.1:19890/api/runs HTTP/1.1
+Host: 127.0.0.1:19890
+Accept-Encoding: identity
+Connection: close
+Authorization: Bearer LOCAL_TEST_ADMIN_TOKEN
+Content-Type: application/json
+Content-Length: 272
+
+{"name":"自建验证-未利用-completed","targets":["192.0.2.10","192.0.2.11","ui-fixture.example","http://second-fixture.example:8080/path"],"modes":["port","http"],"poc_enabled":false,"web_scan_options":{"passive":true,"active":false,"js_dom":true,"screenshot":false}}

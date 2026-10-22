@@ -1,0 +1,3 @@
+
+# Preserve HTTP header separators and response bytes in validation evidence.
+docs/validation/task-tools-20261022/http/*.http -text whitespace=-blank-at-eof,cr-at-eol

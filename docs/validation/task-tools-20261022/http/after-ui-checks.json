@@ -1,0 +1,83 @@
+[
+  {
+    "label": "after-ui-original-run",
+    "method": "GET",
+    "path": "/api/runs/e157b86f-34aa-4000-b377-876dcb044dfb",
+    "status": 200,
+    "expected": 200,
+    "passed": true,
+    "response_bytes": 699
+  },
+  {
+    "label": "after-ui-browser-copied-run",
+    "method": "GET",
+    "path": "/api/runs/e46c5827-3c01-450b-b771-ae47db0fe709",
+    "status": 200,
+    "expected": 200,
+    "passed": true,
+    "response_bytes": 705
+  },
+  {
+    "label": "after-ui-deleted-run",
+    "method": "GET",
+    "path": "/api/runs/045c1054-d4fc-4e54-8b25-ff1f94bf1fba",
+    "status": 404,
+    "expected": 404,
+    "passed": true,
+    "response_bytes": 26
+  },
+  {
+    "label": "after-ui-run-list",
+    "method": "GET",
+    "path": "/api/runs?summary=true",
+    "status": 200,
+    "expected": 200,
+    "passed": true,
+    "response_bytes": 2562
+  },
+  {
+    "label": "copy-api-reproduction",
+    "method": "POST",
+    "path": "/api/runs",
+    "status": 201,
+    "expected": 201,
+    "passed": true,
+    "response_bytes": 725
+  },
+  {
+    "label": "copy-api-reproduction-get",
+    "method": "GET",
+    "path": "/api/runs/7065eee6-4495-45a7-8124-3ccee13616bc",
+    "status": 200,
+    "expected": 200,
+    "passed": true,
+    "response_bytes": 725
+  },
+  {
+    "label": "after-ui-worker-pool",
+    "method": "GET",
+    "path": "/api/worker-pool",
+    "status": 200,
+    "expected": 200,
+    "passed": true,
+    "response_bytes": 164
+  },
+  {
+    "label": "after-ui-workers",
+    "method": "GET",
+    "path": "/api/workers",
+    "status": 200,
+    "expected": 200,
+    "passed": true,
+    "response_bytes": 13
+  },
+  {
+    "label": "after-ui-targets-csv",
+    "method": "GET",
+    "path": "/api/runs/e157b86f-34aa-4000-b377-876dcb044dfb/export?format=csv&kind=targets",
+    "status": 200,
+    "expected": 200,
+    "passed": true,
+    "response_bytes": 5906
+  }
+]

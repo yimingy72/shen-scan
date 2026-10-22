@@ -1,0 +1,9 @@
+POST http://127.0.0.1:19890/api/runs HTTP/1.1
+Host: 127.0.0.1:19890
+Accept-Encoding: identity
+Connection: close
+Authorization: Bearer LOCAL_TEST_ADMIN_TOKEN
+Content-Type: application/json
+Content-Length: 206
+
+{"name":"自建验证-未利用-http-delete-only","targets":["198.51.100.91"],"modes":["port","http"],"poc_enabled":false,"web_scan_options":{"passive":true,"active":false,"js_dom":true,"screenshot":false}}
